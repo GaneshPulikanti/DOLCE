@@ -37,42 +37,42 @@ class YTMusicRepository {
   /// Returns proper square album art and full song metadata.
   Future<List<YoutubeTrack>> searchSongs(String query) async {
     try {
-      if (kIsWeb) {
-        final searchData = await _ytMusic.constructRequest(
-          "search",
-          body: {
-            "query": query,
-            "params": "Eg-KAQwIARAAGAAgACgAMABqChAEEAMQCRAFEAo%3D"
-          },
-        );
-        final results = traverseList(searchData, ["musicResponsiveListItemRenderer"]);
-        final tracks = <YoutubeTrack>[];
-        for (final r in results) {
-          try {
-            final song = SongParser.parseSearchResult(r);
-            final extractedId = _extractVideoIdFromRenderer(r);
-            final finalId = (extractedId != null && extractedId.isNotEmpty) ? extractedId : song.videoId;
-            
-            tracks.add(YoutubeTrack(
-              id: finalId,
-              title: song.name,
-              artistName: song.artist?.name ?? 'Unknown Artist',
-              artistId: song.artist?.artistId,
-              albumName: song.album?.name,
-              albumId: song.album?.albumId,
-              artworkUrl: _pickBestThumbnail(song.thumbnails),
-              duration: song.duration != null ? Duration(seconds: song.duration!) : null,
-              isMusicVideo: _isThumbnailWidescreen(song.thumbnails),
-            ));
-          } catch (e) {
-            print('⚠️ [YTMusic] Error parsing search result row: $e');
-          }
-        }
-        return tracks;
-      } else {
-        final results = await _ytMusic.searchSongs(query);
+      final results = await _ytMusic.searchSongs(query);
+      if (results.isNotEmpty) {
         return results.map<YoutubeTrack>(_mapSong).toList();
       }
+
+      final searchData = await _ytMusic.constructRequest(
+        "search",
+        body: {
+          "query": query,
+          "params": "Eg-KAQwIARAAGAAgACgAMABqChAEEAMQCRAFEAo="
+        },
+      );
+      final resultsList = traverseList(searchData, ["musicResponsiveListItemRenderer"]);
+      final tracks = <YoutubeTrack>[];
+      for (final r in resultsList) {
+        try {
+          final song = SongParser.parseSearchResult(r);
+          final extractedId = _extractVideoIdFromRenderer(r);
+          final finalId = (extractedId != null && extractedId.isNotEmpty) ? extractedId : song.videoId;
+          
+          tracks.add(YoutubeTrack(
+            id: finalId,
+            title: song.name,
+            artistName: song.artist?.name ?? 'Unknown Artist',
+            artistId: song.artist?.artistId,
+            albumName: song.album?.name,
+            albumId: song.album?.albumId,
+            artworkUrl: _pickBestThumbnail(song.thumbnails),
+            duration: song.duration != null ? Duration(seconds: song.duration!) : null,
+            isMusicVideo: _isThumbnailWidescreen(song.thumbnails),
+          ));
+        } catch (e) {
+          print('⚠️ [YTMusic] Error parsing search result row: $e');
+        }
+      }
+      return tracks;
     } catch (e) {
       print('⚠️ [YTMusic] searchSongs failed: $e');
       return [];
