@@ -71,7 +71,7 @@
       window.fetch = function (resource, init) {
         let url = typeof resource === 'string' ? resource : resource.url;
         if (needsProxy(url)) {
-          const proxiedUrl = proxyPrefix + url;
+          const proxiedUrl = proxyPrefix + encodeURIComponent(url);
           console.log(`🌐 [CORS Interceptor] Fetch: ${url.substring(0, 80)} -> proxied`);
           if (typeof resource === 'string') {
             resource = proxiedUrl;
@@ -86,7 +86,7 @@
       const originalOpen = window.XMLHttpRequest.prototype.open;
       window.XMLHttpRequest.prototype.open = function (method, url, ...args) {
         if (typeof url === 'string' && needsProxy(url)) {
-          const proxiedUrl = proxyPrefix + url;
+          const proxiedUrl = proxyPrefix + encodeURIComponent(url);
           console.log(`🌐 [CORS Interceptor] XHR: ${url.substring(0, 80)} -> proxied`);
           url = proxiedUrl;
         }
