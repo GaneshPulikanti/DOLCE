@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A premium hybrid music/video streaming app">
+  <meta name="google-signin-client_id"
+    content="344053054512-1m829u31qt9a40kc5h6m1uc2ul4hjqbs.apps.googleusercontent.com" />
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="DOLCE">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png" />
+
+  <title>DOLCE</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="referrer" content="no-referrer">
+</head>
+
+<body>
+  <!-- Intercept outgoing InnerTube API and video stream requests to YouTube/YouTube Music to bypass CORS on Web -->
+  <script>
+    (function () {
+      const proxyPrefix = 'https://proxy.corsfix.com/?';
+
+      // Domains that need CORS proxying in the browser
+      function needsProxy(url) {
+        if (!url || url.startsWith(proxyPrefix)) return false;
+        try {
+          const parsed = new URL(url);
+          const host = parsed.hostname;
+          const path = parsed.pathname;
+
+          // ONLY proxy YouTube Music InnerTube API requests (JSON metadata endpoints).
+          // NEVER proxy standard YouTube pages, IFrame player scripts, or media streams,
+          // as they require direct cookies/origin validation and will fail through a public proxy.
+          if (host.includes('youtube.com') && path.includes('/youtubei/')) {
+            return true;
+          }
+
+          return false;
+        } catch (e) {
+          return false;
+        }
+      }
+
+      console.log("🚀 [CORS Interceptor] Initialized. Watching youtube.com, googlevideo.com requests...");
+
+      // 1. Intercept fetch calls
+      const originalFetch = window.fetch;
+      window.fetch = function (resource, init) {
+        let url = typeof resource === 'string' ? resource : resource.url;
+        if (needsProxy(url)) {
+          const proxiedUrl = proxyPrefix + url;
+          console.log(`🌐 [CORS Interceptor] Fetch: ${url.substring(0, 80)} -> proxied`);
+          if (typeof resource === 'string') {
+            resource = proxiedUrl;
+          } else {
+            resource = new Request(proxiedUrl, init || resource);
+          }
+        }
+        return originalFetch.call(this, resource, init);
+      };
+
+      // 2. Intercept XMLHttpRequest calls (used by Dart http client on web)
+      const originalOpen = window.XMLHttpRequest.prototype.open;
+      window.XMLHttpRequest.prototype.open = function (method, url, ...args) {
+        if (typeof url === 'string' && needsProxy(url)) {
+          const proxiedUrl = proxyPrefix + url;
+          console.log(`🌐 [CORS Interceptor] XHR: ${url.substring(0, 80)} -> proxied`);
+          url = proxiedUrl;
+        }
+        return originalOpen.call(this, method, url, ...args);
+      };
+    })();
+  </script>
+
+  <!-- Hidden YouTube IFrame Player for Web Platform -->
+  <div id="yt-player" style="display: none; position: absolute; width: 0; height: 0; pointer-events: none;"></div>
+  <script>
+    // 1. Load the IFrame Player API code asynchronously.
+    var tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    var firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+    var ytPlayer;
+    var ytPlayerReady = false;
+    var currentTrackId = null;
+    var ytUpdateTimer = null;
+
+    // 2. This function creates an <iframe> (and YouTube player) after the API code downloads.
+    function onYouTubeIframeAPIReady() {
+      ytPlayer = new YT.Player('yt-player', {
+        height: '0',
+        width: '0',
+        videoId: '',
+        playerVars: {
+          'playsinline': 1,
+          'controls': 0,
+          'disablekb': 1,
+          'fs': 0,
+          'rel': 0,
+          'modestbranding': 1
+        },
+        events: {
+          'onReady': onPlayerReady,
+          'onStateChange': onPlayerStateChange,
+          'onError': onPlayerError
+        }
+      });
+    }
+
+    function onPlayerReady(event) {
+      ytPlayerReady = true;
+      console.log("🛸 [YT Web Player] Loaded and Ready.");
+    }
+
+    function startPositionUpdates() {
+      stopPositionUpdates();
+      ytUpdateTimer = setInterval(function () {
+        if (ytPlayerReady && ytPlayer && ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) {
+          var position = ytPlayer.getCurrentTime() || 0.0;
+          var duration = ytPlayer.getDuration() || 0.0;
+
+          // Dispatch custom event to Dart
+          window.dispatchEvent(new CustomEvent('yt-player-progress', {
+            detail: {
+              position: position,
+              duration: duration
+            }
+          }));
+        }
+      }, 500);
+    }
+
+    function stopPositionUpdates() {
+      if (ytUpdateTimer) {
+        clearInterval(ytUpdateTimer);
+        ytUpdateTimer = null;
+      }
+    }
+
+    function onPlayerStateChange(event) {
+      var stateMap = {};
+      stateMap[YT.PlayerState.UNSTARTED] = 'idle';
+      stateMap[YT.PlayerState.ENDED] = 'completed';
+      stateMap[YT.PlayerState.PLAYING] = 'playing';
+      stateMap[YT.PlayerState.PAUSED] = 'paused';
+      stateMap[YT.PlayerState.BUFFERING] = 'buffering';
+      stateMap[YT.PlayerState.CUED] = 'idle';
+
+      var stateStr = stateMap[event.data] || 'idle';
+      console.log("🛸 [YT Web Player] State Change: " + stateStr);
+
+      if (event.data === YT.PlayerState.PLAYING) {
+        startPositionUpdates();
+      } else {
+        stopPositionUpdates();
+      }
+
+      // Dispatch custom event to Dart
+      window.dispatchEvent(new CustomEvent('yt-player-state', {
+        detail: {
+          state: stateStr,
+          position: ytPlayer.getCurrentTime() || 0.0,
+          duration: ytPlayer.getDuration() || 0.0
+        }
+      }));
+    }
+
+    function onPlayerError(event) {
+      console.error("🛸 [YT Web Player] Error occurred: " + event.data);
+      window.dispatchEvent(new CustomEvent('yt-player-error', {
+        detail: {
+          error: "YouTube IFrame Player error: " + event.data
+        }
+      }));
+    }
+
+    // 3. Expose global controls for Dart
+    window.playYT = function (videoId, startSeconds) {
+      console.log("🛸 [YT Web Player] Command playYT: " + videoId + " at " + startSeconds + "s");
+      currentTrackId = videoId;
+      if (ytPlayerReady && ytPlayer) {
+        ytPlayer.loadVideoById({
+          videoId: videoId,
+          startSeconds: startSeconds || 0
+        });
+      } else {
+        // Fallback if player API not ready yet, retry in 1s
+        setTimeout(function () {
+          window.playYT(videoId, startSeconds);
+        }, 1000);
+      }
+    };
+
+    window.pauseYT = function () {
+      console.log("🛸 [YT Web Player] Command pauseYT");
+      if (ytPlayerReady && ytPlayer) {
+        ytPlayer.pauseVideo();
+      }
+    };
+
+    window.resumeYT = function () {
+      console.log("🛸 [YT Web Player] Command resumeYT");
+      if (ytPlayerReady && ytPlayer) {
+        ytPlayer.playVideo();
+      }
+    };
+
+    window.seekYT = function (seconds) {
+      console.log("🛸 [YT Web Player] Command seekYT: " + seconds + "s");
+      if (ytPlayerReady && ytPlayer) {
+        ytPlayer.seekTo(seconds, true);
+      }
+    };
+
+    window.stopYT = function () {
+      console.log("🛸 [YT Web Player] Command stopYT");
+      if (ytPlayerReady && ytPlayer) {
+        ytPlayer.stopVideo();
+        stopPositionUpdates();
+      }
+    };
+  </script>
+
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+
+</html>
