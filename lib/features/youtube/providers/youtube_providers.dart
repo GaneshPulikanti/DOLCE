@@ -62,7 +62,9 @@ final ytMusicRepositoryProvider = FutureProvider<YTMusicRepository>((ref) async 
   final ytMusic = ref.watch(ytMusicProvider);
   // Standard Google OAuth tokens are rejected with a 401 - Invalid Credentials error on raw InnerTube browse/search endpoints.
   // We run YTMusic in stable anonymous mode which guarantees 100% success rate without 401 exceptions.
-  (ytMusic as dynamic).setAuthorizationToken(null);
+  try {
+    (ytMusic as dynamic).setAuthorizationToken(null);
+  } catch (_) {}
   print('🟢 [YTMusic] Session running in stable anonymous metadata mode');
 
   try {
@@ -271,7 +273,9 @@ final authenticatedYtMusicRepositoryProvider = FutureProvider<YTMusicRepository?
       'HL': 'en',
     };
     ytMusic.hasInitialized = true;
-    (ytMusic as dynamic).setAuthorizationToken(token);
+    try {
+      (ytMusic as dynamic).setAuthorizationToken(token);
+    } catch (_) {}
 
     print('🟢 [AuthYTMusic] Authenticated YTMusic repository initialized successfully');
     
@@ -951,7 +955,9 @@ Future<void> _runClientTest(String clientName, String clientVersion, String clie
     'HL': 'en',
   };
   testYtMusic.hasInitialized = true;
-  (testYtMusic as dynamic).setAuthorizationToken(token);
+  try {
+    (testYtMusic as dynamic).setAuthorizationToken(token);
+  } catch (_) {}
 
   final testRepo = YTMusicRepository(testYtMusic);
 
