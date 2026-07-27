@@ -51,11 +51,11 @@
           const host = parsed.hostname;
           const path = parsed.pathname;
 
-          // ONLY proxy YouTube Music InnerTube API requests (JSON metadata endpoints).
-          // NEVER proxy standard YouTube pages, IFrame player scripts, or media streams,
-          // as they require direct cookies/origin validation and will fail through a public proxy.
-          if (host.includes('youtube.com') && path.includes('/youtubei/')) {
-            return true;
+          // Proxy YouTube Music API & homepage requests to bypass browser CORS
+          if (host.includes('youtube.com')) {
+            if (path.includes('/youtubei/') || host.includes('music.youtube.com')) {
+              return true;
+            }
           }
 
           return false;
