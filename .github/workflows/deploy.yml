@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies & Build Flutter Web
         run: |
           flutter pub get
-          flutter build web --release
+          flutter build web --release --no-tree-shake-icons
           cp vercel.json build/web/vercel.json
 
       - name: Deploy build/web to Vercel
