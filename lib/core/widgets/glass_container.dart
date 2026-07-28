@@ -79,6 +79,7 @@ class GlassContainer extends StatelessWidget {
     final border = borderColor ?? AppColorSchemes.glassBorder;
     final isCircle = shape == BoxShape.circle;
     final radius = BorderRadius.circular(isCircle ? 999 : borderRadius);
+    final effectiveBlur = blurSigma.clamp(0.0, 10.0);
 
     return Container(
       margin: margin,
@@ -87,7 +88,7 @@ class GlassContainer extends StatelessWidget {
       child: ClipRRect(
         borderRadius: radius,
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+          filter: ImageFilter.blur(sigmaX: effectiveBlur, sigmaY: effectiveBlur),
           child: Container(
             padding: padding,
             decoration: BoxDecoration(
