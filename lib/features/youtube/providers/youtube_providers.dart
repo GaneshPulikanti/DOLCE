@@ -50,14 +50,13 @@ final ytMusicRepositoryProvider = FutureProvider<YTMusicRepository>((ref) async 
   ytMusic.config = {
     'INNERTUBE_API_KEY': 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30',
     'INNERTUBE_API_VERSION': 'v1',
-    'INNERTUBE_CLIENT_NAME': 'ANDROID_MUSIC',
-    'INNERTUBE_CLIENT_VERSION': '8.05.50',
-    'INNERTUBE_CONTEXT_CLIENT_NAME': '60',
+    'INNERTUBE_CLIENT_NAME': 'WEB_REMIX',
+    'INNERTUBE_CLIENT_VERSION': '1.20260526.04.00',
     'GL': 'IN',
     'HL': 'en',
   };
   ytMusic.hasInitialized = true;
-  print('🟢 [YTMusic] Session initialized with stable ANDROID_MUSIC client config');
+  print('🟢 [YTMusic] Session initialized with WEB_REMIX client config');
   return YTMusicRepository(ytMusic);
 });
 
