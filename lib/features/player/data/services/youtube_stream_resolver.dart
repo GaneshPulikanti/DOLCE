@@ -47,35 +47,32 @@ class YoutubeStreamResolver {
   Future<AudioOnlyStreamInfo?> resolveAudioStream(String videoId) async {
     // On web, prefer clients that don't require cipher decryption and work via CORS proxy.
     // androidSdkless provides direct URLs (no svpuc server-side auth issues).
-    // androidVr also works well for web.
-    final List<List<YoutubeApiClient>> clientStrategies = kIsWeb
+    final List<Map<String, dynamic>> clientStrategies = kIsWeb
         ? [
-            [YoutubeApiClient.androidSdkless],
-            [YoutubeApiClient.androidVr],
-            [YoutubeApiClient.ios],
-            [YoutubeApiClient.mweb],
+            {'clients': [YoutubeApiClient.androidVr], 'requireWatchPage': false},
+            {'clients': [YoutubeApiClient.androidSdkless], 'requireWatchPage': false},
+            {'clients': [YoutubeApiClient.tv], 'requireWatchPage': false},
+            {'clients': [YoutubeApiClient.ios], 'requireWatchPage': true},
+            {'clients': [YoutubeApiClient.mweb], 'requireWatchPage': true},
           ]
         : [
-            [YoutubeApiClient.androidVr],
-            [YoutubeApiClient.android],
-            [YoutubeApiClient.tv],
-            [YoutubeApiClient.ios],
-            [YoutubeApiClient.mweb],
-            [YoutubeApiClient.mediaConnect],
+            {'clients': [YoutubeApiClient.androidVr], 'requireWatchPage': false},
+            {'clients': [YoutubeApiClient.android], 'requireWatchPage': false},
+            {'clients': [YoutubeApiClient.tv], 'requireWatchPage': false},
+            {'clients': [YoutubeApiClient.ios], 'requireWatchPage': true},
+            {'clients': [YoutubeApiClient.mweb], 'requireWatchPage': true},
           ];
 
-    for (final clients in clientStrategies) {
+    for (final strategy in clientStrategies) {
+      final clients = strategy['clients'] as List<YoutubeApiClient>;
+      final reqWatch = strategy['requireWatchPage'] as bool;
       try {
         final clientName = clients.toString();
-        print('🟡 [StreamResolver] Trying client: $clientName for $videoId...');
+        print('🟡 [StreamResolver] Trying client strategy: $clientName (requireWatchPage=$reqWatch) for $videoId...');
         final StreamManifest manifest = await yt.videos.streamsClient.getManifest(
           videoId,
           ytClients: clients,
-          // On web: skip the watch page fetch entirely. The watch page is fetched
-          // through our CORS proxy which modifies the HTML and breaks the JS parser,
-          // causing "Unexpected null value". Android clients use the InnerTube API
-          // directly and don't need the watch page for stream URL resolution.
-          requireWatchPage: !kIsWeb,
+          requireWatchPage: reqWatch,
         );
 
         final audioStreams = manifest.audioOnly;
@@ -84,7 +81,7 @@ class YoutubeStreamResolver {
           continue;
         }
 
-        // Prefer MP4/M4A for native player compatibility
+        // Prefer MP4/M4A for native player & web compatibility
         final mp4Streams = audioStreams.where(
           (s) => s.container.name == 'mp4' || s.container.name == 'm4a',
         );
@@ -97,8 +94,8 @@ class YoutubeStreamResolver {
         final clientInUrl = Uri.parse(urlStr).queryParameters['c'] ?? '?';
         print('🟢 [StreamResolver] Resolved via $clientName! Bitrate: ${selectedStream.bitrate} | URL client: c=$clientInUrl');
         return selectedStream;
-      } catch (e, s) {
-        print('⚠️ [StreamResolver] Client ${clients} failed for $videoId: $e\n$s');
+      } catch (e) {
+        print('⚠️ [StreamResolver] Strategy $clients (watchPage=$reqWatch) failed for $videoId: $e');
       }
     }
 
@@ -140,15 +137,8 @@ class YoutubeStreamResolver {
   /// On Native: requests local=true so Invidious returns its own proxied URLs for IP robustness.
   Future<String?> _resolveInvidiousStream(String videoId) async {
     print('🟡 [StreamResolver] Trying Invidious API for $videoId...');
-    final staticInstances = [
-      'https://inv.thepixora.com',
-      'https://invidious.slipfox.xyz',
-      'https://invidious.flokinet.to',
-      'https://invidious.projectsegfault.com',
-      'https://yt.cdaut.de',
-      'https://invidious.nerdvpn.de',
-    ];
-
+    
+    final client = http.Client();
     final localParam = kIsWeb ? 'false' : 'true';
 
     int parseBitrate(dynamic value) {
@@ -169,54 +159,28 @@ class YoutubeStreamResolver {
       return audio.first['url'] as String?;
     }
 
-    final client = http.Client();
-
-    // Try all static instances — request with local parameter based on platform
-    for (final instance in staticInstances) {
-      try {
-        final uri = Uri.parse('$instance/api/v1/videos/$videoId?local=$localParam');
-        print('🟡 [StreamResolver] Trying Invidious: $instance (local=$localParam)');
-        final res = await client.get(uri).timeout(const Duration(seconds: 8));
-        if (res.statusCode == 200) {
-          final data = json.decode(res.body) as Map<String, dynamic>;
-          final rawUrl = tryExtractAudioUrl(data, instance);
-          if (rawUrl != null) {
-            final normalizedUrl = _normalizeStreamUrl(rawUrl);
-            final c = Uri.tryParse(rawUrl)?.queryParameters['c'] ?? 'proxy';
-            print('🟢 [StreamResolver] Invidious resolved! instance=$instance c=$c url=${rawUrl.substring(0, 60)}...');
-            client.close();
-            return normalizedUrl;
-          }
-        } else {
-          print('⚠️ [StreamResolver] Invidious $instance returned HTTP ${res.statusCode}');
-        }
-      } catch (e) {
-        print('⚠️ [StreamResolver] Invidious $instance failed: $e');
-      }
-    }
-
-    // Dynamic directory fallback
+    // 1. First try dynamic directory of currently healthy Invidious instances
     try {
-      print('🟡 [StreamResolver] Querying dynamic Invidious directory...');
+      print('🟡 [StreamResolver] Querying dynamic Invidious directory for healthy nodes...');
       final listRes = await client
           .get(Uri.parse('https://api.invidious.io/instances.json?sort_by=health'))
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 4));
       if (listRes.statusCode == 200) {
         final listData = json.decode(listRes.body) as List<dynamic>;
         final freshInstances = listData
             .map((i) => i[1])
-            .where((i) => i['type'] == 'https' && i['api'] == true && i['cors'] == true)
+            .where((i) => i['type'] == 'https' && i['api'] == true)
             .map((i) => i['uri'] as String)
             .toList();
 
-        for (final instance in freshInstances.take(6)) {
+        for (final instance in freshInstances.take(8)) {
           try {
             final uri = Uri.parse('$instance/api/v1/videos/$videoId?local=$localParam');
-            final res = await client.get(uri).timeout(const Duration(seconds: 6));
+            final res = await client.get(uri).timeout(const Duration(seconds: 4));
             if (res.statusCode == 200) {
               final data = json.decode(res.body) as Map<String, dynamic>;
               final rawUrl = tryExtractAudioUrl(data, instance);
-              if (rawUrl != null) {
+              if (rawUrl != null && rawUrl.isNotEmpty) {
                 final normalizedUrl = _normalizeStreamUrl(rawUrl);
                 print('🟢 [StreamResolver] Dynamic Invidious resolved! instance=$instance');
                 client.close();
@@ -228,6 +192,36 @@ class YoutubeStreamResolver {
       }
     } catch (e) {
       print('⚠️ [StreamResolver] Dynamic Invidious directory failed: $e');
+    }
+
+    // 2. Static backup instances
+    final staticInstances = [
+      'https://yewtu.be',
+      'https://inv.nadeko.net',
+      'https://invidious.drgns.space',
+      'https://invidious.nerdvpn.de',
+      'https://invidious.privacydev.net',
+      'https://inv.tux.stream',
+    ];
+
+    for (final instance in staticInstances) {
+      try {
+        final uri = Uri.parse('$instance/api/v1/videos/$videoId?local=$localParam');
+        print('🟡 [StreamResolver] Trying static Invidious: $instance (local=$localParam)');
+        final res = await client.get(uri).timeout(const Duration(seconds: 5));
+        if (res.statusCode == 200) {
+          final data = json.decode(res.body) as Map<String, dynamic>;
+          final rawUrl = tryExtractAudioUrl(data, instance);
+          if (rawUrl != null && rawUrl.isNotEmpty) {
+            final normalizedUrl = _normalizeStreamUrl(rawUrl);
+            print('🟢 [StreamResolver] Static Invidious resolved! instance=$instance');
+            client.close();
+            return normalizedUrl;
+          }
+        }
+      } catch (e) {
+        print('⚠️ [StreamResolver] Invidious $instance failed: $e');
+      }
     }
 
     client.close();

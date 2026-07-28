@@ -1,5 +1,16 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/yt/:path*",
+      "destination": "https://www.youtube.com/:path*"
+    },
+    {
+      "source": "/api/ytmusic/:path*",
+      "destination": "https://music.youtube.com/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }

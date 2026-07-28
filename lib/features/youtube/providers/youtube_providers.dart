@@ -440,10 +440,12 @@ Future<List<YoutubeTrack>> getCachedRecommendations(String key, Future<List<Yout
 
 final dynamicHomeSectionsProvider = FutureProvider<List<YTMusicHomeSection>>((ref) async {
   ref.watch(googleUserProvider);
-  final repoAsync = ref.watch(ytMusicRepositoryProvider);
-  final authRepoAsync = ref.watch(authenticatedYtMusicRepositoryProvider);
-  final authRepo = authRepoAsync.value;
-  final repo = authRepo ?? repoAsync.value;
+  YTMusicRepository? repoCandidate;
+  try {
+    repoCandidate = await ref.watch(authenticatedYtMusicRepositoryProvider.future);
+  } catch (_) {}
+  repoCandidate ??= await ref.watch(ytMusicRepositoryProvider.future);
+  final repo = repoCandidate;
   final mood = ref.watch(selectedMoodProvider);
   final recentPlayed = ref.watch(recentlyPlayedProvider);
   final library = ref.read(syncedLibraryProvider);

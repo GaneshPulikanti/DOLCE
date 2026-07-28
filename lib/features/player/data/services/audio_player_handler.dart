@@ -56,6 +56,7 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
 
   // Web specific state properties to match standard just_audio values
   bool _webPlaying = false;
+  bool _usingWebIframe = false;
   AudioProcessingState _webProcessingState = AudioProcessingState.idle;
   Duration _webPosition = Duration.zero;
   Duration _webDuration = Duration.zero;
@@ -71,9 +72,9 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
   YoutubeTrack? lastRestoredTrack;
   Duration lastRestoredPosition = Duration.zero;
 
-  Stream<Duration> get positionStream => (kIsWeb && !_playingOffline) ? _webPositionController.stream : _player.positionStream;
-  Stream<Duration?> get durationStream => (kIsWeb && !_playingOffline) ? _webDurationController.stream : _player.durationStream;
-  Stream<Duration> get bufferedPositionStream => (kIsWeb && !_playingOffline) ? _webBufferedPositionController.stream : _player.bufferedPositionStream;
+  Stream<Duration> get positionStream => (kIsWeb && _usingWebIframe && !_playingOffline) ? _webPositionController.stream : _player.positionStream;
+  Stream<Duration?> get durationStream => (kIsWeb && _usingWebIframe && !_playingOffline) ? _webDurationController.stream : _player.durationStream;
+  Stream<Duration> get bufferedPositionStream => (kIsWeb && _usingWebIframe && !_playingOffline) ? _webBufferedPositionController.stream : _player.bufferedPositionStream;
 
   AudioPlayerHandler() {
     if (kIsWeb) {
@@ -86,8 +87,20 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
         onProgress: (positionSec, durationSec) {
           _onWebPlayerProgress(positionSec, durationSec);
         },
-        onError: (errorStr) {
+        onError: (errorStr) async {
           print('🔴 [AudioPlayerHandler] Web YouTube Player Error: $errorStr');
+          if (kIsWeb && _usingWebIframe && currentYoutubeTrack != null) {
+            print('🔄 [AudioPlayerHandler] YouTube IFrame failed ($errorStr). Falling back to direct stream player...');
+            _usingWebIframe = false;
+            final streamUrl = await _streamResolver.resolveStreamUrl(currentYoutubeTrack!.id);
+            if (streamUrl != null) {
+              await _player.setWebCrossOrigin(null);
+              await _player.setAudioSource(AudioSource.uri(Uri.parse(streamUrl)));
+              await _player.play();
+              onStatusChanged?.call(isLoading: false, loadingTrackId: null, error: null);
+              return;
+            }
+          }
           onStatusChanged?.call(
             isLoading: false,
             loadingTrackId: null,
@@ -176,15 +189,16 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
   }
 
   void _updatePlaybackState() {
-    final playing = (kIsWeb && !_playingOffline) ? _webPlaying : _player.playing;
-    final state = (kIsWeb && !_playingOffline) ? _webProcessingState : (const {
+    final useIframe = kIsWeb && _usingWebIframe && !_playingOffline;
+    final playing = useIframe ? _webPlaying : _player.playing;
+    final state = useIframe ? _webProcessingState : (const {
           ProcessingState.idle: AudioProcessingState.idle,
           ProcessingState.loading: AudioProcessingState.loading,
           ProcessingState.buffering: AudioProcessingState.buffering,
           ProcessingState.ready: AudioProcessingState.ready,
           ProcessingState.completed: AudioProcessingState.completed,
         }[_player.processingState] ?? AudioProcessingState.idle);
- 
+
     playbackState.add(playbackState.value.copyWith(
       controls: [
         MediaControl.skipToPrevious,
@@ -199,8 +213,8 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
       androidCompactActionIndices: const [0, 1, 2],
       processingState: state,
       playing: playing,
-      updatePosition: (kIsWeb && !_playingOffline) ? _webPosition : _player.position,
-      bufferedPosition: (kIsWeb && !_playingOffline) ? _webPosition : _player.bufferedPosition,
+      updatePosition: useIframe ? _webPosition : _player.position,
+      bufferedPosition: useIframe ? _webPosition : _player.bufferedPosition,
       speed: 1.0,
     ));
   }
@@ -208,6 +222,7 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
   void _startStallDetector() {
     _stallTimer?.cancel();
     _stallTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (kIsWeb && _usingWebIframe && !_playingOffline) return;
       if (_player.playing) {
         final state = _player.processingState;
         if (state == ProcessingState.buffering || state == ProcessingState.loading) {
@@ -241,7 +256,7 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
 
   void _init() {
     _player.playbackEventStream.listen((PlaybackEvent event) {
-      if (kIsWeb && !_playingOffline) return;
+      if (kIsWeb && _usingWebIframe && !_playingOffline) return;
       final playing = _player.playing;
       playbackState.add(playbackState.value.copyWith(
         controls: [
@@ -346,8 +361,8 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
       if (track.duration != null) {
         await prefs.setInt('session_track_duration_ms', track.duration!.inMilliseconds);
       }
-      // On web, use _webPosition; on native, use _player.position
-      final positionToSave = (kIsWeb && !_playingOffline) ? _webPosition : _player.position;
+      // On web, use _webPosition if using iframe; on native or direct stream, use _player.position
+      final positionToSave = (kIsWeb && _usingWebIframe && !_playingOffline) ? _webPosition : _player.position;
       await prefs.setInt('session_position_ms', positionToSave.inMilliseconds);
       print('💾 [Session] Saved: "${track.title}" at ${positionToSave.inSeconds}s');
     } catch (e) {
@@ -449,12 +464,12 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
       return;
     }
      if (currentYoutubeTrack != null && currentYoutubeTrack!.id != track.id) {
-      final elapsed = (kIsWeb && !_playingOffline) ? _webPosition : _player.position;
-      final completed = (kIsWeb && !_playingOffline)
+      final elapsed = (kIsWeb && _usingWebIframe && !_playingOffline) ? _webPosition : _player.position;
+      final completed = (kIsWeb && _usingWebIframe && !_playingOffline)
           ? _webProcessingState == AudioProcessingState.completed
           : _player.processingState == ProcessingState.completed;
       if (!completed) {
-        final total = (kIsWeb && !_playingOffline) ? _webDuration : (_player.duration ?? track.duration ?? Duration.zero);
+        final total = (kIsWeb && _usingWebIframe && !_playingOffline) ? _webDuration : (_player.duration ?? track.duration ?? Duration.zero);
         onTrackSkip?.call(currentYoutubeTrack!, elapsed, total);
       }
     }
@@ -556,24 +571,61 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
     _playingOffline = false;
 
     if (kIsWeb) {
+      // 1. Prefer direct audio stream playback on Web (bypasses YouTube embed limits & works on Vercel)
       try {
+        print('▶️ [playTrack Web] Resolving direct audio stream for: "${track.title}" (${track.id})...');
+        final streamUrl = await _streamResolver.resolveStreamUrl(track.id);
+
+        if (streamUrl != null && streamUrl.isNotEmpty) {
+          _usingWebIframe = false;
+          await _player.pause();
+          await _player.setWebCrossOrigin(null);
+
+          print('▶️ [playTrack Web] Loading stream in just_audio: $streamUrl');
+          await _player.setAudioSource(
+            AudioSource.uri(Uri.parse(streamUrl)),
+          );
+
+          if (initialPosition != null && initialPosition > Duration.zero) {
+            await _player.seek(initialPosition);
+          }
+
+          onStatusChanged?.call(
+            isLoading: false,
+            loadingTrackId: null,
+            error: null,
+          );
+
+          if (shouldPlay) {
+            await _player.play();
+          }
+          return;
+        } else {
+          print('⚠️ [playTrack Web] Stream resolution returned null. Trying YouTube IFrame player fallback...');
+        }
+      } catch (e) {
+        print('⚠️ [playTrack Web] Direct stream resolution failed: $e. Trying YouTube IFrame fallback...');
+      }
+
+      // 2. Fallback to YouTube IFrame player if stream resolution fails
+      try {
+        _usingWebIframe = true;
         _webPosition = initialPosition ?? Duration.zero;
         _webPlaying = shouldPlay;
         _webProcessingState = AudioProcessingState.loading;
         _updatePlaybackState();
 
-        print('▶️ [playTrack] Web YouTube IFrame load for: ${track.id} at ${_webPosition.inSeconds}s');
+        print('▶️ [playTrack Web] YouTube IFrame load for: ${track.id} at ${_webPosition.inSeconds}s');
         _webPlayer.play(track.id, _webPosition.inSeconds);
 
         if (!shouldPlay) {
-          // Pause immediately if shouldPlay is false (cued)
           Future.delayed(const Duration(milliseconds: 500), () {
             _webPlayer.pause();
           });
         }
         return;
       } catch (e) {
-        print('🚨 [playTrack] Web YouTube load error: $e');
+        print('🚨 [playTrack Web] Both direct stream and YouTube IFrame failed: $e');
         onStatusChanged?.call(
           isLoading: false,
           loadingTrackId: null,
@@ -734,7 +786,7 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> play() async {
-    if (kIsWeb && !_playingOffline) {
+    if (kIsWeb && _usingWebIframe && !_playingOffline) {
       _webPlayer.resume();
       _webPlaying = true;
       _updatePlaybackState();
@@ -745,7 +797,7 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> pause() async {
-    if (kIsWeb && !_playingOffline) {
+    if (kIsWeb && _usingWebIframe && !_playingOffline) {
       _webPlayer.pause();
       _webPlaying = false;
       _updatePlaybackState();
@@ -756,7 +808,7 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> seek(Duration position) async {
-    if (kIsWeb && !_playingOffline) {
+    if (kIsWeb && _usingWebIframe && !_playingOffline) {
       _webPlayer.seek(position.inSeconds);
       _webPosition = position;
       _webPositionController.add(_webPosition);
@@ -803,7 +855,7 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
     _stallTimer?.cancel();
     _sessionTimer?.cancel();
     await _saveSession();
-    if (kIsWeb && !_playingOffline) {
+    if (kIsWeb && _usingWebIframe && !_playingOffline) {
       _webPlayer.stop();
       _webPlaying = false;
       _webProcessingState = AudioProcessingState.idle;

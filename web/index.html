@@ -41,54 +41,62 @@
   <!-- Intercept outgoing InnerTube API and video stream requests to YouTube/YouTube Music to bypass CORS on Web -->
   <script>
     (function () {
-      const proxyPrefix = 'https://corsproxy.io/?';
+      const isVercel = window.location.hostname.includes('vercel.app') || (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1');
 
-      // Domains that need CORS proxying in the browser
-      function needsProxy(url) {
-        if (!url || url.startsWith(proxyPrefix)) return false;
+      function transformUrl(url) {
+        if (!url || typeof url !== 'string') return url;
+        
         try {
-          const parsed = new URL(url);
-          const host = parsed.hostname;
-          const path = parsed.pathname;
+          if (url.includes('youtube.com')) {
+            const parsed = new URL(url);
+            const host = parsed.hostname;
+            const path = parsed.pathname;
 
-          // Proxy YouTube Music API & homepage requests to bypass browser CORS
-          if (host.includes('youtube.com')) {
-            if (path.includes('/youtubei/') || host.includes('music.youtube.com')) {
-              return true;
+            if (path.includes('/youtubei/') || path.includes('/watch') || path.includes('/s/player/') || host.includes('music.youtube.com')) {
+              if (isVercel) {
+                // Route through Vercel serverless edge rewrites in vercel.json
+                if (host.includes('music.youtube.com')) {
+                  return url.replace('https://music.youtube.com', '/api/ytmusic');
+                } else {
+                  return url.replace('https://www.youtube.com', '/api/yt').replace('https://youtube.com', '/api/yt');
+                }
+              } else {
+                // On local development, if not already proxied
+                if (!url.startsWith('https://corsproxy.org/?') && !url.startsWith('https://corsproxy.io/?')) {
+                  return 'https://corsproxy.org/?' + url;
+                }
+              }
             }
           }
-
-          return false;
-        } catch (e) {
-          return false;
-        }
+        } catch (e) {}
+        return url;
       }
 
-      console.log("🚀 [CORS Interceptor] Initialized. Watching youtube.com, googlevideo.com requests...");
+      console.log("🚀 [CORS Interceptor] Initialized. Environment: " + (isVercel ? "Vercel Edge Rewrites (/api/yt)" : "Local Development Proxy"));
 
-      // 1. Intercept fetch calls
       const originalFetch = window.fetch;
       window.fetch = function (resource, init) {
-        let url = typeof resource === 'string' ? resource : resource.url;
-        if (needsProxy(url)) {
-          const proxiedUrl = proxyPrefix + url;
-          console.log(`🌐 [CORS Interceptor] Fetch: ${url.substring(0, 80)} -> proxied`);
+        let url = typeof resource === 'string' ? resource : (resource ? resource.url : '');
+        const targetUrl = transformUrl(url);
+        if (targetUrl !== url) {
+          console.log(`🌐 [CORS Interceptor] Fetch: ${url.substring(0, 70)} -> ${targetUrl.substring(0, 70)}`);
           if (typeof resource === 'string') {
-            resource = proxiedUrl;
-          } else {
-            resource = new Request(proxiedUrl, init || resource);
+            resource = targetUrl;
+          } else if (resource) {
+            resource = new Request(targetUrl, init || resource);
           }
         }
         return originalFetch.call(this, resource, init);
       };
 
-      // 2. Intercept XMLHttpRequest calls (used by Dart http client on web)
       const originalOpen = window.XMLHttpRequest.prototype.open;
       window.XMLHttpRequest.prototype.open = function (method, url, ...args) {
-        if (typeof url === 'string' && needsProxy(url)) {
-          const proxiedUrl = proxyPrefix + url;
-          console.log(`🌐 [CORS Interceptor] XHR: ${url.substring(0, 80)} -> proxied`);
-          url = proxiedUrl;
+        if (typeof url === 'string') {
+          const targetUrl = transformUrl(url);
+          if (targetUrl !== url) {
+            console.log(`🌐 [CORS Interceptor] XHR: ${url.substring(0, 70)} -> ${targetUrl.substring(0, 70)}`);
+            url = targetUrl;
+          }
         }
         return originalOpen.call(this, method, url, ...args);
       };
