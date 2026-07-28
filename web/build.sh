@@ -1,4 +1,6 @@
 #!/bin/bash
+set -e
+
 # If executed inside web directory, move to repo root
 if [ -f "../pubspec.yaml" ]; then
   cd ..
@@ -11,6 +13,9 @@ fi
 
 export PATH="$PATH:`pwd`/flutter/bin"
 
+# Configure git safe directory for Vercel container user
+git config --global --add safe.directory "*" || true
+
 # Enable web support and build release bundle
 flutter config --enable-web
-flutter build web --release
+flutter build web --release --no-tree-shake-icons
