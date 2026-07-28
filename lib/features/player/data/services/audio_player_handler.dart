@@ -599,19 +599,14 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
           );
 
           if (shouldPlay) {
-            try {
-              await _player.play();
-            } catch (playErr) {
-              print('⚠️ [playTrack Web] _player.play() failed ($playErr). Falling back to YouTube IFrame player...');
-              throw playErr;
-            }
+            await _player.play();
           }
           return;
         } else {
           print('⚠️ [playTrack Web] Stream resolution returned null. Trying YouTube IFrame player fallback...');
         }
       } catch (e) {
-        print('⚠️ [playTrack Web] Direct stream resolution/playback failed: $e. Trying YouTube IFrame fallback...');
+        print('⚠️ [playTrack Web] Direct stream resolution failed: $e. Trying YouTube IFrame fallback...');
       }
 
       // 2. Fallback to YouTube IFrame player if stream resolution fails
@@ -673,14 +668,30 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
 
       try {
         await _player.setAudioSource(
-          AudioSource.uri(playUri),
+          AudioSource.uri(
+            playUri,
+            headers: kIsWeb
+                ? null
+                : {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                    'Referer': 'https://www.youtube.com/',
+                  },
+          ),
         );
       } catch (e) {
         print('⚠️ [playTrack] Primary setAudioSource failed: $e. Attempting stream re-resolution fallback...');
         final fallbackUrl = await _streamResolver.resolveStreamUrl(track.id);
         if (fallbackUrl != null && fallbackUrl != streamUrl) {
           await _player.setAudioSource(
-            AudioSource.uri(Uri.parse(fallbackUrl)),
+            AudioSource.uri(
+              Uri.parse(fallbackUrl),
+              headers: kIsWeb
+                  ? null
+                  : {
+                      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                      'Referer': 'https://www.youtube.com/',
+                    },
+            ),
           );
         } else {
           rethrow;
