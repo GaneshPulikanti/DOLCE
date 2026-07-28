@@ -1,4 +1,5 @@
 {
+  "buildCommand": "echo 'Precompiled release bundle ready'",
   "outputDirectory": "build/web",
   "rewrites": [
     {
