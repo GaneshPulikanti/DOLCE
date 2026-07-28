@@ -599,14 +599,19 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
           );
 
           if (shouldPlay) {
-            await _player.play();
+            try {
+              await _player.play();
+            } catch (playErr) {
+              print('⚠️ [playTrack Web] _player.play() failed ($playErr). Falling back to YouTube IFrame player...');
+              throw playErr;
+            }
           }
           return;
         } else {
           print('⚠️ [playTrack Web] Stream resolution returned null. Trying YouTube IFrame player fallback...');
         }
       } catch (e) {
-        print('⚠️ [playTrack Web] Direct stream resolution failed: $e. Trying YouTube IFrame fallback...');
+        print('⚠️ [playTrack Web] Direct stream resolution/playback failed: $e. Trying YouTube IFrame fallback...');
       }
 
       // 2. Fallback to YouTube IFrame player if stream resolution fails
