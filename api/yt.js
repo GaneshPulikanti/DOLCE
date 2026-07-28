@@ -13,11 +13,18 @@ export default async function handler(req, res) {
   }
 
   try {
-    let targetPath = req.query.path || '';
-    if (!targetPath) {
-      targetPath = req.url.replace('/api/yt', '').replace(/^\/+/, '');
+    const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const queryIndex = req.url.indexOf('?');
+    const queryString = queryIndex !== -1 ? req.url.substring(queryIndex) : '';
+
+    let targetPath = '';
+    if (req.query && req.query.path) {
+      targetPath = Array.isArray(req.query.path) ? req.query.path.join('/') : req.query.path;
+    } else {
+      targetPath = urlObj.pathname.replace('/api/yt', '').replace(/^\/+/, '');
     }
-    const targetUrl = `https://www.youtube.com/${targetPath}`;
+
+    const targetUrl = `https://www.youtube.com/${targetPath}${queryString}`;
 
     const headers = {
       'Content-Type': req.headers['content-type'] || 'application/json',
