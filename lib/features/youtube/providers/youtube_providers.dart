@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../data/repositories/youtube_repository.dart';
 import '../data/repositories/ytmusic_repository.dart';
+import '../data/services/song_runtime_validator.dart';
 import '../data/models/youtube_track.dart';
 import '../data/models/youtube_playlist.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -121,8 +122,9 @@ final searchResultsProvider = FutureProvider<List<YoutubeTrack>>((ref) async {
     final tracks = await repoAsync.searchSongs(query);
     print('🔎 [searchResultsProvider] Found ${tracks.length} raw tracks from searchSongs');
     final filtered = _localMusicFilter(tracks);
-    print('🔎 [searchResultsProvider] Filtered down to ${filtered.length} tracks');
-    return filtered;
+    final validated = SongRuntimeValidator.validateAndFilterList(filtered, source: 'searchResultsProvider ("$query")');
+    print('🔎 [searchResultsProvider] Filtered & Validated ${validated.length} tracks for "$query"');
+    return validated;
   } catch (e, s) {
     print('🔴 [searchResultsProvider] Error during search: $e\n$s');
     rethrow;

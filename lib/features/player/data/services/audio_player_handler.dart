@@ -10,6 +10,7 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import '../../../youtube/data/models/youtube_track.dart';
 import 'youtube_stream_resolver.dart';
 import 'proxy_audio_source.dart';
+import '../../../youtube/data/services/song_runtime_validator.dart';
 
 /// Callback type for notifying the UI about loading/error state changes.
 typedef PlayerStatusCallback = void Function({
@@ -474,6 +475,7 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
       }
     }
     print('▶️ [playTrack] START for: "${track.title}" (${track.id}) initialPosition: $initialPosition shouldPlay: $shouldPlay');
+    SongRuntimeValidator.validateMetadata(track);
     if (currentYoutubeTrack?.id != track.id) {
       _retryCount = 0;
     }
