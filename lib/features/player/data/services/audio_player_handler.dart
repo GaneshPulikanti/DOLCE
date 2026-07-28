@@ -659,37 +659,44 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
 
       await _player.pause();
 
-      String finalPlayUrl = streamUrl;
-      final bool shouldDownload = !kIsWeb && isYouTubeUrl && isAndroidClient;
+      final playUri = Uri.parse(streamUrl);
+      print('▶️ [playTrack] Direct stream URI: $playUri');
 
-      if (shouldDownload) {
-        print('⬇️ [playTrack] Native Android/AndroidVR client detected (c=$clientType). Pre-downloading via YoutubeAudioDownloader to prevent 403 blocks...');
-        // Clean up old files first to free disk space
-        await YoutubeAudioDownloader.cleanupOldFiles();
-        finalPlayUrl = await YoutubeAudioDownloader.downloadToTemp(streamUrl, trackId: track.id);
-      } else {
-        print('📡 [playTrack] Native stream (c=$clientType) or Web. Streaming directly for instant playback!');
-      }
-
-      final playUri = shouldDownload
-          ? Uri.file(finalPlayUrl)
-          : Uri.parse(streamUrl);
-
-      print('▶️ [playTrack] Loading stream: ${shouldDownload ? "Local downloaded file" : (kIsWeb ? "Web direct" : "Native direct stream")}...');
       if (kIsWeb) {
         await _player.setWebCrossOrigin(null);
       }
-      await _player.setAudioSource(
-        AudioSource.uri(
-          playUri,
-          headers: (kIsWeb || shouldDownload)
-              ? null
-              : {
-                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                  'Referer': 'https://www.youtube.com/',
-                },
-        ),
-      );
+
+      try {
+        await _player.setAudioSource(
+          AudioSource.uri(
+            playUri,
+            headers: kIsWeb
+                ? null
+                : {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                    'Referer': 'https://www.youtube.com/',
+                  },
+          ),
+        );
+      } catch (e) {
+        print('⚠️ [playTrack] Primary setAudioSource failed: $e. Attempting stream re-resolution fallback...');
+        final fallbackUrl = await _streamResolver.resolveStreamUrl(track.id);
+        if (fallbackUrl != null && fallbackUrl != streamUrl) {
+          await _player.setAudioSource(
+            AudioSource.uri(
+              Uri.parse(fallbackUrl),
+              headers: kIsWeb
+                  ? null
+                  : {
+                      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                      'Referer': 'https://www.youtube.com/',
+                    },
+            ),
+          );
+        } else {
+          rethrow;
+        }
+      }
 
       if (initialPosition != null && initialPosition > Duration.zero) {
         print('🔄 [playTrack] Seeking to interruption position: $initialPosition');
