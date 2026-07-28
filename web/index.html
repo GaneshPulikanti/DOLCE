@@ -60,12 +60,8 @@
                 } else {
                   return url.replace('https://www.youtube.com', '/api/yt').replace('https://youtube.com', '/api/yt');
                 }
-              } else {
-                // On local development, if not already proxied
-                if (!url.startsWith('https://corsproxy.org/?') && !url.startsWith('https://corsproxy.io/?')) {
-                  return 'https://corsproxy.org/?' + url;
-                }
               }
+              // On local development, direct requests to YouTube/YouTube Music work natively without broken proxy wrapper
             }
           }
         } catch (e) {}

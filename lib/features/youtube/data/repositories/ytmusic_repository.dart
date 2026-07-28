@@ -41,7 +41,11 @@ class YTMusicRepository {
       if (results.isNotEmpty) {
         return results.map<YoutubeTrack>(_mapSong).toList();
       }
+    } catch (e) {
+      print('⚠️ [YTMusic] Primary searchSongs failed: $e');
+    }
 
+    try {
       final searchData = await _ytMusic.constructRequest(
         "search",
         body: {
@@ -49,34 +53,44 @@ class YTMusicRepository {
           "params": "Eg-KAQwIARAAGAAgACgAMABqChAEEAMQCRAFEAo="
         },
       );
-      final resultsList = traverseList(searchData, ["musicResponsiveListItemRenderer"]);
-      final tracks = <YoutubeTrack>[];
-      for (final r in resultsList) {
-        try {
-          final song = SongParser.parseSearchResult(r);
-          final extractedId = _extractVideoIdFromRenderer(r);
-          final finalId = (extractedId != null && extractedId.isNotEmpty) ? extractedId : song.videoId;
-          
-          tracks.add(YoutubeTrack(
-            id: finalId,
-            title: song.name,
-            artistName: song.artist?.name ?? 'Unknown Artist',
-            artistId: song.artist?.artistId,
-            albumName: song.album?.name,
-            albumId: song.album?.albumId,
-            artworkUrl: _pickBestThumbnail(song.thumbnails),
-            duration: song.duration != null ? Duration(seconds: song.duration!) : null,
-            isMusicVideo: _isThumbnailWidescreen(song.thumbnails),
-          ));
-        } catch (e) {
-          print('⚠️ [YTMusic] Error parsing search result row: $e');
+      if (searchData != null) {
+        final resultsList = traverseList(searchData, ["musicResponsiveListItemRenderer"]);
+        final tracks = <YoutubeTrack>[];
+        for (final r in resultsList) {
+          try {
+            final song = SongParser.parseSearchResult(r);
+            final extractedId = _extractVideoIdFromRenderer(r);
+            final finalId = (extractedId != null && extractedId.isNotEmpty) ? extractedId : song.videoId;
+            
+            tracks.add(YoutubeTrack(
+              id: finalId,
+              title: song.name,
+              artistName: song.artist?.name ?? 'Unknown Artist',
+              artistId: song.artist?.artistId,
+              albumName: song.album?.name,
+              albumId: song.album?.albumId,
+              artworkUrl: _pickBestThumbnail(song.thumbnails),
+              duration: song.duration != null ? Duration(seconds: song.duration!) : null,
+              isMusicVideo: _isThumbnailWidescreen(song.thumbnails),
+            ));
+          } catch (e) {
+            print('⚠️ [YTMusic] Error parsing search result row: $e');
+          }
         }
+        if (tracks.isNotEmpty) return tracks;
       }
-      return tracks;
     } catch (e) {
-      print('⚠️ [YTMusic] searchSongs failed: $e');
-      return [];
+      print('⚠️ [YTMusic] Fallback constructRequest search failed: $e');
     }
+
+    try {
+      final vids = await searchVideos(query);
+      if (vids.isNotEmpty) return vids;
+    } catch (e) {
+      print('⚠️ [YTMusic] Fallback searchVideos failed: $e');
+    }
+
+    return [];
   }
 
   /// Search for music videos matching [query].

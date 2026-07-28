@@ -103,10 +103,8 @@ List<YoutubeTrack> _localMusicFilter(List<YoutubeTrack> tracks) {
     if (blacklist.any((word) => title.contains(word) || artist.contains(word))) {
       return false;
     }
-    if (track.duration != null && track.duration!.inSeconds < 60) {
-      return false;
-    }
-    if (track.isOfficialMusic == false) {
+    // Only exclude extremely short clips (< 30 seconds)
+    if (track.duration != null && track.duration!.inSeconds < 30) {
       return false;
     }
     return true;
