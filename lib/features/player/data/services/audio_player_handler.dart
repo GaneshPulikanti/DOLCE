@@ -668,30 +668,14 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
 
       try {
         await _player.setAudioSource(
-          AudioSource.uri(
-            playUri,
-            headers: kIsWeb
-                ? null
-                : {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                    'Referer': 'https://www.youtube.com/',
-                  },
-          ),
+          AudioSource.uri(playUri),
         );
       } catch (e) {
         print('⚠️ [playTrack] Primary setAudioSource failed: $e. Attempting stream re-resolution fallback...');
         final fallbackUrl = await _streamResolver.resolveStreamUrl(track.id);
         if (fallbackUrl != null && fallbackUrl != streamUrl) {
           await _player.setAudioSource(
-            AudioSource.uri(
-              Uri.parse(fallbackUrl),
-              headers: kIsWeb
-                  ? null
-                  : {
-                      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                      'Referer': 'https://www.youtube.com/',
-                    },
-            ),
+            AudioSource.uri(Uri.parse(fallbackUrl)),
           );
         } else {
           rethrow;
