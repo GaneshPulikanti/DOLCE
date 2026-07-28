@@ -60,11 +60,6 @@
                 } else {
                   return url.replace('https://www.youtube.com', '/api/yt').replace('https://youtube.com', '/api/yt');
                 }
-              } else {
-                // On local development, proxy requests via cors.sh to bypass browser CORS preflight blocks
-                if (!url.startsWith('https://proxy.cors.sh/')) {
-                  return 'https://proxy.cors.sh/' + url;
-                }
               }
             }
           }

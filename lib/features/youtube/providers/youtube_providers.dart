@@ -36,46 +36,29 @@ final youtubeRepositoryProvider = Provider<YoutubeRepository>((ref) {
 /// Initialization makes one network call to grab YT Music's internal tokens.
 final ytMusicProvider = Provider<YTMusic>((ref) {
   final client = YTMusic();
-  // Dispose when provider is destroyed (app close)
   ref.onDispose(() {});
   return client;
 });
 
-/// Mock HTML containing static InnerTube config keys to bypass the homepage fetch
-/// which gets blocked by Google (403/browser deprecation check) when requested via CORS proxies.
-const String _ytMusicHomeMockHtml = '''
-  "VISITOR_DATA":"CgtNSnZTR0dCLXlCcyjRku_QBjIKCgJJThIEGgAgDGLfAgrcAjE4LllUPVhsSENEMVRvSDgzVkdyNC05aHd0bFhCMlY2VFdQYXQ5Mi1xcUxudzFOQUpRSlFuaEJVMnVSeTBFejhvYU1sNnNKYnBTTl9OcXNxRXlfY2JBZFI4OXY0UVQxcUhva0MtNlc2TXlfZVRfdl96TGNGdWVReGd2cFN6azZ1cm01QUg5Rm5lMzBtZDdLbkhuOXY5U3g4aWxyT1E5Zi04Mi1LTWVnSlh2akpkcEVkYWdmNzNrbHAtWFZUUnBqcThKU0VYNUVzdWI3MkhFODU0WWxmT3E2X2pnLUxRSURubDBpc0F0Y0xyQTF6M3UwX2RDMDJoZXJBZ1NvTjQ0LWg5RE5TOWdVNzlmTGptRjJuTUVra2pwbk53NmNCaWIzaUxmOEE2cG9wY01JekI4ak1JN0V0ZFRlUGlmb3l5OTk3N1pmT0tYd2kwU0p5MDd4VWd3NlNweDB2eUNZUQ%3D%3D"
-  "INNERTUBE_CONTEXT_CLIENT_NAME":67
-  "INNERTUBE_CLIENT_VERSION":"1.20260526.04.00"
-  "DEVICE":"cbr=Chrome&cbrand=apple&cbrver=120.0.0.0&ceng=WebKit&cengver=537.36&cos=Macintosh&cosver=10_15_7&cplatform=DESKTOP"
-  "PAGE_CL":921313735
-  "PAGE_BUILD_LABEL":"youtube.music.web.client_20260526_04_RC00"
-  "INNERTUBE_API_KEY":"AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30"
-  "INNERTUBE_API_VERSION":"v1"
-  "INNERTUBE_CLIENT_NAME":"WEB_REMIX"
-  "GL":"IN"
-  "HL":"en-GB"
-''';
-
 /// Async provider that initializes YTMusic once and returns the ready repository.
 final ytMusicRepositoryProvider = FutureProvider<YTMusicRepository>((ref) async {
   final ytMusic = ref.watch(ytMusicProvider);
-  // Standard Google OAuth tokens are rejected with a 401 - Invalid Credentials error on raw InnerTube browse/search endpoints.
-  // We run YTMusic in stable anonymous mode which guarantees 100% success rate without 401 exceptions.
   try {
     (ytMusic as dynamic).setAuthorizationToken(null);
   } catch (_) {}
-  print('🟢 [YTMusic] Session running in stable anonymous metadata mode');
 
-  try {
-    print('🟢 [YTMusic] Calling initialize with mock HTML...');
-    await ytMusic.initialize(ytMusicHomeRawHtml: _ytMusicHomeMockHtml);
-    print('✅ [YTMusic] Repository initialized successfully');
-    return YTMusicRepository(ytMusic);
-  } catch (e, s) {
-    print('🔴 [YTMusic] Initialization failed: $e\n$s');
-    rethrow;
-  }
+  ytMusic.config = {
+    'INNERTUBE_API_KEY': 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30',
+    'INNERTUBE_API_VERSION': 'v1',
+    'INNERTUBE_CLIENT_NAME': 'ANDROID_MUSIC',
+    'INNERTUBE_CLIENT_VERSION': '8.05.50',
+    'INNERTUBE_CONTEXT_CLIENT_NAME': '60',
+    'GL': 'IN',
+    'HL': 'en',
+  };
+  ytMusic.hasInitialized = true;
+  print('🟢 [YTMusic] Session initialized with stable ANDROID_MUSIC client config');
+  return YTMusicRepository(ytMusic);
 });
 
 // ─── Search ───────────────────────────────────────────────────────────────────
