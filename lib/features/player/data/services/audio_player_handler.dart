@@ -298,17 +298,24 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
     _player.processingStateStream.listen((state) {
       if (state == ProcessingState.completed) {
         final pos = _player.position;
-        final dur = _player.duration ?? Duration.zero;
-        final diff = (dur - pos).inSeconds.abs();
-        
-        // If the duration is known and there is a significant premature gap (>15s), treat it as a network interruption
-        if (dur.inSeconds > 0 && diff > 15) {
-          print('⚠️ [AudioPlayer] Track interrupted prematurely (pos: $pos, dur: $dur, gap: $diff s). Re-establishing stream...');
+        final dur = _player.duration;
+
+        // Ignore premature completed events when track has barely started (< 5 seconds played)
+        if (pos < const Duration(seconds: 5) && (dur == null || dur <= const Duration(seconds: 5))) {
+          print('🟡 [AudioPlayer] Ignored premature completed state at position $pos (dur: $dur)');
+          return;
+        }
+
+        final totalDur = dur ?? currentYoutubeTrack?.duration ?? Duration.zero;
+        final diff = (totalDur - pos).inSeconds.abs();
+
+        if (totalDur.inSeconds > 10 && diff > 15) {
+          print('⚠️ [AudioPlayer] Track interrupted prematurely (pos: $pos, dur: $totalDur, gap: $diff s). Re-establishing stream...');
           if (currentYoutubeTrack != null) {
             final wasPlaying = _player.playing;
             playTrack(currentYoutubeTrack!, initialPosition: pos, shouldPlay: wasPlaying);
           }
-        } else {
+        } else if (pos >= const Duration(seconds: 5)) {
           print('🔄 [AudioPlayer] Track completed normally. Autoplay skipping to next...');
           if (currentYoutubeTrack != null) {
             onTrackComplete?.call(currentYoutubeTrack!);
