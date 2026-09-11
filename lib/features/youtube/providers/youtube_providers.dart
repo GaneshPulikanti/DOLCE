@@ -111,23 +111,60 @@ final searchQueryProvider = StateProvider<String>((ref) => '');
 
 final searchResultsProvider = FutureProvider<List<YoutubeTrack>>((ref) async {
   final query = ref.watch(searchQueryProvider);
-  final repoFuture = ref.watch(ytMusicRepositoryProvider.future);
   if (query.trim().isEmpty) return [];
   print('🔎 [searchResultsProvider] Starting search for: "$query"');
-  await Future.delayed(const Duration(milliseconds: 500));
+  await Future.delayed(const Duration(milliseconds: 300));
   try {
-    print('🔎 [searchResultsProvider] Awaiting ytMusicRepositoryProvider...');
-    final repoAsync = await repoFuture;
+    final repoAsync = await ref.watch(ytMusicRepositoryProvider.future);
     print('🔎 [searchResultsProvider] Calling searchSongs for: "$query"');
-    final tracks = await repoAsync.searchSongs(query);
+    var tracks = await repoAsync.searchSongs(query);
     print('🔎 [searchResultsProvider] Found ${tracks.length} raw tracks from searchSongs');
+
+    if (tracks.isEmpty) {
+      print('⚠️ [searchResultsProvider] searchSongs returned 0 tracks. Trying YoutubeExplode fallback...');
+      final ytExplode = ref.read(youtubeExplodeProvider);
+      final ytResults = await ytExplode.search.search(query);
+      tracks = ytResults.map((v) => YoutubeTrack(
+        id: v.id.value,
+        title: v.title,
+        artistName: v.author,
+        artworkUrl: v.thumbnails.highResUrl,
+        duration: v.duration,
+      )).toList();
+      print('🔎 [searchResultsProvider] YoutubeExplode fallback found ${tracks.length} tracks');
+    }
+
     final filtered = _localMusicFilter(tracks);
     final validated = SongRuntimeValidator.validateAndFilterList(filtered, source: 'searchResultsProvider ("$query")');
     print('🔎 [searchResultsProvider] Filtered & Validated ${validated.length} tracks for "$query"');
+
+    if (validated.isEmpty && filtered.isNotEmpty) {
+      print('⚠️ [searchResultsProvider] Validator dropped all tracks, returning filtered list of ${filtered.length} tracks');
+      return filtered;
+    }
+    if (validated.isEmpty && tracks.isNotEmpty) {
+      return tracks;
+    }
+
     return validated;
   } catch (e, s) {
-    print('🔴 [searchResultsProvider] Error during search: $e\n$s');
-    rethrow;
+    print('🔴 [searchResultsProvider] Primary search failed: $e. Attempting emergency YoutubeExplode fallback...\n$s');
+    try {
+      final ytExplode = ref.read(youtubeExplodeProvider);
+      final ytResults = await ytExplode.search.search(query);
+      final tracks = ytResults.map((v) => YoutubeTrack(
+        id: v.id.value,
+        title: v.title,
+        artistName: v.author,
+        artworkUrl: v.thumbnails.highResUrl,
+        duration: v.duration,
+      )).toList();
+      print('🔎 [searchResultsProvider] Emergency fallback returned ${tracks.length} tracks');
+      return tracks;
+    } catch (err) {
+      print('🔴 [searchResultsProvider] Emergency fallback also failed: $err');
+      rethrow;
+    }
   }
 });
 

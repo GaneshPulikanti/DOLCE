@@ -60,6 +60,9 @@
                 } else {
                   return url.replace('https://www.youtube.com', '/api/yt').replace('https://youtube.com', '/api/yt');
                 }
+              } else {
+                // Route through corsproxy.io for local web development
+                return 'https://corsproxy.io/?' + encodeURIComponent(url);
               }
             }
           }
