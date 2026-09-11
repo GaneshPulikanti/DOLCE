@@ -580,43 +580,7 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
     _playingOffline = false;
 
     if (kIsWeb) {
-      // 1. Prefer direct audio stream playback on Web (bypasses YouTube embed limits & works on Vercel)
-      try {
-        print('▶️ [playTrack Web] Resolving direct audio stream for: "${track.title}" (${track.id})...');
-        final streamUrl = await _streamResolver.resolveStreamUrl(track.id);
-
-        if (streamUrl != null && streamUrl.isNotEmpty) {
-          _usingWebIframe = false;
-          await _player.pause();
-          await _player.setWebCrossOrigin(null);
-
-          print('▶️ [playTrack Web] Loading stream in just_audio: $streamUrl');
-          await _player.setAudioSource(
-            AudioSource.uri(Uri.parse(streamUrl)),
-          );
-
-          if (initialPosition != null && initialPosition > Duration.zero) {
-            await _player.seek(initialPosition);
-          }
-
-          onStatusChanged?.call(
-            isLoading: false,
-            loadingTrackId: null,
-            error: null,
-          );
-
-          if (shouldPlay) {
-            await _player.play();
-          }
-          return;
-        } else {
-          print('⚠️ [playTrack Web] Stream resolution returned null. Trying YouTube IFrame player fallback...');
-        }
-      } catch (e) {
-        print('⚠️ [playTrack Web] Direct stream resolution failed: $e. Trying YouTube IFrame fallback...');
-      }
-
-      // 2. Fallback to YouTube IFrame player if stream resolution fails
+      // 1. On Web platform, prefer YouTube IFrame Player helper for 100% reliable browser audio output without CORS or Autoplay errors
       try {
         _usingWebIframe = true;
         _webPosition = initialPosition ?? Duration.zero;
@@ -624,7 +588,7 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
         _webProcessingState = AudioProcessingState.loading;
         _updatePlaybackState();
 
-        print('▶️ [playTrack Web] YouTube IFrame load for: ${track.id} at ${_webPosition.inSeconds}s');
+        print('▶️ [playTrack Web] Loading YouTube IFrame audio player for: "${track.title}" (${track.id}) at ${_webPosition.inSeconds}s');
         _webPlayer.play(track.id, _webPosition.inSeconds);
 
         if (!shouldPlay) {
@@ -634,18 +598,32 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
         }
         return;
       } catch (e) {
-        print('🚨 [playTrack Web] Both direct stream and YouTube IFrame failed: $e');
-        onStatusChanged?.call(
-          isLoading: false,
-          loadingTrackId: null,
-          error: e.toString(),
-        );
-        return;
+        print('⚠️ [playTrack Web] YouTube IFrame player initialization failed: $e. Attempting direct stream fallback...');
+        // Fallback to direct stream resolution if IFrame fails
+        try {
+          final streamUrl = await _streamResolver.resolveStreamUrl(track.id);
+          if (streamUrl != null && streamUrl.isNotEmpty) {
+            _usingWebIframe = false;
+            await _player.pause();
+            await _player.setWebCrossOrigin(null);
+            await _player.setAudioSource(AudioSource.uri(Uri.parse(streamUrl)));
+            if (initialPosition != null && initialPosition > Duration.zero) {
+              await _player.seek(initialPosition);
+            }
+            onStatusChanged?.call(isLoading: false, loadingTrackId: null, error: null);
+            if (shouldPlay) await _player.play();
+            return;
+          }
+        } catch (err) {
+          print('🚨 [playTrack Web] Direct stream fallback also failed: $err');
+          onStatusChanged?.call(isLoading: false, loadingTrackId: null, error: err.toString());
+          return;
+        }
       }
     }
 
     try {
-      print('▶️ [playTrack] Resolving stream URL...');
+      print('▶️ [playTrack] Resolving stream URL for native playback...');
       final streamUrl = await _streamResolver.resolveStreamUrl(track.id);
       if (streamUrl == null) {
         print('🔴 [playTrack] Stream URL is null — all resolvers failed!');
@@ -657,32 +635,16 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
         return;
       }
 
-      final uri = Uri.tryParse(streamUrl);
-      final isYouTubeUrl = uri != null &&
-          (uri.host.contains('googlevideo.com') || uri.host.contains('youtube.com'));
-
-      final clientType = uri?.queryParameters['c'] ?? 'WEB';
-      final isAndroidClient = clientType.toUpperCase().startsWith('ANDROID');
-
       await _player.pause();
 
       final playUri = Uri.parse(streamUrl);
       print('▶️ [playTrack] Direct stream URI: $playUri');
 
-      if (kIsWeb) {
-        await _player.setWebCrossOrigin(null);
-      }
-
       try {
         await _player.setAudioSource(
           AudioSource.uri(
             playUri,
-            headers: kIsWeb
-                ? null
-                : {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                    'Referer': 'https://www.youtube.com/',
-                  },
+            headers: null, // Allow ExoPlayer to manage native headers without parameter mismatch
           ),
         );
       } catch (e) {
@@ -692,12 +654,7 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
           await _player.setAudioSource(
             AudioSource.uri(
               Uri.parse(fallbackUrl),
-              headers: kIsWeb
-                  ? null
-                  : {
-                      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                      'Referer': 'https://www.youtube.com/',
-                    },
+              headers: null,
             ),
           );
         } else {

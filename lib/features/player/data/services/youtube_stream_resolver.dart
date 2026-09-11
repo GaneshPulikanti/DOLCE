@@ -47,21 +47,13 @@ class YoutubeStreamResolver {
   Future<AudioOnlyStreamInfo?> resolveAudioStream(String videoId) async {
     // On web, prefer clients that don't require cipher decryption and work via CORS proxy.
     // androidSdkless provides direct URLs (no svpuc server-side auth issues).
-    final List<Map<String, dynamic>> clientStrategies = kIsWeb
-        ? [
-            {'clients': [YoutubeApiClient.androidVr], 'requireWatchPage': false},
-            {'clients': [YoutubeApiClient.androidSdkless], 'requireWatchPage': false},
-            {'clients': [YoutubeApiClient.tv], 'requireWatchPage': false},
-            {'clients': [YoutubeApiClient.ios], 'requireWatchPage': true},
-            {'clients': [YoutubeApiClient.mweb], 'requireWatchPage': true},
-          ]
-        : [
-            {'clients': [YoutubeApiClient.androidVr], 'requireWatchPage': false},
-            {'clients': [YoutubeApiClient.android], 'requireWatchPage': false},
-            {'clients': [YoutubeApiClient.tv], 'requireWatchPage': false},
-            {'clients': [YoutubeApiClient.ios], 'requireWatchPage': true},
-            {'clients': [YoutubeApiClient.mweb], 'requireWatchPage': true},
-          ];
+    final List<Map<String, dynamic>> clientStrategies = [
+      {'clients': [YoutubeApiClient.android], 'requireWatchPage': false},
+      {'clients': [YoutubeApiClient.androidSdkless], 'requireWatchPage': false},
+      {'clients': [YoutubeApiClient.tv], 'requireWatchPage': false},
+      {'clients': [YoutubeApiClient.ios], 'requireWatchPage': true},
+      {'clients': [YoutubeApiClient.mweb], 'requireWatchPage': true},
+    ];
 
     for (final strategy in clientStrategies) {
       final clients = strategy['clients'] as List<YoutubeApiClient>;

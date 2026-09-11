@@ -98,8 +98,8 @@
     })();
   </script>
 
-  <!-- Hidden YouTube IFrame Player for Web Platform -->
-  <div id="yt-player" style="display: none; position: absolute; width: 0; height: 0; pointer-events: none;"></div>
+  <!-- YouTube IFrame Player container for Web Platform (Off-screen for unthrottled audio playback) -->
+  <div id="yt-player" style="position: fixed; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0.001; pointer-events: none;"></div>
   <script>
     // 1. Load the IFrame Player API code asynchronously.
     var tag = document.createElement('script');
