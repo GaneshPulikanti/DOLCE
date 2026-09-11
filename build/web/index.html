@@ -60,9 +60,6 @@
                 } else {
                   return url.replace('https://www.youtube.com', '/api/yt').replace('https://youtube.com', '/api/yt');
                 }
-              } else {
-                // Route through corsproxy.io for local web development
-                return 'https://corsproxy.io/?' + encodeURIComponent(url);
               }
             }
           }
@@ -208,16 +205,19 @@
     window.playYT = function (videoId, startSeconds) {
       console.log("🛸 [YT Web Player] Command playYT: " + videoId + " at " + startSeconds + "s");
       currentTrackId = videoId;
-      if (ytPlayerReady && ytPlayer) {
+      if (ytPlayerReady && ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
         ytPlayer.loadVideoById({
           videoId: videoId,
           startSeconds: startSeconds || 0
         });
+        if (typeof ytPlayer.playVideo === 'function') {
+          ytPlayer.playVideo();
+        }
       } else {
-        // Fallback if player API not ready yet, retry in 1s
+        // Fallback if player API not ready yet, retry in 300ms
         setTimeout(function () {
           window.playYT(videoId, startSeconds);
-        }, 1000);
+        }, 300);
       }
     };
 
