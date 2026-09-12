@@ -1,6 +1,8 @@
 /**
- * Filters out unprofessional video files, reaction videos, status clips, and vlogs.
+ * DOLCE Audio Catalog & Search Service.
+ * Eliminates video junk files, validates HD covers, and supports multi-category search (Songs, Albums, Playlists, Artists).
  */
+
 function isUnwantedVideoItem(title, artist) {
   if (!title) return true;
   const lowerTitle = title.toLowerCase();
@@ -24,7 +26,9 @@ function isUnwantedVideoItem(title, artist) {
     'behind the scenes',
     'making of',
     'bloopers',
-    'funny moments'
+    'funny moments',
+    'tiktok',
+    'instagram status'
   ];
 
   for (const kw of junkKeywords) {
@@ -36,9 +40,6 @@ function isUnwantedVideoItem(title, artist) {
   return false;
 }
 
-/**
- * Cleans up raw YouTube song titles by removing unprofessional video tag annotations.
- */
 function cleanSongTitle(rawTitle) {
   if (!rawTitle) return '';
   return rawTitle
@@ -49,19 +50,39 @@ function cleanSongTitle(rawTitle) {
     .trim();
 }
 
+export function isValidAudioSong(track) {
+  if (!track || !track.id || !track.title) return false;
+  if (!track.artworkUrl || typeof track.artworkUrl !== 'string' || track.artworkUrl.trim() === '') return false;
+  if (track.artworkUrl.includes('null') || track.artworkUrl.includes('undefined')) return false;
+  if (isUnwantedVideoItem(track.title, track.artistName)) return false;
+  return true;
+}
+
 /**
  * Searches songs catalog using DOLCE Gateway with Lyric Matching & Multi-pass resolution.
  * Finds pure audio songs by title, artist, AND matching lyric lines.
  */
 export async function searchSongs(query) {
-  if (!query || !query.trim()) return [];
+  const result = await searchCatalog(query);
+  return result.songs || [];
+}
+
+/**
+ * Multi-Category Search Engine (Songs, Albums, Playlists, Artists).
+ */
+export async function searchCatalog(query) {
+  if (!query || !query.trim()) {
+    return { songs: [], albums: [], playlists: [], artists: [] };
+  }
 
   const cleanQuery = query.trim();
   const apiKey = import.meta.env.VITE_DOLCE_SERVICE_KEY || 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
 
   const tracksMap = new Map();
+  const albumsMap = new Map();
+  const playlistsMap = new Map();
+  const artistsMap = new Map();
 
-  // Helper to parse InnerTube search response objects
   const parseInnerTubeContents = (data) => {
     const contents = data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents;
     if (!contents) return;
@@ -73,41 +94,80 @@ export async function searchSongs(query) {
         const videoId = r.playlistItemData?.videoId || 
                         r.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.navigationEndpoint?.watchEndpoint?.videoId ||
                         r.navigationEndpoint?.watchEndpoint?.videoId;
+        const navEndpoint = r.navigationEndpoint || r.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.navigationEndpoint;
+        const browseId = navEndpoint?.browseEndpoint?.browseId;
+
         const rawTitle = r.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
-        const artist = r.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || 'Artist';
+        const runs = r.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || [];
+        const subtitle = runs.map(x => x.text).join('').trim();
+        const artist = runs[0]?.text || 'Artist';
+
         const thumbs = r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails;
         const rawUrl = thumbs?.[thumbs.length - 1]?.url;
+        const hdArtwork = getHDArtworkUrl(rawUrl, videoId);
 
-        // Skip non-song videos / reactions / vlogs
-        if (rawTitle && isUnwantedVideoItem(rawTitle, artist)) {
-          return;
+        if (rawTitle && isUnwantedVideoItem(rawTitle, artist)) return;
+
+        const lowerSub = subtitle.toLowerCase();
+
+        // 1. Artist
+        if (lowerSub.includes('artist') && browseId && !artistsMap.has(browseId)) {
+          artistsMap.set(browseId, {
+            id: browseId,
+            name: rawTitle,
+            subtitle: subtitle,
+            artworkUrl: hdArtwork,
+          });
         }
-
-        const title = cleanSongTitle(rawTitle);
-
-        if (videoId && title && !tracksMap.has(videoId)) {
-          tracksMap.set(videoId, {
+        // 2. Album / Single / EP
+        else if ((lowerSub.includes('album') || lowerSub.includes('single') || lowerSub.includes('ep')) && browseId && !albumsMap.has(browseId)) {
+          albumsMap.set(browseId, {
+            id: browseId,
+            title: rawTitle,
+            artistName: artist,
+            subtitle: subtitle,
+            artworkUrl: hdArtwork,
+          });
+        }
+        // 3. Playlist
+        else if (lowerSub.includes('playlist') && browseId && !playlistsMap.has(browseId)) {
+          playlistsMap.set(browseId, {
+            id: browseId,
+            title: rawTitle,
+            author: artist,
+            subtitle: subtitle,
+            artworkUrl: hdArtwork,
+          });
+        }
+        // 4. Song / Track
+        else if (videoId && rawTitle && !tracksMap.has(videoId)) {
+          const title = cleanSongTitle(rawTitle);
+          const track = {
             id: videoId,
             title: title,
             artistName: artist,
-            artworkUrl: getHDArtworkUrl(rawUrl, videoId),
+            artworkUrl: hdArtwork,
             duration: '3:45',
             durationMs: 225000,
-          });
+          };
+          if (isValidAudioSong(track)) {
+            tracksMap.set(videoId, track);
+          }
         }
       }
+
       for (const key in obj) {
         if (obj.hasOwnProperty(key) && typeof obj[key] === 'object') {
           findItems(obj[key]);
         }
       }
     }
+
     findItems(contents);
   };
 
-  // 1. Concurrent Fetch: YouTube Music Search + LrcLib Lyric Match Search
+  // Concurrent Fetch: YouTube Music Search + LrcLib Lyric Match Search
   const [ytResult, lrcResult] = await Promise.allSettled([
-    // YouTube Music general search without restrictive params
     fetch(`/api/gateway/youtubei/v1/search?key=${apiKey}&alt=json`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -124,7 +184,6 @@ export async function searchSongs(query) {
       })
     }).then(r => r.ok ? r.json() : null),
 
-    // LrcLib lyrics database search for lyric matches
     fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(cleanQuery)}`).then(r => r.ok ? r.json() : null)
   ]);
 
@@ -132,7 +191,7 @@ export async function searchSongs(query) {
     parseInnerTubeContents(ytResult.value);
   }
 
-  // If local gateway returned sparse results, try direct YT Music endpoint
+  // Backup direct YouTube Music call if sparse
   if (tracksMap.size < 5) {
     try {
       const res = await fetch(`https://music.youtube.com/youtubei/v1/search?key=${apiKey}&alt=json`, {
@@ -157,7 +216,7 @@ export async function searchSongs(query) {
     } catch (_) {}
   }
 
-  // Process LrcLib Lyric Matches to resolve any missing songs that have matching lyrics
+  // Process LrcLib Lyric Matches for additional song tracks
   if (lrcResult.status === 'fulfilled' && Array.isArray(lrcResult.value) && lrcResult.value.length > 0) {
     const lyricMatches = lrcResult.value.slice(0, 5);
     for (const match of lyricMatches) {
@@ -188,65 +247,102 @@ export async function searchSongs(query) {
     }
   }
 
-  // Backup Endpoints (Piped / Invidious) if map is still sparse
-  if (tracksMap.size < 5) {
-    const backupEndpoints = [
-      `https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(cleanQuery)}&filter=music_songs`,
-      `https://invidious.drgns.space/api/v1/search?q=${encodeURIComponent(cleanQuery)}&type=video`,
-    ];
-
-    for (const endpoint of backupEndpoints) {
-      try {
-        const res = await fetch(endpoint);
-        if (res.ok) {
-          const data = await res.json();
-          const items = Array.isArray(data) ? data : (data.items || []);
-          for (const item of items) {
-            const vId = item.videoId || extractVideoId(item.url);
-            const rawUrl = item.thumbnail || item.videoThumbnails?.[0]?.url;
-            const rawTitle = item.title;
-            const artist = item.author || item.uploaderName || 'Artist';
-            if (rawTitle && isUnwantedVideoItem(rawTitle, artist)) continue;
-            const title = cleanSongTitle(rawTitle);
-
-            if (vId && title && !tracksMap.has(vId)) {
-              tracksMap.set(vId, {
-                id: vId,
-                title: title,
-                artistName: artist,
-                artworkUrl: getHDArtworkUrl(rawUrl, vId),
-                duration: formatDurationSeconds(item.lengthSeconds || item.duration),
-                durationMs: (item.lengthSeconds || item.duration || 225) * 1000,
-              });
-            }
-          }
-          if (tracksMap.size >= 10) break;
-        }
-      } catch (_) {}
-    }
-  }
-
-  return Array.from(tracksMap.values());
+  return {
+    songs: Array.from(tracksMap.values()).filter(isValidAudioSong),
+    albums: Array.from(albumsMap.values()),
+    playlists: Array.from(playlistsMap.values()),
+    artists: Array.from(artistsMap.values()),
+  };
 }
 
 /**
- * Fetches Home Feed curated sections.
+ * Fetches tracklist for an Album or Playlist by browseId.
+ */
+export async function fetchCollectionTracks(browseId) {
+  if (!browseId) return [];
+
+  const apiKey = import.meta.env.VITE_DOLCE_SERVICE_KEY || 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
+  try {
+    const res = await fetch(`https://music.youtube.com/youtubei/v1/browse?key=${apiKey}&alt=json`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        context: {
+          client: {
+            clientName: 'WEB_REMIX',
+            clientVersion: '1.20260526.04.00',
+            gl: 'IN',
+            hl: 'en'
+          }
+        },
+        browseId: browseId
+      })
+    });
+
+    if (!res.ok) return [];
+    const data = await res.json();
+    const tracks = [];
+
+    function findTracks(obj) {
+      if (!obj || typeof obj !== 'object') return;
+      if (obj.musicResponsiveListItemRenderer) {
+        const r = obj.musicResponsiveListItemRenderer;
+        const videoId = r.playlistItemData?.videoId || 
+                        r.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.navigationEndpoint?.watchEndpoint?.videoId ||
+                        r.navigationEndpoint?.watchEndpoint?.videoId;
+        const rawTitle = r.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
+        const artist = r.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || 'Artist';
+        const thumbs = r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails;
+        const rawUrl = thumbs?.[thumbs.length - 1]?.url;
+
+        if (videoId && rawTitle) {
+          const track = {
+            id: videoId,
+            title: cleanSongTitle(rawTitle),
+            artistName: artist,
+            artworkUrl: getHDArtworkUrl(rawUrl, videoId),
+            duration: '3:45',
+            durationMs: 225000,
+          };
+          if (isValidAudioSong(track)) {
+            tracks.push(track);
+          }
+        }
+      }
+      for (const key in obj) {
+        if (obj.hasOwnProperty(key) && typeof obj[key] === 'object') {
+          findTracks(obj[key]);
+        }
+      }
+    }
+
+    findTracks(data);
+    return tracks;
+  } catch (e) {
+    console.error('Failed to fetch collection tracks:', e);
+    return [];
+  }
+}
+
+/**
+ * Fetches Home Feed curated sections with 100% validated HD audio songs.
  */
 export async function getHomeFeed() {
   const defaultCategories = [
-    { title: '🔥 Trending Music Hits', query: 'top hits 2026' },
-    { title: '🌧️ Rain Therapy & Chill', query: 'chill lofi music' },
-    { title: '⚡ Workout & Energy', query: 'workout motivation music' },
-    { title: '❤️ Romantic Melodies', query: 'romantic love songs' },
+    { title: '🔥 Trending Music Hits', query: 'top audio hits 2026' },
+    { title: '🌧️ Rain Therapy & Chill', query: 'chill lofi songs' },
+    { title: '⚡ Workout & Energy', query: 'workout motivation songs' },
+    { title: '❤️ Romantic Melodies', query: 'romantic love songs hindi english' },
   ];
 
   try {
     const sections = await Promise.all(
       defaultCategories.map(async (cat) => {
         const tracks = await searchSongs(cat.query);
+        const validTracks = tracks.filter(isValidAudioSong);
         return {
           title: cat.title,
-          tracks: tracks.slice(0, 10),
+          tracks: validTracks.slice(0, 10),
         };
       })
     );
@@ -291,14 +387,9 @@ export async function getStreamUrl(videoId) {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/**
- * Transforms raw thumbnail URLs into high-definition artwork URLs (540x540 / 720p).
- * Always returns a valid artwork URL string for guaranteed display.
- */
 export function getHDArtworkUrl(url, videoId) {
   let hdUrl = url || '';
 
-  // Official YouTube Music Audio Cover hosts (lh3.googleusercontent.com, yt3.googleusercontent.com, yt3.ggpht.com)
   if (hdUrl.includes('googleusercontent.com') || hdUrl.includes('ggpht.com')) {
     hdUrl = hdUrl.replace(/=w\d+-h\d+-[^?]+/, '=w540-h540-l90-rj');
     hdUrl = hdUrl.replace(/=w\d+-h\d+/, '=w540-h540-l90-rj');
@@ -307,7 +398,6 @@ export function getHDArtworkUrl(url, videoId) {
     return hdUrl;
   }
 
-  // For YouTube thumbnail URLs, hqdefault.jpg is 100% guaranteed to exist (200 OK) without 404
   if (hdUrl.includes('ytimg.com') || hdUrl.includes('youtube.com')) {
     hdUrl = hdUrl.replace(/(mqdefault|sddefault|default|hq720)\.jpg/, 'hqdefault.jpg');
     return hdUrl;
@@ -333,44 +423,3 @@ function formatDurationSeconds(seconds) {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
-/**
- * Parses InnerTube WEB_REMIX search responses.
- */
-function parseInnerTubeSearchSongs(data) {
-  try {
-    const contents = data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents;
-    if (!contents) return [];
-
-    const tracks = [];
-    for (const sec of contents) {
-      const items = sec.musicShelfRenderer?.contents || sec.musicCardShelfRenderer?.contents || [];
-      for (const item of items) {
-        const r = item.musicResponsiveListItemRenderer;
-        if (!r) continue;
-
-        const videoId = r.playlistItemData?.videoId || r.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.navigationEndpoint?.watchEndpoint?.videoId;
-        const title = r.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
-        const artist = r.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
-        const thumbs = r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails;
-        const rawThumbUrl = thumbs?.[thumbs.length - 1]?.url;
-
-        const hdArtwork = getHDArtworkUrl(rawThumbUrl, videoId);
-
-        if (videoId && title) {
-          tracks.push({
-            id: videoId,
-            title: title,
-            artistName: artist || 'YouTube Artist',
-            artworkUrl: hdArtwork,
-            duration: '3:45',
-            durationMs: 225000,
-          });
-        }
-      }
-    }
-    return tracks;
-  } catch (e) {
-    console.error('Failed to parse InnerTube search response:', e);
-    return [];
-  }
-}
