@@ -27,8 +27,8 @@
 }
 
 .font-lyrics {
-  font-family: 'Plus Jakarta Sans', 'Sora', 'Outfit', 'Inter', -apple-system, sans-serif;
-  letter-spacing: -0.025em;
+  font-family: 'Outfit', 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
+  letter-spacing: -0.02em;
 }
 
 :root {
