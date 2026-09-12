@@ -1,9 +1,29 @@
 /**
  * Dynamic Artwork Color Palette Extractor.
- * Extracts dominant vibrant colors from track artwork images for Apple Music style ambient backdrops.
+ * Uses 12-Bucket HSL Color Histogram Quantization & Multi-Proxy Fallback
+ * to extract exact dominant vibrant album cover colors (Blue, Purple, Yellow, Green, Pink, Red, Grey, Black).
  */
 
 const colorCache = new Map();
+
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0, s = 0, l = (max + min) / 2;
+
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+  return { h: h * 360, s: s * 100, l: l * 100 };
+}
 
 function loadImageCanvas(url) {
   return new Promise((resolve, reject) => {
@@ -40,18 +60,18 @@ export async function extractArtworkColor(imageUrl) {
 
   let imgData = null;
 
-  // 1. Try loading directly
+  // 1. Direct same-origin / CORS load
   try {
     imgData = await loadImageCanvas(imageUrl);
   } catch (e1) {
-    // 2. Try loading via Google OpenSocial Gadget Proxy (100% CORS header enabled)
+    // 2. Same-origin local app proxy route (/api/corsproxy)
     try {
-      const proxyUrl1 = `https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(imageUrl)}`;
-      imgData = await loadImageCanvas(proxyUrl1);
+      const appProxyUrl = `/api/corsproxy?url=${encodeURIComponent(imageUrl)}`;
+      imgData = await loadImageCanvas(appProxyUrl);
     } catch (e2) {
-      // 3. Try loading via CORS Proxy
+      // 3. Google OpenSocial Gadget Proxy
       try {
-        const proxyUrl2 = `https://corsproxy.io/?${encodeURIComponent(imageUrl)}`;
+        const proxyUrl2 = `https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(imageUrl)}`;
         imgData = await loadImageCanvas(proxyUrl2);
       } catch (e3) {
         return getDefaultPalette();
@@ -63,56 +83,66 @@ export async function extractArtworkColor(imageUrl) {
     return getDefaultPalette();
   }
 
-  let rSum = 0, gSum = 0, bSum = 0, count = 0;
-  let maxSat = -1;
-  let vibrantColor = null;
+  // 12 Hue Buckets (30-degree slices: Red, Orange, Yellow, Green, Teal, Blue, Purple, Pink, etc.)
+  const buckets = Array.from({ length: 12 }, () => ({ count: 0, rSum: 0, gSum: 0, bSum: 0, maxSat: 0 }));
+  let rTotal = 0, gTotal = 0, bTotal = 0, totalCount = 0;
 
-  for (let i = 0; i < imgData.length; i += 16) {
+  for (let i = 0; i < imgData.length; i += 4) {
     const r = imgData[i];
     const g = imgData[i + 1];
     const b = imgData[i + 2];
     const a = imgData[i + 3];
 
-    if (a < 128) continue; // Skip transparent pixels
+    if (a < 128) continue; // Ignore transparent pixels
 
-    rSum += r;
-    gSum += g;
-    bSum += b;
-    count++;
+    rTotal += r;
+    gTotal += g;
+    bTotal += b;
+    totalCount++;
 
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    const sat = max === 0 ? 0 : (max - min) / max;
-    const brightness = (r + g + b) / 3;
+    const { h, s, l } = rgbToHsl(r, g, b);
 
-    // Pick the color with highest saturation among non-extreme pixels
-    if (brightness > 15 && brightness < 245 && sat > maxSat) {
-      maxSat = sat;
-      vibrantColor = { r, g, b };
+    // Filter out extreme darks & extreme lights for vibrant color bucketing
+    if (l > 12 && l < 88 && s > 15) {
+      const bucketIdx = Math.floor(h / 30) % 12;
+      const bkt = buckets[bucketIdx];
+      bkt.count += 1;
+      bkt.rSum += r;
+      bkt.gSum += g;
+      bkt.bSum += b;
+      if (s > bkt.maxSat) bkt.maxSat = s;
     }
   }
 
-  let r = 25, g = 28, b = 35; // Sleek neutral dark charcoal default
+  // Find the winning bucket (highest weighted frequency = count * (1 + maxSat / 100))
+  let winningBucket = null;
+  let maxWeight = -1;
 
-  if (count > 0) {
-    const avgR = Math.round(rSum / count);
-    const avgG = Math.round(gSum / count);
-    const avgB = Math.round(bSum / count);
-
-    if (vibrantColor && maxSat > 0.15) {
-      // Use vibrant color for colored artwork
-      r = vibrantColor.r;
-      g = vibrantColor.g;
-      b = vibrantColor.b;
-    } else {
-      // For dark, black, grey, or monochrome artwork, use true extracted average RGB
-      r = avgR;
-      g = avgG;
-      b = avgB;
+  for (const bkt of buckets) {
+    if (bkt.count > 0) {
+      const weight = bkt.count * (1 + bkt.maxSat / 100);
+      if (weight > maxWeight) {
+        maxWeight = weight;
+        winningBucket = bkt;
+      }
     }
   }
 
-  const palette = buildPaletteFromRgb(r, g, b);
+  let finalR = 28, finalG = 30, finalB = 38;
+
+  if (winningBucket && winningBucket.count >= 6) {
+    // True dominant color bucket wins
+    finalR = Math.round(winningBucket.rSum / winningBucket.count);
+    finalG = Math.round(winningBucket.gSum / winningBucket.count);
+    finalB = Math.round(winningBucket.bSum / winningBucket.count);
+  } else if (totalCount > 0) {
+    // For dark, monochrome or neutral grey artwork, use true average RGB
+    finalR = Math.round(rTotal / totalCount);
+    finalG = Math.round(gTotal / totalCount);
+    finalB = Math.round(bTotal / totalCount);
+  }
+
+  const palette = buildPaletteFromRgb(finalR, finalG, finalB);
   colorCache.set(imageUrl, palette);
   return palette;
 }
@@ -124,7 +154,7 @@ function buildPaletteFromRgb(r, g, b) {
   let bgG = g;
   let bgB = b;
 
-  if (brightness > 170) {
+  if (brightness > 165) {
     const factor = 135 / brightness;
     bgR = Math.round(r * factor);
     bgG = Math.round(g * factor);
@@ -133,8 +163,8 @@ function buildPaletteFromRgb(r, g, b) {
 
   const primary = `rgb(${bgR}, ${bgG}, ${bgB})`;
   const dominant = `rgba(${bgR}, ${bgG}, ${bgB}, 0.65)`;
-  const glow = `rgba(${bgR}, ${bgG}, ${bgB}, 0.4)`;
-  const darkGradient = `linear-gradient(180deg, rgba(${bgR}, ${bgG}, ${bgB}, 0.7) 0%, rgba(${Math.floor(bgR * 0.25)}, ${Math.floor(bgG * 0.25)}, ${Math.floor(bgB * 0.25)}, 0.9) 55%, rgba(5, 5, 5, 0.98) 100%)`;
+  const glow = `rgba(${bgR}, ${bgG}, ${bgB}, 0.45)`;
+  const darkGradient = `linear-gradient(180deg, rgba(${bgR}, ${bgG}, ${bgB}, 0.75) 0%, rgba(${Math.floor(bgR * 0.25)}, ${Math.floor(bgG * 0.25)}, ${Math.floor(bgB * 0.25)}, 0.92) 55%, rgba(5, 5, 5, 0.98) 100%)`;
 
   return { primary, dominant, glow, darkGradient, r: bgR, g: bgG, b: bgB };
 }
