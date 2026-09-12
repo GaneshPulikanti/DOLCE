@@ -115,6 +115,9 @@ export const PlayerBar = ({ themePalette }) => {
   };
 
   const artworkUrl = currentTrack.artworkUrl || (currentTrack.id ? `https://i.ytimg.com/vi/${currentTrack.id}/hq720.jpg` : '');
+  const dominantBg = themePalette?.darkGradient || 'linear-gradient(180deg, rgba(20, 20, 28, 0.85) 0%, rgba(8, 8, 12, 0.95) 50%, rgba(5, 5, 5, 0.98) 100%)';
+  const glowShadow = themePalette ? `0 25px 65px -10px rgba(${themePalette.r}, ${themePalette.g}, ${themePalette.b}, 0.55), 0 0 35px rgba(${themePalette.r}, ${themePalette.g}, ${themePalette.b}, 0.3)` : '0 20px 50px rgba(0,0,0,0.8)';
+  const activeLyricGlow = themePalette ? `0 0 20px rgba(${themePalette.r}, ${themePalette.g}, ${themePalette.b}, 0.9), 0 0 35px rgba(255, 255, 255, 0.9)` : '0 0 18px rgba(255,255,255,0.85)';
 
   return (
     <>
@@ -197,7 +200,7 @@ export const PlayerBar = ({ themePalette }) => {
         </div>
       </div>
 
-      {/* ─── Full-Screen Expanded Player Modal (Exact Original Dart UI) ─── */}
+      {/* ─── Full-Screen Expanded Player Modal (Exact Apple Music & Spotify Glassmorphism) ─── */}
       <AnimatePresence>
         {isExpanded && (
           <motion.div
@@ -205,15 +208,19 @@ export const PlayerBar = ({ themePalette }) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: '100%' }}
             transition={{ type: 'spring', damping: 26, stiffness: 220 }}
-            className="fixed inset-0 z-50 bg-[#050505] flex flex-col overflow-y-auto select-none font-['Inter']"
+            className="fixed inset-0 z-50 flex flex-col overflow-y-auto select-none font-['Inter']"
+            style={{ background: dominantBg }}
           >
             {/* 1. Dynamic Glassmorphic Ambient Artwork Background */}
             <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
               <div 
-                className="absolute inset-0 scale-125 bg-cover bg-center opacity-45 filter blur-[65px] transition-all duration-1000"
+                className="absolute inset-0 scale-150 bg-cover bg-center opacity-65 filter blur-[75px] transition-all duration-1000"
                 style={{ backgroundImage: `url(${artworkUrl})` }}
               />
-              <div className="absolute inset-0 bg-gradient-to-b from-[#080808]/40 via-[#111111]/75 to-[#050505]/95" />
+              <div 
+                className="absolute inset-0 transition-all duration-1000"
+                style={{ background: dominantBg }}
+              />
             </div>
 
             {/* 2. Top Header Row (Chevron, NOW PLAYING, Actions) */}
@@ -252,7 +259,10 @@ export const PlayerBar = ({ themePalette }) => {
             <div className="relative z-10 flex-1 max-w-xl w-full mx-auto px-6 py-4 flex flex-col items-center justify-between gap-6">
               
               {/* 3. Cover Artwork Box */}
-              <div className="relative w-64 h-64 sm:w-72 sm:h-72 aspect-square rounded-3xl overflow-hidden border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-[#141416] flex-shrink-0 my-2 flex items-center justify-center">
+              <div 
+                className="relative w-64 h-64 sm:w-72 sm:h-72 aspect-square rounded-3xl overflow-hidden border border-white/30 bg-[#141416] flex-shrink-0 my-2 flex items-center justify-center transition-all duration-700"
+                style={{ boxShadow: glowShadow }}
+              >
                 <img
                   src={artworkUrl}
                   alt={currentTrack.title}
@@ -377,9 +387,10 @@ export const PlayerBar = ({ themePalette }) => {
                         key={idx}
                         data-lyric-index={idx}
                         onClick={() => seek(line.time)}
+                        style={idx === activeLyricIdx ? { textShadow: activeLyricGlow } : {}}
                         className={`cursor-pointer transition-all duration-300 text-lg sm:text-2xl leading-relaxed font-['Inter'] ${
                           idx === activeLyricIdx
-                            ? 'text-white font-black opacity-100 drop-shadow-[0_0_18px_rgba(255,255,255,0.85)] scale-[1.02]'
+                            ? 'text-white font-black opacity-100 scale-[1.03]'
                             : 'text-white/35 font-bold opacity-45 hover:opacity-75'
                         }`}
                       >
@@ -456,15 +467,19 @@ export const PlayerBar = ({ themePalette }) => {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.96 }}
             transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-[60] bg-[#050505] flex flex-col justify-between overflow-hidden font-['Inter'] select-none p-6"
+            className="fixed inset-0 z-[60] flex flex-col justify-between overflow-hidden font-['Inter'] select-none p-6"
+            style={{ background: dominantBg }}
           >
             {/* Ambient Background Blur */}
             <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
               <div 
-                className="absolute inset-0 scale-150 bg-cover bg-center opacity-40 filter blur-[80px]"
+                className="absolute inset-0 scale-150 bg-cover bg-center opacity-65 filter blur-[80px] transition-all duration-1000"
                 style={{ backgroundImage: `url(${artworkUrl})` }}
               />
-              <div className="absolute inset-0 bg-gradient-to-b from-[#080808]/70 via-[#050505]/90 to-[#050505]" />
+              <div 
+                className="absolute inset-0 transition-all duration-1000"
+                style={{ background: dominantBg }}
+              />
             </div>
 
             {/* Top Bar (Track Info & Exit Button) */}
@@ -506,9 +521,10 @@ export const PlayerBar = ({ themePalette }) => {
                     key={idx}
                     data-full-lyric-index={idx}
                     onClick={() => seek(line.time)}
+                    style={idx === activeLyricIdx ? { textShadow: activeLyricGlow } : {}}
                     className={`cursor-pointer transition-all duration-400 text-2xl sm:text-4xl md:text-5xl font-black leading-relaxed tracking-tight ${
                       idx === activeLyricIdx
-                        ? 'text-white opacity-100 scale-105 drop-shadow-[0_0_30px_rgba(255,255,255,0.9)]'
+                        ? 'text-white opacity-100 scale-105'
                         : 'text-white/30 opacity-35 hover:opacity-70 scale-95'
                     }`}
                   >
