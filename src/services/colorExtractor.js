@@ -7,7 +7,7 @@ const colorCache = new Map();
 
 export async function extractArtworkColor(imageUrl) {
   if (!imageUrl) {
-    return getDefaultPalette('default');
+    return getDefaultPalette();
   }
 
   if (colorCache.has(imageUrl)) {
@@ -36,88 +36,85 @@ export async function extractArtworkColor(imageUrl) {
           const r = imgData[i];
           const g = imgData[i + 1];
           const b = imgData[i + 2];
+          const a = imgData[i + 3];
+
+          if (a < 128) continue; // Skip transparent pixels
+
+          rSum += r;
+          gSum += g;
+          bSum += b;
+          count++;
+
+          const max = Math.max(r, g, b);
+          const min = Math.min(r, g, b);
+          const sat = max === 0 ? 0 : (max - min) / max;
           const brightness = (r + g + b) / 3;
 
-          // Skip extreme darks and extreme lights for rich vibrant tone
-          if (brightness > 25 && brightness < 235) {
-            rSum += r;
-            gSum += g;
-            bSum += b;
-            count++;
-
-            const max = Math.max(r, g, b);
-            const min = Math.min(r, g, b);
-            const sat = max === 0 ? 0 : (max - min) / max;
-
-            if (sat > maxSat) {
-              maxSat = sat;
-              vibrantColor = { r, g, b };
-            }
+          // Pick the color with highest saturation among non-extreme pixels
+          if (brightness > 20 && brightness < 240 && sat > maxSat) {
+            maxSat = sat;
+            vibrantColor = { r, g, b };
           }
         }
 
-        let r = 139, g = 92, b = 246; // Default fallback
-        if (vibrantColor) {
-          r = vibrantColor.r;
-          g = vibrantColor.g;
-          b = vibrantColor.b;
-        } else if (count > 0) {
-          r = Math.round(rSum / count);
-          g = Math.round(gSum / count);
-          b = Math.round(bSum / count);
+        let r = 25, g = 28, b = 35; // Sleek neutral dark charcoal fallback
+
+        if (count > 0) {
+          const avgR = Math.round(rSum / count);
+          const avgG = Math.round(gSum / count);
+          const avgB = Math.round(bSum / count);
+
+          if (vibrantColor && maxSat > 0.18) {
+            // Use vibrant color for colored artwork
+            r = vibrantColor.r;
+            g = vibrantColor.g;
+            b = vibrantColor.b;
+          } else {
+            // For dark, black, grey, or monochrome artwork, use true extracted average RGB
+            r = avgR;
+            g = avgG;
+            b = avgB;
+          }
         }
 
         const palette = buildPaletteFromRgb(r, g, b);
         colorCache.set(imageUrl, palette);
         resolve(palette);
       } catch (e) {
-        resolve(getDefaultPalette(imageUrl));
+        // Fallback for CORS canvas read error
+        resolve(getDefaultPalette());
       }
     };
 
     img.onerror = () => {
-      resolve(getDefaultPalette(imageUrl));
+      resolve(getDefaultPalette());
     };
   });
 }
 
 function buildPaletteFromRgb(r, g, b) {
-  const primary = `rgb(${r}, ${g}, ${b})`;
-  const secondary = `rgb(${Math.min(255, r + 40)}, ${Math.max(0, g - 20)}, ${Math.min(255, b + 60)})`;
-  const dominant = `rgba(${r}, ${g}, ${b}, 0.55)`;
-  const glow = `rgba(${r}, ${g}, ${b}, 0.35)`;
-  const darkGradient = `linear-gradient(180deg, rgba(${r}, ${g}, ${b}, 0.55) 0%, rgba(${Math.floor(r * 0.25)}, ${Math.floor(g * 0.25)}, ${Math.floor(b * 0.25)}, 0.85) 50%, rgba(5, 5, 5, 0.98) 100%)`;
+  // Clamp extreme brightness for ambient player backdrops
+  const brightness = (r + g + b) / 3;
+  let bgR = r;
+  let bgG = g;
+  let bgB = b;
 
-  return { primary, secondary, dominant, glow, darkGradient, r, g, b };
-}
-
-function getDefaultPalette(key = 'default') {
-  // String hash algorithm to generate a deterministic, rich HSL color for any song
-  let hash = 0;
-  for (let i = 0; i < key.length; i++) {
-    hash = key.charCodeAt(i) + ((hash << 5) - hash);
+  if (brightness > 180) {
+    const factor = 140 / brightness;
+    bgR = Math.round(r * factor);
+    bgG = Math.round(g * factor);
+    bgB = Math.round(b * factor);
   }
 
-  const hue = Math.abs(hash) % 360;
-  const sat = 75; // 75% vibrant saturation
-  const light = 42; // 42% rich lightness
+  const primary = `rgb(${bgR}, ${bgG}, ${bgB})`;
+  const dominant = `rgba(${bgR}, ${bgG}, ${bgB}, 0.55)`;
+  const glow = `rgba(${bgR}, ${bgG}, ${bgB}, 0.35)`;
+  const darkGradient = `linear-gradient(180deg, rgba(${bgR}, ${bgG}, ${bgB}, 0.65) 0%, rgba(${Math.floor(bgR * 0.3)}, ${Math.floor(bgG * 0.3)}, ${Math.floor(bgB * 0.3)}, 0.88) 50%, rgba(5, 5, 5, 0.98) 100%)`;
 
-  // HSL to RGB conversion
-  const c = (1 - Math.abs(2 * (light / 100) - 1)) * (sat / 100);
-  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
-  const m = light / 100 - c / 2;
+  return { primary, dominant, glow, darkGradient, r: bgR, g: bgG, b: bgB };
+}
 
-  let rPrime = 0, gPrime = 0, bPrime = 0;
-  if (hue < 60) { rPrime = c; gPrime = x; bPrime = 0; }
-  else if (hue < 120) { rPrime = x; gPrime = c; bPrime = 0; }
-  else if (hue < 180) { rPrime = 0; gPrime = c; bPrime = x; }
-  else if (hue < 240) { rPrime = 0; gPrime = x; bPrime = c; }
-  else if (hue < 300) { rPrime = x; gPrime = 0; bPrime = c; }
-  else { rPrime = c; gPrime = 0; bPrime = x; }
-
-  const r = Math.round((rPrime + m) * 255);
-  const g = Math.round((gPrime + m) * 255);
-  const b = Math.round((bPrime + m) * 255);
-
-  return buildPaletteFromRgb(r, g, b);
+function getDefaultPalette() {
+  // Neutral dark charcoal palette matching Apple Music dark player backdrop
+  return buildPaletteFromRgb(28, 30, 38);
 }
