@@ -24,10 +24,22 @@ export const PlayerBar = ({ themePalette }) => {
   const [showQueue, setShowQueue] = useState(false);
   const [isFullScreenLyrics, setIsFullScreenLyrics] = useState(false);
   const [inlineLyricY, setInlineLyricY] = useState(0);
+  const [userScrolledFullLyrics, setUserScrolledFullLyrics] = useState(false);
 
   const lyricsContainerRef = useRef(null);
   const inlineListRef = useRef(null);
   const fullLyricsContainerRef = useRef(null);
+  const userScrollTimeoutRef = useRef(null);
+
+  const handleFullLyricsScroll = () => {
+    setUserScrolledFullLyrics(true);
+    if (userScrollTimeoutRef.current) {
+      clearTimeout(userScrollTimeoutRef.current);
+    }
+    userScrollTimeoutRef.current = setTimeout(() => {
+      setUserScrolledFullLyrics(false);
+    }, 4000);
+  };
   const activeLyricRef = useRef(null);
   const fullActiveLyricRef = useRef(null);
 
@@ -83,9 +95,9 @@ export const PlayerBar = ({ themePalette }) => {
   // ── Auto-center active lyric line for inline & full screen mode ──
   useEffect(() => {
     if (activeLyricIdx >= 0) {
-      // 1. Calculate translateY for buttery smooth inline lyrics spring animation
+      // 1. Calculate translateY for mini lyric window (using justify-start container alignment)
       if (inlineListRef.current && lyricsContainerRef.current) {
-        const containerHeight = lyricsContainerRef.current.clientHeight || 250;
+        const containerHeight = lyricsContainerRef.current.clientHeight || 256;
         const activeEl = inlineListRef.current.querySelector(`[data-lyric-index="${activeLyricIdx}"]`);
         if (activeEl) {
           const elOffsetTop = activeEl.offsetTop;
@@ -95,8 +107,8 @@ export const PlayerBar = ({ themePalette }) => {
         }
       }
 
-      // 2. Scroll in full screen lyrics modal (where manual scrolling is allowed)
-      if (isFullScreenLyrics && fullLyricsContainerRef.current) {
+      // 2. Auto-scroll full screen lyrics ONLY when user is not actively reading/scrolling
+      if (isFullScreenLyrics && fullLyricsContainerRef.current && !userScrolledFullLyrics) {
         const container = fullLyricsContainerRef.current;
         const activeEl = container.querySelector(`[data-full-lyric-index="${activeLyricIdx}"]`);
         if (activeEl) {
@@ -107,8 +119,10 @@ export const PlayerBar = ({ themePalette }) => {
           container.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
         }
       }
+    } else {
+      setInlineLyricY(0);
     }
-  }, [activeLyricIdx, isFullScreenLyrics]);
+  }, [activeLyricIdx, isFullScreenLyrics, userScrolledFullLyrics]);
 
   if (!currentTrack) return null;
 
@@ -465,7 +479,7 @@ export const PlayerBar = ({ themePalette }) => {
 
                   {/* Strictly non-scrollable inline container - Active line locked to vertical center */}
                   <div 
-                    className="w-full h-64 overflow-hidden relative flex flex-col justify-center items-center select-none touch-none pointer-events-none"
+                    className="w-full h-64 overflow-hidden relative flex flex-col justify-start items-center select-none touch-none pointer-events-none"
                     ref={lyricsContainerRef}
                   >
                     {loadingLyrics ? (
@@ -496,7 +510,7 @@ export const PlayerBar = ({ themePalette }) => {
                               }}
                               transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
                               style={isActive ? { textShadow: activeLyricGlow } : {}}
-                              className={`cursor-pointer transition-colors leading-relaxed font-['Inter'] ${
+                              className={`cursor-pointer transition-colors leading-relaxed font-lyrics ${
                                 isActive
                                   ? 'text-white font-black text-xl sm:text-2xl drop-shadow-md'
                                   : 'text-white/60 font-bold text-base sm:text-lg'
@@ -508,7 +522,7 @@ export const PlayerBar = ({ themePalette }) => {
                         })}
                       </motion.div>
                     ) : (
-                      <div className="py-6 text-white/70 whitespace-pre-line text-base font-bold font-['Inter'] leading-relaxed text-center pointer-events-auto">
+                      <div className="py-6 text-white/70 whitespace-pre-line text-base font-bold font-lyrics leading-relaxed text-center pointer-events-auto">
                         {lyricsData.plain || 'No lyrics available for this track.'}
                       </div>
                     )}
@@ -569,8 +583,9 @@ export const PlayerBar = ({ themePalette }) => {
 
             {/* Full Screen Scrollable Lyrics Container (Centered Lines) */}
             <div 
-              className="relative z-10 flex-1 w-full max-w-4xl mx-auto my-6 overflow-y-auto scroll-smooth py-20 flex flex-col gap-8 text-center"
+              className="relative z-10 flex-1 w-full max-w-4xl mx-auto my-6 overflow-y-auto scroll-smooth py-20 flex flex-col gap-8 text-center font-lyrics"
               ref={fullLyricsContainerRef}
+              onScroll={handleFullLyricsScroll}
             >
               {loadingLyrics ? (
                 <div className="flex flex-col items-center justify-center h-full text-white/40 animate-pulse">
@@ -594,11 +609,40 @@ export const PlayerBar = ({ themePalette }) => {
                   </p>
                 ))
               ) : (
-                <div className="py-20 text-white/80 whitespace-pre-line text-xl sm:text-2xl font-bold font-['Inter'] leading-relaxed max-w-2xl mx-auto">
+                <div className="py-20 text-white/80 whitespace-pre-line text-xl sm:text-2xl font-bold font-lyrics leading-relaxed max-w-2xl mx-auto">
                   {lyricsData.plain || 'No lyrics available for this track.'}
                 </div>
               )}
             </div>
+
+            {/* Floating Recenter Pill when user is manually scrolling */}
+            <AnimatePresence>
+              {userScrolledFullLyrics && (
+                <motion.button
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 20 }}
+                  onClick={() => {
+                    setUserScrolledFullLyrics(false);
+                    if (fullLyricsContainerRef.current && activeLyricIdx >= 0) {
+                      const container = fullLyricsContainerRef.current;
+                      const activeEl = container.querySelector(`[data-full-lyric-index="${activeLyricIdx}"]`);
+                      if (activeEl) {
+                        const containerHeight = container.clientHeight;
+                        const elOffsetTop = activeEl.offsetTop;
+                        const elHeight = activeEl.clientHeight;
+                        const targetScroll = elOffsetTop - (containerHeight / 2) + (elHeight / 2);
+                        container.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
+                      }
+                    }
+                  }}
+                  className="fixed bottom-24 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-xl border border-white/30 text-white text-xs font-bold shadow-2xl flex items-center gap-2 transition-all cursor-pointer font-['Inter']"
+                >
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Sync with song</span>
+                </motion.button>
+              )}
+            </AnimatePresence>
 
             {/* Bottom Scrubber & Mini Controls */}
             <div className="relative z-10 max-w-3xl w-full mx-auto bg-white/[0.08] backdrop-blur-2xl border border-white/14 rounded-3xl p-4 flex flex-col gap-3">
