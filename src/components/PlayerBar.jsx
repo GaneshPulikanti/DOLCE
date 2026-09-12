@@ -23,8 +23,10 @@ export const PlayerBar = ({ themePalette }) => {
   const [loadingLyrics, setLoadingLyrics] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
   const [isFullScreenLyrics, setIsFullScreenLyrics] = useState(false);
+  const [inlineLyricY, setInlineLyricY] = useState(0);
 
   const lyricsContainerRef = useRef(null);
+  const inlineListRef = useRef(null);
   const fullLyricsContainerRef = useRef(null);
   const activeLyricRef = useRef(null);
   const fullActiveLyricRef = useRef(null);
@@ -78,23 +80,22 @@ export const PlayerBar = ({ themePalette }) => {
     return <Shuffle size={22} className="text-white/40 hover:text-white" />;
   };
 
-  // ── Auto-scroll active lyric line to VERTICAL CENTER of container ──
+  // ── Auto-center active lyric line for inline & full screen mode ──
   useEffect(() => {
     if (activeLyricIdx >= 0) {
-      // 1. Scroll in embedded lyrics card
-      if (lyricsContainerRef.current) {
-        const container = lyricsContainerRef.current;
-        const activeEl = container.querySelector(`[data-lyric-index="${activeLyricIdx}"]`);
+      // 1. Calculate translateY for buttery smooth inline lyrics spring animation
+      if (inlineListRef.current && lyricsContainerRef.current) {
+        const containerHeight = lyricsContainerRef.current.clientHeight || 250;
+        const activeEl = inlineListRef.current.querySelector(`[data-lyric-index="${activeLyricIdx}"]`);
         if (activeEl) {
-          const containerHeight = container.clientHeight;
           const elOffsetTop = activeEl.offsetTop;
           const elHeight = activeEl.clientHeight;
-          const targetScroll = elOffsetTop - (containerHeight / 2) + (elHeight / 2);
-          container.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
+          const targetY = (containerHeight / 2) - (elOffsetTop + elHeight / 2);
+          setInlineLyricY(targetY);
         }
       }
 
-      // 2. Scroll in full screen lyrics modal
+      // 2. Scroll in full screen lyrics modal (where manual scrolling is allowed)
       if (isFullScreenLyrics && fullLyricsContainerRef.current) {
         const container = fullLyricsContainerRef.current;
         const activeEl = container.querySelector(`[data-full-lyric-index="${activeLyricIdx}"]`);
@@ -381,7 +382,7 @@ export const PlayerBar = ({ themePalette }) => {
               {/* 4. Content Container directly under Player Controls (Queue or Lyrics) */}
               {showQueue ? (
                 /* Up Next Queue (Opens right here under player controls) */
-                <div className="w-full rounded-3xl p-6 glass-panel border border-white/14 bg-white/[0.08] backdrop-blur-2xl flex flex-col gap-4 text-left shadow-2xl mt-2 mb-6 transition-all">
+                <div className="w-full rounded-3xl p-6 border border-white/10 bg-black/30 backdrop-blur-xl flex flex-col gap-4 text-left shadow-2xl mt-2 mb-6 transition-all">
                   <div className="flex items-center justify-between border-b border-white/10 pb-3">
                     <span className="text-xs uppercase font-extrabold tracking-[0.15em] text-white/80 flex items-center gap-2 font-['Inter']">
                       <ListMusic size={18} className="text-white" />
@@ -444,8 +445,8 @@ export const PlayerBar = ({ themePalette }) => {
                   </div>
                 </div>
               ) : (
-                /* Spotify-Style Synchronized Lyrics Container */
-                <div className="w-full rounded-3xl p-6 glass-panel border border-white/14 bg-white/[0.08] backdrop-blur-2xl flex flex-col gap-4 text-left shadow-2xl mt-2 mb-6">
+                /* Spotify-Style Synchronized Lyrics Container (Clean Glass, No White Box Disturbance) */
+                <div className="w-full rounded-3xl p-6 border border-white/10 bg-black/30 backdrop-blur-xl flex flex-col gap-4 text-left shadow-2xl mt-2 mb-6 select-none overflow-hidden">
                   <div className="flex items-center justify-between border-b border-white/10 pb-3">
                     <span className="text-xs uppercase font-extrabold tracking-[0.15em] text-white/80 flex items-center gap-2 font-['Inter']">
                       <MessageSquareQuote size={18} className="text-white" />
@@ -462,8 +463,9 @@ export const PlayerBar = ({ themePalette }) => {
                     </button>
                   </div>
 
+                  {/* Strictly non-scrollable inline container - Active line locked to vertical center */}
                   <div 
-                    className="w-full max-h-72 overflow-y-auto scroll-smooth pr-2 flex flex-col gap-5 relative"
+                    className="w-full h-64 overflow-hidden relative flex flex-col justify-center items-center select-none touch-none pointer-events-none"
                     ref={lyricsContainerRef}
                   >
                     {loadingLyrics ? (
@@ -472,23 +474,41 @@ export const PlayerBar = ({ themePalette }) => {
                         <p className="text-xs font-bold font-['Inter']">Loading lyrics...</p>
                       </div>
                     ) : lyricsData.synced.length > 0 ? (
-                      lyricsData.synced.map((line, idx) => (
-                        <p
-                          key={idx}
-                          data-lyric-index={idx}
-                          onClick={() => seek(line.time)}
-                          style={idx === activeLyricIdx ? { textShadow: activeLyricGlow } : {}}
-                          className={`cursor-pointer transition-all duration-300 text-lg sm:text-2xl leading-relaxed font-['Inter'] ${
-                            idx === activeLyricIdx
-                              ? 'text-white font-black opacity-100 scale-[1.03]'
-                              : 'text-white/35 font-bold opacity-45 hover:opacity-75'
-                          }`}
-                        >
-                          {line.text}
-                        </p>
-                      ))
+                      <motion.div
+                        ref={inlineListRef}
+                        animate={{ y: inlineLyricY }}
+                        transition={{ type: "spring", stiffness: 90, damping: 18, mass: 0.75 }}
+                        className="w-full flex flex-col gap-6 text-center px-2 pointer-events-auto"
+                      >
+                        {lyricsData.synced.map((line, idx) => {
+                          const isActive = idx === activeLyricIdx;
+                          const dist = Math.abs(idx - activeLyricIdx);
+
+                          return (
+                            <motion.p
+                              key={idx}
+                              data-lyric-index={idx}
+                              onClick={() => seek(line.time)}
+                              animate={{
+                                scale: isActive ? 1.06 : dist === 1 ? 0.94 : 0.86,
+                                opacity: isActive ? 1 : dist === 1 ? 0.45 : 0.15,
+                                filter: isActive ? 'blur(0px)' : dist >= 2 ? 'blur(1px)' : 'blur(0px)',
+                              }}
+                              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                              style={isActive ? { textShadow: activeLyricGlow } : {}}
+                              className={`cursor-pointer transition-colors leading-relaxed font-['Inter'] ${
+                                isActive
+                                  ? 'text-white font-black text-xl sm:text-2xl drop-shadow-md'
+                                  : 'text-white/60 font-bold text-base sm:text-lg'
+                              }`}
+                            >
+                              {line.text}
+                            </motion.p>
+                          );
+                        })}
+                      </motion.div>
                     ) : (
-                      <div className="py-6 text-white/70 whitespace-pre-line text-base font-bold font-['Inter'] leading-relaxed">
+                      <div className="py-6 text-white/70 whitespace-pre-line text-base font-bold font-['Inter'] leading-relaxed text-center pointer-events-auto">
                         {lyricsData.plain || 'No lyrics available for this track.'}
                       </div>
                     )}
