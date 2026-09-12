@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, 
   Heart, ChevronDown, ChevronUp, Download, MessageSquareQuote, ListMusic,
-  Maximize2, Minimize2, X
+  Maximize2, Minimize2, X, Radio
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../store/usePlayerStore';
@@ -636,9 +636,9 @@ export const PlayerBar = ({ themePalette }) => {
                       }
                     }
                   }}
-                  className="fixed bottom-24 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-xl border border-white/30 text-white text-xs font-bold shadow-2xl flex items-center gap-2 transition-all cursor-pointer font-['Inter']"
+                  className="fixed bottom-24 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-xl border border-white/20 text-white text-xs font-bold shadow-2xl flex items-center gap-2 transition-all cursor-pointer font-['Inter']"
                 >
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <Radio size={13} className="text-white/80 animate-pulse" />
                   <span>Sync with song</span>
                 </motion.button>
               )}
