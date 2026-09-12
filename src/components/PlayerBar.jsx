@@ -618,29 +618,31 @@ export const PlayerBar = ({ themePalette }) => {
             {/* Floating Recenter Pill when user is manually scrolling */}
             <AnimatePresence>
               {userScrolledFullLyrics && (
-                <motion.button
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 20 }}
-                  onClick={() => {
-                    setUserScrolledFullLyrics(false);
-                    if (fullLyricsContainerRef.current && activeLyricIdx >= 0) {
-                      const container = fullLyricsContainerRef.current;
-                      const activeEl = container.querySelector(`[data-full-lyric-index="${activeLyricIdx}"]`);
-                      if (activeEl) {
-                        const containerHeight = container.clientHeight;
-                        const elOffsetTop = activeEl.offsetTop;
-                        const elHeight = activeEl.clientHeight;
-                        const targetScroll = elOffsetTop - (containerHeight / 2) + (elHeight / 2);
-                        container.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
+                <div className="fixed bottom-28 left-0 right-0 z-30 flex justify-center pointer-events-none">
+                  <motion.button
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 20 }}
+                    onClick={() => {
+                      setUserScrolledFullLyrics(false);
+                      if (fullLyricsContainerRef.current && activeLyricIdx >= 0) {
+                        const container = fullLyricsContainerRef.current;
+                        const activeEl = container.querySelector(`[data-full-lyric-index="${activeLyricIdx}"]`);
+                        if (activeEl) {
+                          const containerHeight = container.clientHeight;
+                          const elOffsetTop = activeEl.offsetTop;
+                          const elHeight = activeEl.clientHeight;
+                          const targetScroll = elOffsetTop - (containerHeight / 2) + (elHeight / 2);
+                          container.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
+                        }
                       }
-                    }
-                  }}
-                  className="fixed bottom-24 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-xl border border-white/20 text-white text-xs font-bold shadow-2xl flex items-center gap-2 transition-all cursor-pointer font-['Inter']"
-                >
-                  <Radio size={13} className="text-white/80 animate-pulse" />
-                  <span>Sync with song</span>
-                </motion.button>
+                    }}
+                    className="pointer-events-auto px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-xl border border-white/20 text-white text-xs font-bold shadow-2xl flex items-center gap-2 transition-all cursor-pointer font-['Inter']"
+                  >
+                    <Radio size={13} className="text-white/80 animate-pulse" />
+                    <span>Sync with song</span>
+                  </motion.button>
+                </div>
               )}
             </AnimatePresence>
 
