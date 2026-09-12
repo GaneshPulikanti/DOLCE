@@ -300,10 +300,10 @@ export const PlayerBar = ({ themePalette }) => {
                 <img
                   src={artworkUrl}
                   alt={currentTrack.title}
-                  className="w-full h-full object-cover"
+                  className={`w-full h-full object-cover ${artworkUrl?.includes('ytimg.com') ? 'scale-[1.25]' : ''}`}
                   onError={(e) => {
-                    if (currentTrack?.id && !e.target.src.includes('sddefault.jpg')) {
-                      e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/sddefault.jpg`;
+                    if (currentTrack?.id && !e.target.src.includes('hqdefault.jpg')) {
+                      e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/hqdefault.jpg`;
                     }
                   }}
                 />

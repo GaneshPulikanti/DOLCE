@@ -42,9 +42,17 @@ export const TrackCard = ({ track, queue = [] }) => {
           <img
             src={track.artworkUrl}
             alt={track.title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+              track.artworkUrl?.includes('ytimg.com') ? 'scale-[1.25]' : ''
+            }`}
             loading="lazy"
-            onError={() => setImgError(true)}
+            onError={(e) => {
+              if (track.id && !e.target.src.includes('hqdefault.jpg')) {
+                e.target.src = `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`;
+              } else {
+                setImgError(true);
+              }
+            }}
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-white/5 text-white/40">

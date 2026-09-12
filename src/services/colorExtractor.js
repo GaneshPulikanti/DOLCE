@@ -37,7 +37,18 @@ function loadImageCanvas(url) {
         const ctx = canvas.getContext('2d');
         canvas.width = 32;
         canvas.height = 32;
-        ctx.drawImage(img, 0, 0, 32, 32);
+
+        if (url.includes('ytimg.com') || url.includes('youtube.com')) {
+          // Crop top and bottom 12.5% letterbox black bars for 16:9 YouTube thumbnails
+          const srcW = img.naturalWidth || 480;
+          const srcH = img.naturalHeight || 360;
+          const cropY = Math.floor(srcH * 0.125);
+          const cropH = Math.floor(srcH * 0.75);
+          ctx.drawImage(img, 0, cropY, srcW, cropH, 0, 0, 32, 32);
+        } else {
+          ctx.drawImage(img, 0, 0, 32, 32);
+        }
+
         const imgData = ctx.getImageData(0, 0, 32, 32).data;
         resolve(imgData);
       } catch (e) {

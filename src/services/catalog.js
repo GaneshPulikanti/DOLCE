@@ -177,13 +177,14 @@ export function getHDArtworkUrl(url, videoId) {
     return hdUrl;
   }
 
+  // For YouTube thumbnail URLs, hqdefault.jpg is 100% guaranteed to exist (200 OK) without 404
   if (hdUrl.includes('ytimg.com') || hdUrl.includes('youtube.com')) {
-    hdUrl = hdUrl.replace(/(hqdefault|mqdefault|sddefault|default)\.jpg/, 'hq720.jpg');
+    hdUrl = hdUrl.replace(/(mqdefault|sddefault|default|hq720)\.jpg/, 'hqdefault.jpg');
     return hdUrl;
   }
 
   if (videoId) {
-    return `https://i.ytimg.com/vi/${videoId}/hq720.jpg`;
+    return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
   }
 
   return hdUrl || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
