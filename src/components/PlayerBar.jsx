@@ -378,102 +378,120 @@ export const PlayerBar = ({ themePalette }) => {
                 </button>
               </div>
 
-              {/* 4. Spotify-Style Synchronized Lyrics Container (Directly Under Player Controls) */}
-              <div className="w-full rounded-3xl p-6 glass-panel border border-white/14 bg-white/[0.08] backdrop-blur-2xl flex flex-col gap-4 text-left shadow-2xl mt-2 mb-6">
-                <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                  <span className="text-xs uppercase font-extrabold tracking-[0.15em] text-white/80 flex items-center gap-2 font-['Inter']">
-                    <MessageSquareQuote size={18} className="text-white" />
-                    <span>LYRICS</span>
-                  </span>
-
-                  {/* Full Screen Mode Toggle Button */}
-                  <button
-                    onClick={() => setIsFullScreenLyrics(true)}
-                    className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-all"
-                  >
-                    <Maximize2 size={13} />
-                    <span>Full Screen</span>
-                  </button>
-                </div>
-
-                <div 
-                  className="w-full max-h-72 overflow-y-auto scroll-smooth pr-2 flex flex-col gap-5 relative"
-                  ref={lyricsContainerRef}
-                >
-                  {loadingLyrics ? (
-                    <div className="flex flex-col items-center justify-center py-10 text-white/40 animate-pulse">
-                      <MessageSquareQuote size={32} className="mb-2 text-white/60" />
-                      <p className="text-xs font-bold font-['Inter']">Loading lyrics...</p>
-                    </div>
-                  ) : lyricsData.synced.length > 0 ? (
-                    lyricsData.synced.map((line, idx) => (
-                      <p
-                        key={idx}
-                        data-lyric-index={idx}
-                        onClick={() => seek(line.time)}
-                        style={idx === activeLyricIdx ? { textShadow: activeLyricGlow } : {}}
-                        className={`cursor-pointer transition-all duration-300 text-lg sm:text-2xl leading-relaxed font-['Inter'] ${
-                          idx === activeLyricIdx
-                            ? 'text-white font-black opacity-100 scale-[1.03]'
-                            : 'text-white/35 font-bold opacity-45 hover:opacity-75'
-                        }`}
-                      >
-                        {line.text}
-                      </p>
-                    ))
-                  ) : (
-                    <div className="py-6 text-white/70 whitespace-pre-line text-base font-bold font-['Inter'] leading-relaxed">
-                      {lyricsData.plain || 'No lyrics available for this track.'}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* 5. Up Next Queue Drawer (When Toggle Enabled) */}
-              {showQueue && (
-                <div className="w-full rounded-3xl p-5 glass-panel border border-white/14 bg-white/[0.08] backdrop-blur-2xl flex flex-col gap-3 mb-8">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-                    <span className="text-xs uppercase font-bold tracking-widest text-white/80 flex items-center gap-2 font-['Inter']">
+              {/* 4. Content Container directly under Player Controls (Queue or Lyrics) */}
+              {showQueue ? (
+                /* Up Next Queue (Opens right here under player controls) */
+                <div className="w-full rounded-3xl p-6 glass-panel border border-white/14 bg-white/[0.08] backdrop-blur-2xl flex flex-col gap-4 text-left shadow-2xl mt-2 mb-6 transition-all">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                    <span className="text-xs uppercase font-extrabold tracking-[0.15em] text-white/80 flex items-center gap-2 font-['Inter']">
                       <ListMusic size={18} className="text-white" />
                       <span>UP NEXT QUEUE ({queue.length})</span>
                     </span>
+
+                    <button
+                      onClick={() => setShowQueue(false)}
+                      className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-all"
+                      title="Close Queue & Show Lyrics"
+                    >
+                      <X size={13} />
+                      <span>Close Queue</span>
+                    </button>
                   </div>
 
-                  <div className="flex flex-col gap-2 max-h-60 overflow-y-auto">
-                    {queue.map((track, qIdx) => {
-                      const isTrackActive = currentTrack.id === track.id;
-                      return (
-                        <div
-                          key={`${track.id}-${qIdx}`}
-                          onClick={() => playTrack(track, queue)}
-                          className={`flex items-center justify-between p-2.5 rounded-2xl cursor-pointer transition-all ${
-                            isTrackActive ? 'bg-white/20 border border-white/30 text-white font-bold' : 'hover:bg-white/10 text-white/70'
+                  <div className="w-full max-h-72 overflow-y-auto scroll-smooth pr-1 flex flex-col gap-2">
+                    {queue.length > 0 ? (
+                      queue.map((track, qIdx) => {
+                        const isTrackActive = currentTrack.id === track.id;
+                        return (
+                          <div
+                            key={`${track.id}-${qIdx}`}
+                            onClick={() => playTrack(track, queue)}
+                            className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all ${
+                              isTrackActive
+                                ? 'bg-white/20 border border-white/30 text-white font-bold'
+                                : 'hover:bg-white/10 text-white/70'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                              <img
+                                src={track.artworkUrl}
+                                alt={track.title}
+                                className="w-11 h-11 rounded-xl object-cover bg-black border border-white/10 flex-shrink-0"
+                              />
+                              <div className="flex flex-col min-w-0">
+                                <h5 className="text-sm font-bold truncate text-white font-['Inter']">
+                                  {track.title}
+                                </h5>
+                                <p className="text-xs text-white/50 truncate font-medium font-['Inter'] mt-0.5">
+                                  {track.artistName}
+                                </p>
+                              </div>
+                            </div>
+
+                            {isTrackActive && (
+                              <span className="text-xs font-bold text-white px-3 py-1 rounded-full bg-white/20 border border-white/30 font-['Inter'] flex-shrink-0">
+                                Playing
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="py-10 text-center text-white/50 font-bold font-['Inter'] text-sm">
+                        No songs in queue
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Spotify-Style Synchronized Lyrics Container */
+                <div className="w-full rounded-3xl p-6 glass-panel border border-white/14 bg-white/[0.08] backdrop-blur-2xl flex flex-col gap-4 text-left shadow-2xl mt-2 mb-6">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                    <span className="text-xs uppercase font-extrabold tracking-[0.15em] text-white/80 flex items-center gap-2 font-['Inter']">
+                      <MessageSquareQuote size={18} className="text-white" />
+                      <span>LYRICS</span>
+                    </span>
+
+                    {/* Full Screen Mode Toggle Button */}
+                    <button
+                      onClick={() => setIsFullScreenLyrics(true)}
+                      className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-all"
+                    >
+                      <Maximize2 size={13} />
+                      <span>Full Screen</span>
+                    </button>
+                  </div>
+
+                  <div 
+                    className="w-full max-h-72 overflow-y-auto scroll-smooth pr-2 flex flex-col gap-5 relative"
+                    ref={lyricsContainerRef}
+                  >
+                    {loadingLyrics ? (
+                      <div className="flex flex-col items-center justify-center py-10 text-white/40 animate-pulse">
+                        <MessageSquareQuote size={32} className="mb-2 text-white/60" />
+                        <p className="text-xs font-bold font-['Inter']">Loading lyrics...</p>
+                      </div>
+                    ) : lyricsData.synced.length > 0 ? (
+                      lyricsData.synced.map((line, idx) => (
+                        <p
+                          key={idx}
+                          data-lyric-index={idx}
+                          onClick={() => seek(line.time)}
+                          style={idx === activeLyricIdx ? { textShadow: activeLyricGlow } : {}}
+                          className={`cursor-pointer transition-all duration-300 text-lg sm:text-2xl leading-relaxed font-['Inter'] ${
+                            idx === activeLyricIdx
+                              ? 'text-white font-black opacity-100 scale-[1.03]'
+                              : 'text-white/35 font-bold opacity-45 hover:opacity-75'
                           }`}
                         >
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <img
-                              src={track.artworkUrl}
-                              alt={track.title}
-                              className="w-10 h-10 rounded-xl object-cover bg-black"
-                            />
-                            <div className="flex flex-col min-w-0">
-                              <h5 className="text-sm font-bold truncate text-white font-['Inter']">
-                                {track.title}
-                              </h5>
-                              <p className="text-xs text-white/50 truncate font-medium font-['Inter']">
-                                {track.artistName}
-                              </p>
-                            </div>
-                          </div>
-
-                          {isTrackActive && (
-                            <span className="text-xs font-bold text-white px-2.5 py-1 rounded-full bg-white/20 font-['Inter']">
-                              Playing
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
+                          {line.text}
+                        </p>
+                      ))
+                    ) : (
+                      <div className="py-6 text-white/70 whitespace-pre-line text-base font-bold font-['Inter'] leading-relaxed">
+                        {lyricsData.plain || 'No lyrics available for this track.'}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
