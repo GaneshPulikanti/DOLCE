@@ -193,8 +193,41 @@ final searchVideosResultsProvider = FutureProvider<List<YoutubeTrack>>((ref) asy
 
 /// YouTube Music home sections (curated feed — "Top picks", "Trending", etc.)
 final homeSectionsProvider = FutureProvider<List<YTMusicHomeSection>>((ref) async {
-  final repo = await ref.watch(ytMusicRepositoryProvider.future);
-  return repo.getHomeSections();
+  try {
+    final repo = await ref.watch(ytMusicRepositoryProvider.future);
+    final sections = await repo.getHomeSections();
+    if (sections.isNotEmpty) return sections;
+  } catch (e) {
+    print('⚠️ [homeSectionsProvider] Primary getHomeSections failed: $e');
+  }
+
+  // Robust fallback for localhost / CORS restricted environments:
+  // Fetch popular music trends via YoutubeExplode so Home Feed catalog is always rich & full
+  try {
+    print('🟢 [homeSectionsProvider] Generating fallback home feed catalog sections...');
+    final ytExplode = ref.read(youtubeExplodeProvider);
+    final trendingResults = await ytExplode.search.search('trending music hits');
+    final tracks = trendingResults.map((v) => YoutubeTrack(
+      id: v.id.value,
+      title: v.title,
+      artistName: v.author,
+      artworkUrl: v.thumbnails.highResUrl,
+      duration: v.duration,
+    )).toList();
+
+    if (tracks.isNotEmpty) {
+      final topHits = tracks.take(10).toList();
+      final trending = tracks.skip(10).toList();
+      return [
+        if (topHits.isNotEmpty) YTMusicHomeSection(title: 'Top Music Hits', tracks: topHits),
+        if (trending.isNotEmpty) YTMusicHomeSection(title: 'Trending Songs', tracks: trending),
+      ];
+    }
+  } catch (err) {
+    print('🔴 [homeSectionsProvider] Fallback home catalog failed: $err');
+  }
+
+  return [];
 });
 
 /// Home page music videos provider
