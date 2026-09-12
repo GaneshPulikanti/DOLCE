@@ -121,7 +121,7 @@ export const PlayerBar = ({ themePalette }) => {
       {/* ─── Persistent Mini Player Bar (Original Dart Monochromatic Glass) ─── */}
       <div 
         onClick={() => setExpanded(true)}
-        className="fixed bottom-[84px] left-3 right-3 max-w-2xl mx-auto z-45 glass-panel border border-white/14 p-2.5 lg:p-3 flex items-center justify-between shadow-2xl cursor-pointer bg-[#0d0d0d]/95 backdrop-blur-2xl transition-all duration-300 hover:scale-[1.005]"
+        className="fixed bottom-[84px] left-3 right-3 max-w-2xl mx-auto z-[45] glass-panel border border-white/14 p-2.5 lg:p-3 flex items-center justify-between shadow-2xl cursor-pointer bg-[#0d0d0d]/95 backdrop-blur-2xl transition-all duration-300 hover:scale-[1.005]"
       >
         {/* Track Thumbnail & Titles */}
         <div className="flex items-center gap-3.5 min-w-0 flex-1">
@@ -252,7 +252,7 @@ export const PlayerBar = ({ themePalette }) => {
             <div className="relative z-10 flex-1 max-w-xl w-full mx-auto px-6 py-4 flex flex-col items-center justify-between gap-6">
               
               {/* 3. Cover Artwork Box */}
-              <div className="relative aspect-square w-full max-w-[340px] rounded-3xl overflow-hidden border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-[#141416] my-auto flex items-center justify-center">
+              <div className="relative w-64 h-64 sm:w-72 sm:h-72 aspect-square rounded-3xl overflow-hidden border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-[#141416] flex-shrink-0 my-2 flex items-center justify-center">
                 <img
                   src={artworkUrl}
                   alt={currentTrack.title}
