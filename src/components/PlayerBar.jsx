@@ -14,6 +14,7 @@ export const PlayerBar = ({ themePalette }) => {
     currentTrack, queue, isPlaying, togglePlayPause, 
     playTrack, skipNext, skipPrev, currentTime, duration, seek, 
     isShuffle, repeatMode, cyclePlaybackMode,
+    lyricFont, setLyricFont,
     isExpanded, setExpanded 
   } = usePlayerStore();
 
@@ -23,6 +24,7 @@ export const PlayerBar = ({ themePalette }) => {
   const [loadingLyrics, setLoadingLyrics] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
   const [isFullScreenLyrics, setIsFullScreenLyrics] = useState(false);
+  const [showFontSelector, setShowFontSelector] = useState(false);
   const [inlineLyricY, setInlineLyricY] = useState(0);
   const [userScrolledFullLyrics, setUserScrolledFullLyrics] = useState(false);
 
@@ -73,6 +75,16 @@ export const PlayerBar = ({ themePalette }) => {
       }
     }
   }
+
+  const fontOptions = [
+    { id: 'jakarta', name: 'Plus Jakarta Sans (Apple & Spotify Style)', className: 'font-jakarta' },
+    { id: 'sora', name: 'Sora (Futuristic & Smooth Curves)', className: 'font-sora' },
+    { id: 'syne', name: 'Syne (Avant-Garde & Artistic Display)', className: 'font-syne' },
+    { id: 'space', name: 'Space Grotesk (Edgy & Neo-Grotesque)', className: 'font-space' },
+    { id: 'outfit', name: 'Outfit (Clean & Bold Geometric)', className: 'font-outfit' },
+  ];
+
+  const currentFontClass = fontOptions.find(f => f.id === lyricFont)?.className || 'font-jakarta';
 
   const renderPlaybackModeIcon = () => {
     if (isShuffle) {
@@ -467,14 +479,25 @@ export const PlayerBar = ({ themePalette }) => {
                       <span>LYRICS</span>
                     </span>
 
-                    {/* Full Screen Mode Toggle Button */}
-                    <button
-                      onClick={() => setIsFullScreenLyrics(true)}
-                      className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-all"
-                    >
-                      <Maximize2 size={13} />
-                      <span>Full Screen</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowFontSelector(true)}
+                        className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-all"
+                        title="Change Lyrics Font"
+                      >
+                        <span className="font-serif font-black text-sm">Aa</span>
+                        <span>Font</span>
+                      </button>
+
+                      {/* Full Screen Mode Toggle Button */}
+                      <button
+                        onClick={() => setIsFullScreenLyrics(true)}
+                        className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-all"
+                      >
+                        <Maximize2 size={13} />
+                        <span>Full Screen</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Strictly non-scrollable inline container - Active line locked to vertical center */}
@@ -510,7 +533,7 @@ export const PlayerBar = ({ themePalette }) => {
                               }}
                               transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
                               style={isActive ? { textShadow: activeLyricGlow } : {}}
-                              className={`cursor-pointer transition-colors leading-relaxed font-lyrics ${
+                              className={`cursor-pointer transition-colors leading-relaxed ${currentFontClass} ${
                                 isActive
                                   ? 'text-white font-black text-xl sm:text-2xl drop-shadow-md'
                                   : 'text-white/60 font-bold text-base sm:text-lg'
@@ -572,18 +595,29 @@ export const PlayerBar = ({ themePalette }) => {
                 </div>
               </div>
 
-              <button
-                onClick={() => setIsFullScreenLyrics(false)}
-                className="p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all"
-                title="Exit Full Screen Lyrics"
-              >
-                <Minimize2 size={22} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowFontSelector(true)}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-all"
+                  title="Change Lyrics Font"
+                >
+                  <span className="font-serif font-black text-sm">Aa</span>
+                  <span>Font</span>
+                </button>
+
+                <button
+                  onClick={() => setIsFullScreenLyrics(false)}
+                  className="p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all"
+                  title="Exit Full Screen Lyrics"
+                >
+                  <Minimize2 size={22} />
+                </button>
+              </div>
             </div>
 
             {/* Full Screen Scrollable Lyrics Container (Centered Lines) */}
             <div 
-              className="relative z-10 flex-1 w-full max-w-4xl mx-auto my-6 overflow-y-auto scroll-smooth py-20 flex flex-col gap-8 text-center font-lyrics"
+              className={`relative z-10 flex-1 w-full max-w-4xl mx-auto my-6 overflow-y-auto scroll-smooth py-20 flex flex-col gap-8 text-center ${currentFontClass}`}
               ref={fullLyricsContainerRef}
               onScroll={handleFullLyricsScroll}
             >
@@ -681,6 +715,78 @@ export const PlayerBar = ({ themePalette }) => {
               </div>
             </div>
 
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── LIVE FONT SELECTOR MODAL ─── */}
+      <AnimatePresence>
+        {showFontSelector && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowFontSelector(false)}
+            className="fixed inset-0 z-[80] bg-black/75 backdrop-blur-md flex items-center justify-center p-4 font-['Inter']"
+          >
+            <motion.div
+              initial={{ scale: 0.92, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.92, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-lg rounded-3xl bg-[#121214] border border-white/20 p-6 flex flex-col gap-5 shadow-2xl text-left"
+            >
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div>
+                  <h3 className="text-lg font-extrabold text-white">Lyrics Font Style</h3>
+                  <p className="text-xs text-white/50 font-medium">Select your favorite aesthetic font</p>
+                </div>
+                <button
+                  onClick={() => setShowFontSelector(false)}
+                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto pr-1">
+                {fontOptions.map((font) => {
+                  const isSelected = (lyricFont || 'jakarta') === font.id;
+                  return (
+                    <div
+                      key={font.id}
+                      onClick={() => setLyricFont(font.id)}
+                      className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col gap-2 ${
+                        isSelected
+                          ? 'bg-white/20 border-white/40 text-white shadow-lg'
+                          : 'bg-white/[0.05] border-white/10 text-white/70 hover:bg-white/10'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-extrabold uppercase tracking-wider text-white/80 font-['Inter']">
+                          {font.name}
+                        </span>
+                        {isSelected && (
+                          <span className="text-[10px] font-black text-white px-2.5 py-0.5 rounded-full bg-white/30 font-['Inter']">
+                            Selected
+                          </span>
+                        )}
+                      </div>
+                      <p className={`text-xl sm:text-2xl font-bold leading-relaxed text-white mt-1 ${font.className}`}>
+                        Hey this is me, who are you?
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={() => setShowFontSelector(false)}
+                className="w-full py-3 rounded-2xl bg-white text-black font-extrabold text-sm hover:scale-[1.02] active:scale-95 transition-all shadow-xl mt-1 font-['Inter']"
+              >
+                Apply Font Style
+              </button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

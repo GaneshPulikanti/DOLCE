@@ -36,6 +36,8 @@ export const usePlayerStore = create((set, get) => {
     isShuffle: false,
     repeatMode: 'off', // 'off' | 'one' | 'all'
     isExpanded: false,
+    lyricFont: 'jakarta', // 'jakarta' | 'sora' | 'syne' | 'space' | 'outfit'
+    setLyricFont: (lyricFont) => set({ lyricFont }),
 
     playTrack: (track, newQueue = null) => {
       if (!track || !track.id) return;
