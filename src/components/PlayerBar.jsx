@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { toggleFavorite, isFavorite } from '../services/db';
 
-export const PlayerBar = () => {
+export const PlayerBar = ({ themePalette }) => {
   const { 
     currentTrack, isPlaying, togglePlayPause, 
     skipNext, skipPrev, currentTime, duration, seek, 
@@ -42,12 +42,23 @@ export const PlayerBar = () => {
     setLiked(newStatus);
   };
 
+  const accentColor = themePalette?.primary || '#8b5cf6';
+  const shadowColor = themePalette?.glow || 'rgba(139, 92, 246, 0.4)';
+  const modalBg = themePalette ? {
+    background: `radial-gradient(circle at 50% 30%, ${themePalette.dominant} 0%, rgba(5, 5, 8, 0.96) 80%)`
+  } : {
+    background: 'rgba(5, 5, 8, 0.95)'
+  };
+
   return (
     <>
       {/* ─── Persistent Mini Player Bar ─── */}
       <div 
         onClick={() => setExpanded(true)}
-        className="fixed bottom-[60px] md:bottom-4 left-3 right-3 lg:left-6 lg:right-6 z-40 glass-panel border border-white/15 p-2.5 lg:p-3 flex items-center justify-between shadow-2xl cursor-pointer bg-black/85 backdrop-blur-2xl transition-transform hover:scale-[1.005]"
+        className="fixed bottom-[60px] md:bottom-4 left-3 right-3 lg:left-6 lg:right-6 z-40 glass-panel border border-white/15 p-2.5 lg:p-3 flex items-center justify-between shadow-2xl cursor-pointer bg-black/85 backdrop-blur-2xl transition-all duration-500 hover:scale-[1.005]"
+        style={{
+          boxShadow: `0 10px 30px -5px ${shadowColor}`
+        }}
       >
         {/* Track Thumbnail & Titles */}
         <div className="flex items-center gap-3.5 min-w-0 flex-1">
@@ -84,7 +95,8 @@ export const PlayerBar = () => {
 
           <button
             onClick={togglePlayPause}
-            className="w-11 h-11 rounded-full bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center shadow-lg shadow-purple-600/30 transition-all scale-100 active:scale-95"
+            className="w-11 h-11 rounded-full text-white flex items-center justify-center shadow-lg transition-all scale-100 active:scale-95"
+            style={{ backgroundColor: accentColor, boxShadow: `0 4px 20px ${shadowColor}` }}
           >
             {isPlaying ? <Pause size={20} fill="white" /> : <Play size={20} fill="white" className="ml-0.5" />}
           </button>
@@ -107,13 +119,16 @@ export const PlayerBar = () => {
         {/* Progress Bar (Bottom Hairline) */}
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10 rounded-b-full overflow-hidden">
           <div 
-            className="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-400 transition-all duration-300"
-            style={{ width: `${progressPct}%` }}
+            className="h-full transition-all duration-300"
+            style={{ 
+              width: `${progressPct}%`,
+              background: `linear-gradient(90deg, ${accentColor}, #ec4899)`
+            }}
           />
         </div>
       </div>
 
-      {/* ─── Full-Screen Expanded Modal ─── */}
+      {/* ─── Full-Screen Expanded Modal (Apple Music Dynamic Backdrop) ─── */}
       <AnimatePresence>
         {isExpanded && (
           <motion.div
@@ -121,10 +136,19 @@ export const PlayerBar = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed inset-0 z-50 bg-black/95 backdrop-blur-3xl flex flex-col p-6 lg:p-12 overflow-y-auto"
+            className="fixed inset-0 z-50 backdrop-blur-3xl flex flex-col p-6 lg:p-12 overflow-y-auto transition-colors duration-700"
+            style={modalBg}
           >
+            {/* Ambient Animated Fluid Glow Mesh Overlay */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-40 z-0">
+              <div 
+                className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full filter blur-[100px] animate-pulse"
+                style={{ background: themePalette?.secondary || '#ec4899' }}
+              />
+            </div>
+
             {/* Top Bar Header */}
-            <div className="flex items-center justify-between mb-8">
+            <div className="relative z-10 flex items-center justify-between mb-8">
               <button 
                 onClick={() => setExpanded(false)}
                 className="p-3 rounded-full glass-card text-white/80 hover:text-white transition-all"
@@ -132,14 +156,14 @@ export const PlayerBar = () => {
                 <ChevronDown size={24} />
               </button>
 
-              <span className="text-xs uppercase font-extrabold tracking-widest text-purple-400">
+              <span className="text-xs uppercase font-extrabold tracking-widest text-white/80">
                 Playing From DOLCE Engine
               </span>
 
               <button
                 onClick={() => setShowQueue(!showQueue)}
                 className={`p-3 rounded-full glass-card transition-all ${
-                  showQueue ? 'text-purple-400 bg-purple-500/20' : 'text-white/80 hover:text-white'
+                  showQueue ? 'text-white bg-white/20' : 'text-white/80 hover:text-white'
                 }`}
               >
                 <ListMusic size={24} />
@@ -147,9 +171,14 @@ export const PlayerBar = () => {
             </div>
 
             {/* Main Center Content */}
-            <div className="flex-1 max-w-lg w-full mx-auto flex flex-col items-center justify-center">
-              {/* Artwork */}
-              <div className="relative w-64 h-64 sm:w-80 sm:h-80 lg:w-96 lg:h-96 rounded-3xl overflow-hidden shadow-2xl shadow-purple-600/20 mb-8 border border-white/15 bg-black">
+            <div className="relative z-10 flex-1 max-w-lg w-full mx-auto flex flex-col items-center justify-center">
+              {/* Artwork with Dynamic Color Shadow (Apple Music style) */}
+              <div 
+                className="relative w-64 h-64 sm:w-80 sm:h-80 lg:w-96 lg:h-96 rounded-3xl overflow-hidden mb-8 border border-white/20 bg-black transition-all duration-700"
+                style={{
+                  boxShadow: `0 25px 70px -10px ${shadowColor}`
+                }}
+              >
                 <img
                   src={currentTrack.artworkUrl || `https://i.ytimg.com/vi/${currentTrack.id}/hq720.jpg`}
                   alt={currentTrack.title}
@@ -170,7 +199,7 @@ export const PlayerBar = () => {
                   <h2 className="text-2xl sm:text-3xl font-extrabold text-white truncate">
                     {currentTrack.title}
                   </h2>
-                  <p className="text-base sm:text-lg text-white/60 font-medium truncate mt-1">
+                  <p className="text-base sm:text-lg text-white/70 font-medium truncate mt-1">
                     {currentTrack.artistName}
                   </p>
                 </div>
@@ -190,20 +219,21 @@ export const PlayerBar = () => {
                   max={duration || 100}
                   value={currentTime}
                   onChange={(e) => seek(parseFloat(e.target.value))}
-                  className="w-full h-2 rounded-lg bg-white/20 appearance-none cursor-pointer accent-purple-500"
+                  className="w-full h-2 rounded-lg bg-white/20 appearance-none cursor-pointer"
+                  style={{ accentColor: accentColor }}
                 />
-                <div className="flex justify-between text-xs text-white/50 font-semibold mt-2">
+                <div className="flex justify-between text-xs text-white/60 font-semibold mt-2">
                   <span>{formatTime(currentTime)}</span>
                   <span>{formatTime(duration)}</span>
                 </div>
               </div>
 
-              {/* Controls */}
+              {/* Playback Controls */}
               <div className="w-full flex items-center justify-between mb-8">
                 <button 
                   onClick={toggleShuffle}
                   className={`p-3 rounded-full transition-colors ${
-                    isShuffle ? 'text-purple-400' : 'text-white/40 hover:text-white'
+                    isShuffle ? 'text-white' : 'text-white/40 hover:text-white'
                   }`}
                 >
                   <Shuffle size={22} />
@@ -218,7 +248,8 @@ export const PlayerBar = () => {
 
                 <button
                   onClick={togglePlayPause}
-                  className="w-20 h-20 rounded-full bg-gradient-to-tr from-purple-600 to-pink-500 text-white flex items-center justify-center shadow-xl shadow-purple-600/40 hover:scale-105 transition-all"
+                  className="w-20 h-20 rounded-full text-white flex items-center justify-center shadow-2xl hover:scale-105 transition-all"
+                  style={{ backgroundColor: accentColor, boxShadow: `0 10px 30px ${shadowColor}` }}
                 >
                   {isPlaying ? <Pause size={36} fill="white" /> : <Play size={36} fill="white" className="ml-1" />}
                 </button>
@@ -233,7 +264,7 @@ export const PlayerBar = () => {
                 <button 
                   onClick={cycleRepeatMode}
                   className={`p-3 rounded-full transition-colors ${
-                    repeatMode !== 'off' ? 'text-purple-400' : 'text-white/40 hover:text-white'
+                    repeatMode !== 'off' ? 'text-white' : 'text-white/40 hover:text-white'
                   }`}
                 >
                   <Repeat size={22} />
@@ -242,7 +273,7 @@ export const PlayerBar = () => {
               </div>
 
               {/* Volume Scrubber */}
-              <div className="w-full flex items-center gap-3 px-4 py-2 glass-card rounded-full max-w-xs">
+              <div className="w-full flex items-center gap-3 px-4 py-2.5 glass-card rounded-full max-w-xs">
                 <button onClick={toggleMute} className="text-white/60 hover:text-white">
                   {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
                 </button>
@@ -252,7 +283,8 @@ export const PlayerBar = () => {
                   max={100}
                   value={isMuted ? 0 : volume}
                   onChange={(e) => setVolume(parseInt(e.target.value))}
-                  className="w-full h-1.5 rounded-lg bg-white/20 appearance-none cursor-pointer accent-purple-500"
+                  className="w-full h-1.5 rounded-lg bg-white/20 appearance-none cursor-pointer"
+                  style={{ accentColor: accentColor }}
                 />
               </div>
             </div>
