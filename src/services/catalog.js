@@ -1,11 +1,10 @@
 /**
  * DOLCE Audio Catalog Engine.
- * High-performance music streaming gateway client with strict HD Album Cover enforcement.
+ * High-performance music streaming gateway client with HD Album Cover processing.
  */
 
 /**
  * Searches songs catalog using DOLCE Gateway.
- * Strictly returns tracks with official 1:1 high-definition audio album covers.
  */
 export async function searchSongs(query) {
   if (!query || !query.trim()) return [];
@@ -29,7 +28,7 @@ export async function searchSongs(query) {
           }
         },
         query: cleanQuery,
-        params: 'Eg-KAQwIARAAGAAgACgAMABqChAEEAMQCRAFEAo=' // Exact YT Music filter for "Official Songs"
+        params: 'Eg-KAQwIARAAGAAgACgAMABqChAEEAMQCRAFEAo='
       })
     });
 
@@ -66,7 +65,7 @@ export async function searchSongs(query) {
     }
   } catch (_) {}
 
-  // 3. Fallback High Availability Mirror API with strict cover filtering
+  // 3. Fallback High Availability Mirror API
   const backupEndpoints = [
     `https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(cleanQuery)}&filter=music_songs`,
     `https://invidious.drgns.space/api/v1/search?q=${encodeURIComponent(cleanQuery)}&type=video`,
@@ -82,17 +81,16 @@ export async function searchSongs(query) {
           .map(item => {
             const vId = item.videoId || extractVideoId(item.url);
             const rawUrl = item.thumbnail || item.videoThumbnails?.[0]?.url;
-            const hdCover = getHDArtworkUrl(rawUrl, vId, false);
             return {
               id: vId,
               title: item.title,
               artistName: item.author || item.uploaderName || 'Artist',
-              artworkUrl: hdCover,
+              artworkUrl: getHDArtworkUrl(rawUrl, vId),
               duration: formatDurationSeconds(item.lengthSeconds || item.duration),
               durationMs: (item.lengthSeconds || item.duration || 225) * 1000,
             };
           })
-          .filter(s => s.id && s.artworkUrl);
+          .filter(s => s.id);
         if (songs.length > 0) return songs;
       }
     } catch (_) {}
@@ -102,7 +100,7 @@ export async function searchSongs(query) {
 }
 
 /**
- * Fetches Home Feed curated sections with strict HD album cover filtering.
+ * Fetches Home Feed curated sections.
  */
 export async function getHomeFeed() {
   const defaultCategories = [
@@ -116,11 +114,9 @@ export async function getHomeFeed() {
     const sections = await Promise.all(
       defaultCategories.map(async (cat) => {
         const tracks = await searchSongs(cat.query);
-        // Filter out any track missing official 1:1 album cover
-        const officialTracks = tracks.filter(t => t.artworkUrl && !t.artworkUrl.includes('ytimg.com'));
         return {
           title: cat.title,
-          tracks: (officialTracks.length > 0 ? officialTracks : tracks).slice(0, 10),
+          tracks: tracks.slice(0, 10),
         };
       })
     );
@@ -166,10 +162,10 @@ export async function getStreamUrl(videoId) {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
- * Transforms raw thumbnail URLs into 100% official high-definition 1:1 square album art (540x540).
- * If strictMode is true, returns null for non-official 16:9 video thumbnails.
+ * Transforms raw thumbnail URLs into high-definition artwork URLs (540x540 / 720p).
+ * Always returns a valid artwork URL string for guaranteed display.
  */
-export function getHDArtworkUrl(url, videoId, strictMode = true) {
+export function getHDArtworkUrl(url, videoId) {
   let hdUrl = url || '';
 
   // Official YouTube Music Audio Cover hosts (lh3.googleusercontent.com, yt3.googleusercontent.com, yt3.ggpht.com)
@@ -181,17 +177,16 @@ export function getHDArtworkUrl(url, videoId, strictMode = true) {
     return hdUrl;
   }
 
-  // Non-official 16:9 YouTube video thumbnails (i.ytimg.com)
-  if (strictMode) {
-    // Restrict catalog to official audio album covers only!
-    return null;
-  }
-
   if (hdUrl.includes('ytimg.com') || hdUrl.includes('youtube.com')) {
     hdUrl = hdUrl.replace(/(hqdefault|mqdefault|sddefault|default)\.jpg/, 'hq720.jpg');
+    return hdUrl;
   }
 
-  return hdUrl || null;
+  if (videoId) {
+    return `https://i.ytimg.com/vi/${videoId}/hq720.jpg`;
+  }
+
+  return hdUrl || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
 }
 
 function extractVideoId(url) {
@@ -209,7 +204,6 @@ function formatDurationSeconds(seconds) {
 
 /**
  * Parses InnerTube WEB_REMIX search responses.
- * Strictly retains tracks with official high-definition 1:1 audio album covers.
  */
 function parseInnerTubeSearchSongs(data) {
   try {
@@ -229,10 +223,9 @@ function parseInnerTubeSearchSongs(data) {
         const thumbs = r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails;
         const rawThumbUrl = thumbs?.[thumbs.length - 1]?.url;
 
-        // Strictly enforce official 1:1 square album cover art
-        const hdArtwork = getHDArtworkUrl(rawThumbUrl, videoId, false);
+        const hdArtwork = getHDArtworkUrl(rawThumbUrl, videoId);
 
-        if (videoId && title && hdArtwork) {
+        if (videoId && title) {
           tracks.push({
             id: videoId,
             title: title,

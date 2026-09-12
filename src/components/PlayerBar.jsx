@@ -114,7 +114,7 @@ export const PlayerBar = ({ themePalette }) => {
     }
   }, [activeLyricIdx, isFullScreenLyrics]);
 
-  const artworkUrl = currentTrack.artworkUrl || '';
+  const artworkUrl = currentTrack.artworkUrl || (currentTrack.id ? `https://i.ytimg.com/vi/${currentTrack.id}/hq720.jpg` : '');
 
   return (
     <>
@@ -244,11 +244,16 @@ export const PlayerBar = ({ themePalette }) => {
             <div className="relative z-10 flex-1 max-w-xl w-full mx-auto px-6 py-4 flex flex-col items-center justify-between gap-6">
               
               {/* 3. Cover Artwork Box */}
-              <div className="relative aspect-square w-full max-w-[340px] rounded-3xl overflow-hidden border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-black my-auto">
+              <div className="relative aspect-square w-full max-w-[340px] rounded-3xl overflow-hidden border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-[#141416] my-auto flex items-center justify-center">
                 <img
                   src={artworkUrl}
                   alt={currentTrack.title}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    if (currentTrack?.id && !e.target.src.includes('sddefault.jpg')) {
+                      e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/sddefault.jpg`;
+                    }
+                  }}
                 />
               </div>
 
