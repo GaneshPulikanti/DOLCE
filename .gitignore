@@ -49,5 +49,16 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+# Credentials, Keys & Environment Variables
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
+*.pem
+*.key
+*.keystore
+*.jks
+
 .vercel
-.env*
+

@@ -16,9 +16,11 @@ export async function searchSongs(query) {
   const cleanQuery = query.trim();
   console.log(`🔎 [YTMusic Service] Searching songs for: "${cleanQuery}"`);
 
+  const apiKey = import.meta.env.VITE_YTMUSIC_API_KEY || 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
+
   // 1. Try Local Vite Proxy / Vercel Serverless Proxy
   try {
-    const res = await fetch(`/api/ytmusic/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30&alt=json`, {
+    const res = await fetch(`/api/ytmusic/youtubei/v1/search?key=${apiKey}&alt=json`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -46,7 +48,7 @@ export async function searchSongs(query) {
 
   // 2. Direct YouTube Music InnerTube Search (works on Mobile Native / CORS enabled)
   try {
-    const res = await fetch(`https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30&alt=json`, {
+    const res = await fetch(`https://music.youtube.com/youtubei/v1/search?key=${apiKey}&alt=json`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
