@@ -31,12 +31,12 @@ export const TrackCard = ({ track, queue = [] }) => {
   return (
     <div
       onClick={() => playTrack(track, queue)}
-      className={`group relative glass-card p-3 flex flex-col cursor-pointer transition-all duration-300 ${
-        isCurrent ? 'ring-2 ring-purple-500/60 bg-purple-500/10' : ''
+      className={`group relative glass-panel border border-white/10 p-3 rounded-2xl flex flex-col cursor-pointer transition-all duration-300 bg-white/[0.04] hover:bg-white/[0.09] hover:-translate-y-1 shadow-lg ${
+        isCurrent ? 'border-white/40 ring-1 ring-white/30' : ''
       }`}
     >
       {/* Artwork Container */}
-      <div className="relative aspect-square w-full rounded-xl overflow-hidden mb-3 bg-black/40">
+      <div className="relative aspect-square w-full rounded-xl overflow-hidden mb-3 bg-black">
         <img
           src={track.artworkUrl || `https://i.ytimg.com/vi/${track.id}/hq720.jpg`}
           alt={track.title}
@@ -51,31 +51,31 @@ export const TrackCard = ({ track, queue = [] }) => {
           }}
         />
 
-        {/* Overlay Dark Blur */}
-        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2">
+        {/* Play Button Overlay (White Circle Button matching Dart UI) */}
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
           <button
             onClick={handlePlayClick}
-            className="w-12 h-12 rounded-full bg-purple-600 text-white flex items-center justify-center shadow-lg transform scale-90 group-hover:scale-100 hover:bg-purple-500 transition-all"
+            className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-2xl transform scale-90 group-hover:scale-100 hover:scale-105 transition-all"
           >
-            {isCurrent && isPlaying ? <Pause size={22} fill="white" /> : <Play size={22} fill="white" className="ml-1" />}
+            {isCurrent && isPlaying ? <Pause size={22} fill="black" /> : <Play size={22} fill="black" className="ml-1" />}
           </button>
         </div>
 
         {/* Favorite Heart Badge */}
         <button
           onClick={handleLikeClick}
-          className="absolute top-2 right-2 p-2 rounded-full bg-black/40 backdrop-blur-md text-white/80 hover:text-pink-500 transition-all opacity-0 group-hover:opacity-100"
+          className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 backdrop-blur-md text-white/80 hover:text-pink-500 transition-all opacity-0 group-hover:opacity-100"
         >
-          <Heart size={16} fill={liked ? '#ec4899' : 'none'} color={liked ? '#ec4899' : 'currentColor'} />
+          <Heart size={15} fill={liked ? '#ec4899' : 'none'} color={liked ? '#ec4899' : 'currentColor'} />
         </button>
       </div>
 
       {/* Track Metadata */}
       <div className="flex flex-col min-w-0">
-        <h4 className="text-sm font-semibold text-white truncate group-hover:text-purple-300 transition-colors">
+        <h4 className="text-xs lg:text-sm font-bold text-white truncate font-['Inter']">
           {track.title}
         </h4>
-        <p className="text-xs text-white/60 truncate mt-0.5 font-medium">
+        <p className="text-[11px] text-white/50 truncate mt-0.5 font-medium font-['Inter']">
           {track.artistName}
         </p>
       </div>

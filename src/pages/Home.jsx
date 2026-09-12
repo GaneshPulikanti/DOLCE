@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Sparkles, TrendingUp, Music, Play } from 'lucide-react';
+import { Heart, ChevronRight, Sparkles } from 'lucide-react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { getHomeFeed } from '../services/catalog';
 import { TrackCard } from '../components/TrackCard';
-import { usePlayerStore } from '../store/usePlayerStore';
+import { db } from '../services/db';
+import { useSearchStore } from '../store/useSearchStore';
 
 export const Home = () => {
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { playTrack } = usePlayerStore();
+  const [selectedMood, setSelectedMood] = useState(null);
+  const favorites = useLiveQuery(() => db.favorites.toArray()) || [];
+  const { setActiveTab } = useSearchStore();
 
   useEffect(() => {
     let isMounted = true;
@@ -20,52 +24,86 @@ export const Home = () => {
     return () => { isMounted = false; };
   }, []);
 
-  const heroTrack = sections[0]?.tracks?.[0];
+  const moods = [
+    { label: 'All', value: null },
+    { label: 'Romance', value: 'Romance' },
+    { label: 'Feel good', value: 'Feel good' },
+    { label: 'Workout', value: 'Workout' },
+    { label: 'Energize', value: 'Energize' },
+    { label: 'Focus', value: 'Focus' },
+    { label: 'Relax', value: 'Relax' },
+  ];
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
 
   return (
-    <div className="w-full min-h-screen pb-36 px-4 lg:px-12 pt-6 flex flex-col gap-10">
-      {/* ─── Hero Recommendation Banner ─── */}
-      {heroTrack && (
-        <div className="relative w-full rounded-3xl overflow-hidden glass-panel p-6 lg:p-10 flex flex-col md:flex-row items-center justify-between gap-6 border border-white/15 bg-gradient-to-r from-purple-900/40 via-pink-900/30 to-black/60 shadow-2xl">
-          <div className="flex-1 flex flex-col items-start gap-3">
-            <span className="flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-500/30 text-xs font-bold text-purple-300">
-              <Sparkles size={14} /> Featured Recommendation
-            </span>
-            <h1 className="text-3xl lg:text-5xl font-black text-white leading-tight">
-              {heroTrack.title}
-            </h1>
-            <p className="text-base lg:text-lg text-white/70 font-medium">
-              {heroTrack.artistName}
-            </p>
+    <div className="w-full min-h-screen pb-40 px-4 lg:px-12 pt-4 flex flex-col gap-6 font-['Inter']">
+      
+      {/* ── Frosted Mood Category Chips Bar ── */}
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2">
+        {moods.map((mood, idx) => {
+          const isSelected = selectedMood === mood.value;
+          return (
             <button
-              onClick={() => playTrack(heroTrack, sections[0]?.tracks)}
-              className="mt-4 px-6 py-3.5 rounded-full bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold flex items-center gap-3 shadow-lg shadow-purple-600/30 hover:scale-105 transition-all"
+              key={idx}
+              onClick={() => setSelectedMood(mood.value)}
+              className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 ${
+                isSelected
+                  ? 'bg-white text-black font-bold shadow-lg shadow-white/10 scale-105'
+                  : 'bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10'
+              }`}
             >
-              <Play size={20} fill="white" />
-              <span>Listen Now</span>
+              {mood.label}
             </button>
-          </div>
+          );
+        })}
+      </div>
 
-          <div className="relative w-48 h-48 lg:w-64 lg:h-64 rounded-2xl overflow-hidden shadow-2xl border border-white/20 bg-black">
-            <img
-              src={heroTrack.artworkUrl}
-              alt={heroTrack.title}
-              className="w-full h-full object-cover"
-              onError={(e) => { e.target.src = `https://img.youtube.com/vi/${heroTrack.id}/hqdefault.jpg`; }}
-            />
+      {/* ── Greeting Header ── */}
+      <div className="flex flex-col items-start gap-0.5">
+        <span className="text-xs font-medium text-white/50 tracking-wider">
+          {getGreeting()},
+        </span>
+        <h2 className="text-2xl lg:text-3xl font-black text-white tracking-tight">
+          Google User
+        </h2>
+      </div>
+
+      {/* ── Synced Liked Songs Card (If favorites exist) ── */}
+      {favorites.length > 0 && (
+        <div 
+          onClick={() => setActiveTab('library')}
+          className="w-full rounded-3xl p-5 glass-panel border border-white/14 bg-white/[0.04] backdrop-blur-2xl flex items-center justify-between cursor-pointer hover:bg-white/[0.08] transition-all shadow-xl"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-pink-600 to-red-500 flex items-center justify-center shadow-lg shadow-pink-600/30">
+              <Heart size={24} fill="white" className="text-white" />
+            </div>
+            <div className="flex flex-col">
+              <h4 className="text-base font-bold text-white">Liked Songs</h4>
+              <p className="text-xs text-white/50 mt-0.5">
+                {favorites.length} songs synchronized · Offline play
+              </p>
+            </div>
           </div>
+          <ChevronRight size={22} className="text-white/40" />
         </div>
       )}
 
-      {/* ─── Curated Sections ─── */}
+      {/* ── Curated YouTube Recommendation Sections (Horizontal Carousels) ── */}
       {loading ? (
         <div className="flex flex-col gap-8">
           {[1, 2, 3].map((i) => (
             <div key={i} className="flex flex-col gap-4">
-              <div className="h-7 w-48 bg-white/10 rounded-lg animate-pulse" />
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {[1, 2, 3, 4, 5].map((j) => (
-                  <div key={j} className="h-56 rounded-2xl bg-white/5 animate-pulse" />
+              <div className="h-6 w-40 bg-white/10 rounded-lg animate-pulse" />
+              <div className="flex gap-4 overflow-hidden">
+                {[1, 2, 3, 4].map((j) => (
+                  <div key={j} className="w-40 h-52 flex-shrink-0 rounded-2xl bg-white/5 animate-pulse" />
                 ))}
               </div>
             </div>
@@ -73,22 +111,23 @@ export const Home = () => {
         </div>
       ) : (
         sections.map((section, idx) => (
-          <section key={idx} className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl lg:text-2xl font-bold text-white flex items-center gap-2">
-                <TrendingUp size={22} className="text-purple-400" />
-                <span>{section.title}</span>
-              </h2>
-            </div>
+          <section key={idx} className="flex flex-col gap-3">
+            <h3 className="text-lg lg:text-xl font-bold text-white flex items-center gap-2">
+              <span>{section.title}</span>
+            </h3>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 lg:gap-6">
+            {/* Horizontal Scroll Carousel */}
+            <div className="flex items-center gap-4 overflow-x-auto pb-4 pt-1 no-scrollbar scroll-smooth">
               {section.tracks.map((track) => (
-                <TrackCard key={track.id} track={track} queue={section.tracks} />
+                <div key={track.id} className="w-40 lg:w-44 flex-shrink-0">
+                  <TrackCard track={track} queue={section.tracks} />
+                </div>
               ))}
             </div>
           </section>
         ))
       )}
+
     </div>
   );
 };

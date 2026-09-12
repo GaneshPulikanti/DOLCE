@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
 import { PlayerBar } from './components/PlayerBar';
+import { GlassDrawer } from './components/GlassDrawer';
 import { Home } from './pages/Home';
 import { Search } from './pages/Search';
 import { Library } from './pages/Library';
@@ -14,6 +15,7 @@ export const App = () => {
   const { activeTab } = useSearchStore();
   const { currentTrack } = usePlayerStore();
   const [themePalette, setThemePalette] = useState(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   useEffect(() => {
     if (currentTrack?.artworkUrl) {
@@ -30,17 +32,20 @@ export const App = () => {
   } : {};
 
   return (
-    <div className="relative w-full h-full min-h-screen bg-[#050508] text-white flex flex-col overflow-hidden selection:bg-purple-500 selection:text-white">
-      {/* Background Glowing Ambient Orbs (Apple Music Style Dynamic Color Shift) */}
-      <div className="bg-glow-container">
-        <div className="bg-glow-orb-1 transition-all duration-1000" style={orb1Style} />
-        <div className="bg-glow-orb-2 transition-all duration-1000" style={orb2Style} />
+    <div className="relative w-full h-full min-h-screen bg-[#050505] text-white flex flex-col overflow-hidden selection:bg-white/20 selection:text-white font-['Inter']">
+      {/* Background Ambient Orbs */}
+      <div className="bg-glow-container pointer-events-none">
+        <div className="bg-glow-orb-1 transition-all duration-1000 opacity-20" style={orb1Style} />
+        <div className="bg-glow-orb-2 transition-all duration-1000 opacity-20" style={orb2Style} />
       </div>
 
-      {/* Top Navbar Header */}
-      <Navbar />
+      {/* Slide-over Side Glass Drawer */}
+      <GlassDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
 
-      {/* Main Content Area */}
+      {/* Top App Bar Header */}
+      <Navbar onOpenDrawer={() => setIsDrawerOpen(true)} />
+
+      {/* Main Page Area */}
       <main className="relative z-10 flex-1 w-full max-w-7xl mx-auto overflow-y-auto">
         {activeTab === 'home' && <Home />}
         {activeTab === 'search' && <Search />}
@@ -48,10 +53,10 @@ export const App = () => {
         {activeTab === 'profile' && <TasteProfile />}
       </main>
 
-      {/* Persistent Bottom Mini Player & Expanded Player Modal */}
+      {/* Persistent Mini Player & Expanded Player Modal */}
       <PlayerBar themePalette={themePalette} />
 
-      {/* Bottom Mobile Tab Navigation */}
+      {/* Curved Liquid Bottom Tab Navigation */}
       <BottomNav />
     </div>
   );
