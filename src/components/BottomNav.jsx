@@ -19,7 +19,7 @@ export const BottomNav = () => {
   const rotationAngle = (currentIndex - 0) * 360;
 
   return (
-    <nav className="fixed bottom-2 left-4 right-4 z-40 h-16 max-w-md mx-auto pointer-events-auto">
+    <nav className="fixed bottom-2 left-4 right-4 z-30 h-16 max-w-md mx-auto pointer-events-auto">
       {/* ── Background Curved Capsule Container with SVG U-Scoop Dip ── */}
       <div className="absolute inset-0 rounded-[28px] overflow-hidden shadow-2xl bg-[#141416] border border-white/10">
         <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 300 64">

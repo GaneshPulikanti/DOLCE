@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, 
-  Heart, ChevronDown, Download, MessageSquareQuote, ListMusic,
+  Heart, ChevronDown, ChevronUp, Download, MessageSquareQuote, ListMusic,
   Maximize2, Minimize2, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -121,7 +121,7 @@ export const PlayerBar = ({ themePalette }) => {
       {/* ─── Persistent Mini Player Bar (Original Dart Monochromatic Glass) ─── */}
       <div 
         onClick={() => setExpanded(true)}
-        className="fixed bottom-[68px] md:bottom-4 left-3 right-3 lg:left-6 lg:right-6 z-40 glass-panel border border-white/14 p-2.5 lg:p-3 flex items-center justify-between shadow-2xl cursor-pointer bg-[#0d0d0d]/90 backdrop-blur-2xl transition-all duration-300 hover:scale-[1.002]"
+        className="fixed bottom-[84px] left-3 right-3 max-w-2xl mx-auto z-45 glass-panel border border-white/14 p-2.5 lg:p-3 flex items-center justify-between shadow-2xl cursor-pointer bg-[#0d0d0d]/95 backdrop-blur-2xl transition-all duration-300 hover:scale-[1.005]"
       >
         {/* Track Thumbnail & Titles */}
         <div className="flex items-center gap-3.5 min-w-0 flex-1">
@@ -149,8 +149,8 @@ export const PlayerBar = ({ themePalette }) => {
           </div>
         </div>
 
-        {/* Playback Controls */}
-        <div className="flex items-center gap-2 lg:gap-4" onClick={(e) => e.stopPropagation()}>
+        {/* Playback Controls & Expand Indicator */}
+        <div className="flex items-center gap-2 lg:gap-3" onClick={(e) => e.stopPropagation()}>
           <button 
             onClick={skipPrev} 
             className="hidden sm:block p-1.5 text-white/70 hover:text-white transition-colors"
@@ -177,6 +177,14 @@ export const PlayerBar = ({ themePalette }) => {
             className="hidden md:block p-2 text-white/70 hover:text-pink-500 transition-colors"
           >
             <Heart size={18} fill={liked ? '#ec4899' : 'none'} color={liked ? '#ec4899' : 'currentColor'} />
+          </button>
+
+          <button
+            onClick={() => setExpanded(true)}
+            className="p-1.5 text-white/40 hover:text-white transition-colors ml-1"
+            title="Expand Full Player"
+          >
+            <ChevronUp size={20} />
           </button>
         </div>
 
