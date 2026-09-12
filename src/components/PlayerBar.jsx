@@ -52,11 +52,15 @@ export const PlayerBar = () => {
         {/* Track Thumbnail & Titles */}
         <div className="flex items-center gap-3.5 min-w-0 flex-1">
           <img
-            src={currentTrack.artworkUrl || `https://img.youtube.com/vi/${currentTrack.id}/hqdefault.jpg`}
+            src={currentTrack.artworkUrl || `https://i.ytimg.com/vi/${currentTrack.id}/hq720.jpg`}
             alt={currentTrack.title}
             className="w-12 h-12 lg:w-14 lg:h-14 rounded-xl object-cover shadow-lg bg-black/60"
             onError={(e) => {
-              e.target.src = `https://img.youtube.com/vi/${currentTrack.id}/hqdefault.jpg`;
+              if (!e.target.src.includes('sddefault.jpg')) {
+                e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/sddefault.jpg`;
+              } else if (!e.target.src.includes('hqdefault.jpg')) {
+                e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/hqdefault.jpg`;
+              }
             }}
           />
           <div className="flex flex-col min-w-0">
@@ -147,11 +151,15 @@ export const PlayerBar = () => {
               {/* Artwork */}
               <div className="relative w-64 h-64 sm:w-80 sm:h-80 lg:w-96 lg:h-96 rounded-3xl overflow-hidden shadow-2xl shadow-purple-600/20 mb-8 border border-white/15 bg-black">
                 <img
-                  src={currentTrack.artworkUrl || `https://img.youtube.com/vi/${currentTrack.id}/hqdefault.jpg`}
+                  src={currentTrack.artworkUrl || `https://i.ytimg.com/vi/${currentTrack.id}/hq720.jpg`}
                   alt={currentTrack.title}
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    e.target.src = `https://img.youtube.com/vi/${currentTrack.id}/hqdefault.jpg`;
+                    if (!e.target.src.includes('sddefault.jpg')) {
+                      e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/sddefault.jpg`;
+                    } else if (!e.target.src.includes('hqdefault.jpg')) {
+                      e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/hqdefault.jpg`;
+                    }
                   }}
                 />
               </div>

@@ -38,12 +38,16 @@ export const TrackCard = ({ track, queue = [] }) => {
       {/* Artwork Container */}
       <div className="relative aspect-square w-full rounded-xl overflow-hidden mb-3 bg-black/40">
         <img
-          src={track.artworkUrl || `https://img.youtube.com/vi/${track.id}/hqdefault.jpg`}
+          src={track.artworkUrl || `https://i.ytimg.com/vi/${track.id}/hq720.jpg`}
           alt={track.title}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           loading="lazy"
           onError={(e) => {
-            e.target.src = `https://img.youtube.com/vi/${track.id}/hqdefault.jpg`;
+            if (!e.target.src.includes('sddefault.jpg')) {
+              e.target.src = `https://i.ytimg.com/vi/${track.id}/sddefault.jpg`;
+            } else if (!e.target.src.includes('hqdefault.jpg')) {
+              e.target.src = `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`;
+            }
           }}
         />
 

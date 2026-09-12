@@ -84,14 +84,18 @@ export async function searchSongs(query) {
       if (res.ok) {
         const data = await res.json();
         const items = Array.isArray(data) ? data : (data.items || []);
-        const songs = items.map(item => ({
-          id: item.videoId || extractVideoId(item.url),
-          title: item.title,
-          artistName: item.author || item.uploaderName || 'Unknown Artist',
-          artworkUrl: item.thumbnail || item.videoThumbnails?.[0]?.url || `https://img.youtube.com/vi/${item.videoId || extractVideoId(item.url)}/hqdefault.jpg`,
-          duration: formatDurationSeconds(item.lengthSeconds || item.duration),
-          durationMs: (item.lengthSeconds || item.duration || 225) * 1000,
-        })).filter(s => s.id);
+        const songs = items.map(item => {
+          const vId = item.videoId || extractVideoId(item.url);
+          const rawUrl = item.thumbnail || item.videoThumbnails?.[0]?.url;
+          return {
+            id: vId,
+            title: item.title,
+            artistName: item.author || item.uploaderName || 'Unknown Artist',
+            artworkUrl: getHDArtworkUrl(rawUrl, vId),
+            duration: formatDurationSeconds(item.lengthSeconds || item.duration),
+            durationMs: (item.lengthSeconds || item.duration || 225) * 1000,
+          };
+        }).filter(s => s.id);
         if (songs.length > 0) return songs;
       }
     } catch (_) {}
@@ -162,6 +166,23 @@ export async function getStreamUrl(videoId) {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+export function getHDArtworkUrl(url, videoId) {
+  let hdUrl = url || '';
+  if (hdUrl.includes('googleusercontent.com') || hdUrl.includes('ggpht.com')) {
+    hdUrl = hdUrl.replace(/=w\d+-h\d+-[^?]+/, '=w540-h540-l90-rj');
+    hdUrl = hdUrl.replace(/=w\d+-h\d+/, '=w540-h540-l90-rj');
+    hdUrl = hdUrl.replace(/=s\d+-[^?]+/, '=s540-c');
+    hdUrl = hdUrl.replace(/=s\d+$/, '=s540');
+  } else if (hdUrl.includes('ytimg.com') || hdUrl.includes('youtube.com')) {
+    hdUrl = hdUrl.replace(/(hqdefault|mqdefault|sddefault|default)\.jpg/, 'hq720.jpg');
+  }
+
+  if ((!hdUrl || hdUrl.includes('default.jpg')) && videoId) {
+    hdUrl = `https://i.ytimg.com/vi/${videoId}/hq720.jpg`;
+  }
+  return hdUrl;
+}
+
 function extractVideoId(url) {
   if (!url) return '';
   const match = url.match(/(?:v=|\/embed\/|\/watch\?v=|\/)([\w-]{11})/);
@@ -191,14 +212,14 @@ function parseInnerTubeSearchSongs(data) {
         const title = r.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
         const artist = r.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
         const thumbs = r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails;
-        const thumbUrl = thumbs?.[thumbs.length - 1]?.url;
+        const rawThumbUrl = thumbs?.[thumbs.length - 1]?.url;
 
         if (videoId && title) {
           tracks.push({
             id: videoId,
             title: title,
             artistName: artist || 'YouTube Artist',
-            artworkUrl: thumbUrl || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+            artworkUrl: getHDArtworkUrl(rawThumbUrl, videoId),
             duration: '3:45',
             durationMs: 225000,
           });
