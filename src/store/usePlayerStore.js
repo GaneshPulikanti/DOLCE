@@ -104,7 +104,7 @@ export const usePlayerStore = create((set, get) => {
       }
     },
 
-    skipNext: () => {
+    skipNext: async () => {
       const { queue, currentIndex, isShuffle, repeatMode, playTrack } = get();
       if (queue.length === 0) return;
 
@@ -117,13 +117,28 @@ export const usePlayerStore = create((set, get) => {
       let nextIndex = currentIndex + 1;
       if (isShuffle) {
         nextIndex = Math.floor(Math.random() * queue.length);
-      } else if (nextIndex >= queue.length) {
-        nextIndex = repeatMode === 'all' ? 0 : -1;
       }
 
-      if (nextIndex >= 0 && nextIndex < queue.length) {
+      if (nextIndex < queue.length) {
         playTrack(queue[nextIndex]);
+      } else if (repeatMode === 'all') {
+        playTrack(queue[0]);
       } else {
+        // Auto Queue: Automatically generate related tracks so music never stops
+        const currentTrack = get().currentTrack;
+        if (currentTrack?.artistName) {
+          try {
+            const { searchSongs } = await import('../services/catalog');
+            const related = await searchSongs(`${currentTrack.artistName} songs`);
+            const newTracks = related.filter(r => !queue.some(q => q.id === r.id));
+            if (newTracks.length > 0) {
+              const updatedQueue = [...queue, ...newTracks];
+              set({ queue: updatedQueue });
+              playTrack(updatedQueue[nextIndex]);
+              return;
+            }
+          } catch (_) {}
+        }
         set({ isPlaying: false, currentTime: 0 });
       }
     },

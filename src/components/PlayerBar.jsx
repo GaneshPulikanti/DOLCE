@@ -1,29 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, 
-  Volume2, VolumeX, Heart, ChevronDown, ListMusic 
+  Volume2, VolumeX, Heart, ChevronDown, ListMusic, Download,
+  MessageSquareQuote, Disc
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../store/usePlayerStore';
-import { toggleFavorite, isFavorite } from '../services/db';
+import { toggleFavorite, isFavorite, downloadTrackLocally, isDownloadedLocally } from '../services/db';
+import { fetchLyrics } from '../services/lyrics';
 
 export const PlayerBar = ({ themePalette }) => {
   const { 
-    currentTrack, isPlaying, togglePlayPause, 
-    skipNext, skipPrev, currentTime, duration, seek, 
+    currentTrack, queue, currentIndex, isPlaying, togglePlayPause, 
+    playTrack, skipNext, skipPrev, currentTime, duration, seek, 
     volume, setVolume, isMuted, toggleMute, 
     isShuffle, toggleShuffle, repeatMode, cycleRepeatMode,
     isExpanded, setExpanded 
   } = usePlayerStore();
 
   const [liked, setLiked] = useState(false);
-  const [showQueue, setShowQueue] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
+  const [modalTab, setModalTab] = useState('artwork'); // 'artwork' | 'lyrics' | 'queue'
+  const [lyricsData, setLyricsData] = useState({ synced: [], plain: '' });
+  const [loadingLyrics, setLoadingLyrics] = useState(false);
+  const lyricsContainerRef = useRef(null);
 
-  React.useEffect(() => {
+  // Sync favorites & downloads status
+  useEffect(() => {
     if (currentTrack?.id) {
       isFavorite(currentTrack.id).then(setLiked);
+      isDownloadedLocally(currentTrack.id).then(setDownloaded);
     }
   }, [currentTrack?.id]);
+
+  // Fetch lyrics when track changes or modal tab opens
+  useEffect(() => {
+    if (currentTrack?.id && modalTab === 'lyrics') {
+      setLoadingLyrics(true);
+      fetchLyrics(currentTrack.title, currentTrack.artistName).then((data) => {
+        setLyricsData(data);
+        setLoadingLyrics(false);
+      });
+    }
+  }, [currentTrack?.id, modalTab]);
 
   if (!currentTrack) return null;
 
@@ -42,6 +61,12 @@ export const PlayerBar = ({ themePalette }) => {
     setLiked(newStatus);
   };
 
+  const handleDownload = async (e) => {
+    e.stopPropagation();
+    const newStatus = await downloadTrackLocally(currentTrack);
+    setDownloaded(newStatus);
+  };
+
   const accentColor = themePalette?.primary || '#8b5cf6';
   const shadowColor = themePalette?.glow || 'rgba(139, 92, 246, 0.4)';
   const modalBg = themePalette ? {
@@ -49,6 +74,18 @@ export const PlayerBar = ({ themePalette }) => {
   } : {
     background: 'rgba(5, 5, 8, 0.95)'
   };
+
+  // Find active synchronized lyric index
+  let activeLyricIdx = -1;
+  if (lyricsData.synced && lyricsData.synced.length > 0) {
+    for (let i = 0; i < lyricsData.synced.length; i++) {
+      if (currentTime >= lyricsData.synced[i].time) {
+        activeLyricIdx = i;
+      } else {
+        break;
+      }
+    }
+  }
 
   return (
     <>
@@ -84,7 +121,7 @@ export const PlayerBar = ({ themePalette }) => {
           </div>
         </div>
 
-        {/* Playback Controls (Center/Right) */}
+        {/* Playback Controls */}
         <div className="flex items-center gap-3 lg:gap-5" onClick={(e) => e.stopPropagation()}>
           <button 
             onClick={skipPrev} 
@@ -147,8 +184,8 @@ export const PlayerBar = ({ themePalette }) => {
               />
             </div>
 
-            {/* Top Bar Header */}
-            <div className="relative z-10 flex items-center justify-between mb-8">
+            {/* Top Bar Header & View Switcher */}
+            <div className="relative z-10 flex items-center justify-between mb-6">
               <button 
                 onClick={() => setExpanded(false)}
                 className="p-3 rounded-full glass-card text-white/80 hover:text-white transition-all"
@@ -156,44 +193,144 @@ export const PlayerBar = ({ themePalette }) => {
                 <ChevronDown size={24} />
               </button>
 
-              <span className="text-xs uppercase font-extrabold tracking-widest text-white/80">
-                Playing From DOLCE Engine
-              </span>
+              {/* View Switcher Tabs */}
+              <div className="flex items-center gap-1 p-1 glass-card rounded-full">
+                <button
+                  onClick={() => setModalTab('artwork')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    modalTab === 'artwork' ? 'bg-white/25 text-white' : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  <Disc size={14} />
+                  <span>Cover</span>
+                </button>
 
-              <button
-                onClick={() => setShowQueue(!showQueue)}
-                className={`p-3 rounded-full glass-card transition-all ${
-                  showQueue ? 'text-white bg-white/20' : 'text-white/80 hover:text-white'
-                }`}
-              >
-                <ListMusic size={24} />
-              </button>
-            </div>
+                <button
+                  onClick={() => setModalTab('lyrics')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    modalTab === 'lyrics' ? 'bg-white/25 text-white' : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  <MessageSquareQuote size={14} />
+                  <span>Lyrics</span>
+                </button>
 
-            {/* Main Center Content */}
-            <div className="relative z-10 flex-1 max-w-lg w-full mx-auto flex flex-col items-center justify-center">
-              {/* Artwork with Dynamic Color Shadow (Apple Music style) */}
-              <div 
-                className="relative w-64 h-64 sm:w-80 sm:h-80 lg:w-96 lg:h-96 rounded-3xl overflow-hidden mb-8 border border-white/20 bg-black transition-all duration-700"
-                style={{
-                  boxShadow: `0 25px 70px -10px ${shadowColor}`
-                }}
-              >
-                <img
-                  src={currentTrack.artworkUrl || `https://i.ytimg.com/vi/${currentTrack.id}/hq720.jpg`}
-                  alt={currentTrack.title}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    if (!e.target.src.includes('sddefault.jpg')) {
-                      e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/sddefault.jpg`;
-                    } else if (!e.target.src.includes('hqdefault.jpg')) {
-                      e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/hqdefault.jpg`;
-                    }
-                  }}
-                />
+                <button
+                  onClick={() => setModalTab('queue')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    modalTab === 'queue' ? 'bg-white/25 text-white' : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  <ListMusic size={14} />
+                  <span>Queue ({queue.length})</span>
+                </button>
               </div>
 
-              {/* Title & Artist */}
+              <div className="w-10" />
+            </div>
+
+            {/* Main Content Body */}
+            <div className="relative z-10 flex-1 max-w-lg w-full mx-auto flex flex-col items-center justify-center">
+              
+              {/* TAB 1: ARTWORK COVER */}
+              {modalTab === 'artwork' && (
+                <div 
+                  className="relative w-64 h-64 sm:w-80 sm:h-80 lg:w-96 lg:h-96 rounded-3xl overflow-hidden mb-8 border border-white/20 bg-black transition-all duration-700"
+                  style={{
+                    boxShadow: `0 25px 70px -10px ${shadowColor}`
+                  }}
+                >
+                  <img
+                    src={currentTrack.artworkUrl || `https://i.ytimg.com/vi/${currentTrack.id}/hq720.jpg`}
+                    alt={currentTrack.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      if (!e.target.src.includes('sddefault.jpg')) {
+                        e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/sddefault.jpg`;
+                      } else if (!e.target.src.includes('hqdefault.jpg')) {
+                        e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/hqdefault.jpg`;
+                      }
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* TAB 2: SYNCHRONIZED LYRICS */}
+              {modalTab === 'lyrics' && (
+                <div className="w-full h-80 sm:h-96 rounded-3xl p-6 glass-card border border-white/15 overflow-y-auto mb-8 flex flex-col items-center justify-start text-center scroll-smooth" ref={lyricsContainerRef}>
+                  {loadingLyrics ? (
+                    <div className="flex flex-col items-center justify-center h-full text-white/50 animate-pulse">
+                      <MessageSquareQuote size={36} className="mb-2 text-purple-400" />
+                      <p className="text-sm font-semibold">Loading synchronized lyrics...</p>
+                    </div>
+                  ) : lyricsData.synced.length > 0 ? (
+                    <div className="flex flex-col gap-6 py-6 w-full">
+                      {lyricsData.synced.map((line, idx) => (
+                        <p
+                          key={idx}
+                          onClick={() => seek(line.time)}
+                          className={`cursor-pointer transition-all duration-300 text-lg sm:text-2xl font-bold leading-relaxed ${
+                            idx === activeLyricIdx
+                              ? 'text-white scale-105 opacity-100 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]'
+                              : 'text-white/40 opacity-50 hover:opacity-80 scale-95'
+                          }`}
+                        >
+                          {line.text}
+                        </p>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-white/70 whitespace-pre-line text-sm sm:text-base leading-relaxed py-6">
+                      {lyricsData.plain}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 3: UP NEXT QUEUE */}
+              {modalTab === 'queue' && (
+                <div className="w-full h-80 sm:h-96 rounded-3xl p-4 glass-card border border-white/15 overflow-y-auto mb-8 flex flex-col gap-2">
+                  <span className="text-xs uppercase font-extrabold tracking-wider text-purple-300 px-2 py-1">
+                    Up Next ({queue.length} Tracks)
+                  </span>
+                  {queue.map((track, qIdx) => {
+                    const isTrackActive = currentTrack.id === track.id;
+                    return (
+                      <div
+                        key={`${track.id}-${qIdx}`}
+                        onClick={() => playTrack(track, queue)}
+                        className={`flex items-center justify-between p-2.5 rounded-2xl cursor-pointer transition-all ${
+                          isTrackActive ? 'bg-purple-500/25 border border-purple-500/40 text-white' : 'hover:bg-white/10 text-white/70'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <img
+                            src={track.artworkUrl}
+                            alt={track.title}
+                            className="w-10 h-10 rounded-lg object-cover"
+                          />
+                          <div className="flex flex-col min-w-0">
+                            <h5 className="text-sm font-bold truncate text-white">
+                              {track.title}
+                            </h5>
+                            <p className="text-xs text-white/50 truncate font-medium">
+                              {track.artistName}
+                            </p>
+                          </div>
+                        </div>
+
+                        {isTrackActive && (
+                          <span className="text-xs font-bold text-purple-400 px-2 py-1 rounded-full bg-purple-500/20">
+                            Playing
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Title, Artist, Like & Download Bar */}
               <div className="w-full flex items-center justify-between mb-6">
                 <div className="min-w-0 pr-4">
                   <h2 className="text-2xl sm:text-3xl font-extrabold text-white truncate">
@@ -203,12 +340,27 @@ export const PlayerBar = ({ themePalette }) => {
                     {currentTrack.artistName}
                   </p>
                 </div>
-                <button
-                  onClick={handleLike}
-                  className="p-3 rounded-full glass-card text-white/80 hover:text-pink-500 transition-all"
-                >
-                  <Heart size={26} fill={liked ? '#ec4899' : 'none'} color={liked ? '#ec4899' : 'currentColor'} />
-                </button>
+
+                <div className="flex items-center gap-2">
+                  {/* Download Locally Toggle Button */}
+                  <button
+                    onClick={handleDownload}
+                    title={downloaded ? 'Saved Offline' : 'Download for Offline'}
+                    className={`p-3 rounded-full glass-card transition-all ${
+                      downloaded ? 'text-purple-400 bg-purple-500/20 border border-purple-500/30' : 'text-white/80 hover:text-white'
+                    }`}
+                  >
+                    <Download size={22} color={downloaded ? '#c084fc' : 'currentColor'} />
+                  </button>
+
+                  {/* Favorite Like Button */}
+                  <button
+                    onClick={handleLike}
+                    className="p-3 rounded-full glass-card text-white/80 hover:text-pink-500 transition-all"
+                  >
+                    <Heart size={24} fill={liked ? '#ec4899' : 'none'} color={liked ? '#ec4899' : 'currentColor'} />
+                  </button>
+                </div>
               </div>
 
               {/* Progress Scrubber */}
