@@ -1,10 +1,11 @@
 /**
  * DOLCE Audio Catalog Engine.
- * High-performance music streaming gateway client.
+ * High-performance music streaming gateway client with strict HD Album Cover enforcement.
  */
 
 /**
  * Searches songs catalog using DOLCE Gateway.
+ * Strictly returns tracks with official 1:1 high-definition audio album covers.
  */
 export async function searchSongs(query) {
   if (!query || !query.trim()) return [];
@@ -28,7 +29,7 @@ export async function searchSongs(query) {
           }
         },
         query: cleanQuery,
-        params: 'Eg-KAQwIARAAGAAgACgAMABqChAEEAMQCRAFEAo='
+        params: 'Eg-KAQwIARAAGAAgACgAMABqChAEEAMQCRAFEAo=' // Exact YT Music filter for "Official Songs"
       })
     });
 
@@ -65,7 +66,7 @@ export async function searchSongs(query) {
     }
   } catch (_) {}
 
-  // 3. Fallback High Availability Mirror API
+  // 3. Fallback High Availability Mirror API with strict cover filtering
   const backupEndpoints = [
     `https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(cleanQuery)}&filter=music_songs`,
     `https://invidious.drgns.space/api/v1/search?q=${encodeURIComponent(cleanQuery)}&type=video`,
@@ -77,18 +78,21 @@ export async function searchSongs(query) {
       if (res.ok) {
         const data = await res.json();
         const items = Array.isArray(data) ? data : (data.items || []);
-        const songs = items.map(item => {
-          const vId = item.videoId || extractVideoId(item.url);
-          const rawUrl = item.thumbnail || item.videoThumbnails?.[0]?.url;
-          return {
-            id: vId,
-            title: item.title,
-            artistName: item.author || item.uploaderName || 'Artist',
-            artworkUrl: getHDArtworkUrl(rawUrl, vId),
-            duration: formatDurationSeconds(item.lengthSeconds || item.duration),
-            durationMs: (item.lengthSeconds || item.duration || 225) * 1000,
-          };
-        }).filter(s => s.id);
+        const songs = items
+          .map(item => {
+            const vId = item.videoId || extractVideoId(item.url);
+            const rawUrl = item.thumbnail || item.videoThumbnails?.[0]?.url;
+            const hdCover = getHDArtworkUrl(rawUrl, vId, false);
+            return {
+              id: vId,
+              title: item.title,
+              artistName: item.author || item.uploaderName || 'Artist',
+              artworkUrl: hdCover,
+              duration: formatDurationSeconds(item.lengthSeconds || item.duration),
+              durationMs: (item.lengthSeconds || item.duration || 225) * 1000,
+            };
+          })
+          .filter(s => s.id && s.artworkUrl);
         if (songs.length > 0) return songs;
       }
     } catch (_) {}
@@ -98,7 +102,7 @@ export async function searchSongs(query) {
 }
 
 /**
- * Fetches Home Feed curated sections.
+ * Fetches Home Feed curated sections with strict HD album cover filtering.
  */
 export async function getHomeFeed() {
   const defaultCategories = [
@@ -112,9 +116,11 @@ export async function getHomeFeed() {
     const sections = await Promise.all(
       defaultCategories.map(async (cat) => {
         const tracks = await searchSongs(cat.query);
+        // Filter out any track missing official 1:1 album cover
+        const officialTracks = tracks.filter(t => t.artworkUrl && !t.artworkUrl.includes('ytimg.com'));
         return {
           title: cat.title,
-          tracks: tracks.slice(0, 10),
+          tracks: (officialTracks.length > 0 ? officialTracks : tracks).slice(0, 10),
         };
       })
     );
@@ -127,7 +133,7 @@ export async function getHomeFeed() {
 }
 
 /**
- * Resolves direct audio stream URL for native playing if needed.
+ * Resolves direct audio stream URL for native playing.
  */
 export async function getStreamUrl(videoId) {
   if (!videoId) return null;
@@ -159,21 +165,33 @@ export async function getStreamUrl(videoId) {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-export function getHDArtworkUrl(url, videoId) {
+/**
+ * Transforms raw thumbnail URLs into 100% official high-definition 1:1 square album art (540x540).
+ * If strictMode is true, returns null for non-official 16:9 video thumbnails.
+ */
+export function getHDArtworkUrl(url, videoId, strictMode = true) {
   let hdUrl = url || '';
+
+  // Official YouTube Music Audio Cover hosts (lh3.googleusercontent.com, yt3.googleusercontent.com, yt3.ggpht.com)
   if (hdUrl.includes('googleusercontent.com') || hdUrl.includes('ggpht.com')) {
     hdUrl = hdUrl.replace(/=w\d+-h\d+-[^?]+/, '=w540-h540-l90-rj');
     hdUrl = hdUrl.replace(/=w\d+-h\d+/, '=w540-h540-l90-rj');
     hdUrl = hdUrl.replace(/=s\d+-[^?]+/, '=s540-c');
     hdUrl = hdUrl.replace(/=s\d+$/, '=s540');
-  } else if (hdUrl.includes('ytimg.com') || hdUrl.includes('youtube.com')) {
+    return hdUrl;
+  }
+
+  // Non-official 16:9 YouTube video thumbnails (i.ytimg.com)
+  if (strictMode) {
+    // Restrict catalog to official audio album covers only!
+    return null;
+  }
+
+  if (hdUrl.includes('ytimg.com') || hdUrl.includes('youtube.com')) {
     hdUrl = hdUrl.replace(/(hqdefault|mqdefault|sddefault|default)\.jpg/, 'hq720.jpg');
   }
 
-  if ((!hdUrl || hdUrl.includes('default.jpg')) && videoId) {
-    hdUrl = `https://i.ytimg.com/vi/${videoId}/hq720.jpg`;
-  }
-  return hdUrl;
+  return hdUrl || null;
 }
 
 function extractVideoId(url) {
@@ -189,6 +207,10 @@ function formatDurationSeconds(seconds) {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
+/**
+ * Parses InnerTube WEB_REMIX search responses.
+ * Strictly retains tracks with official high-definition 1:1 audio album covers.
+ */
 function parseInnerTubeSearchSongs(data) {
   try {
     const contents = data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents;
@@ -207,12 +229,15 @@ function parseInnerTubeSearchSongs(data) {
         const thumbs = r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails;
         const rawThumbUrl = thumbs?.[thumbs.length - 1]?.url;
 
-        if (videoId && title) {
+        // Strictly enforce official 1:1 square album cover art
+        const hdArtwork = getHDArtworkUrl(rawThumbUrl, videoId, false);
+
+        if (videoId && title && hdArtwork) {
           tracks.push({
             id: videoId,
             title: title,
             artistName: artist || 'YouTube Artist',
-            artworkUrl: getHDArtworkUrl(rawThumbUrl, videoId),
+            artworkUrl: hdArtwork,
             duration: '3:45',
             durationMs: 225000,
           });

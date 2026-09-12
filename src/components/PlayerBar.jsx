@@ -114,7 +114,7 @@ export const PlayerBar = ({ themePalette }) => {
     }
   }, [activeLyricIdx, isFullScreenLyrics]);
 
-  const artworkUrl = currentTrack.artworkUrl || `https://i.ytimg.com/vi/${currentTrack.id}/hq720.jpg`;
+  const artworkUrl = currentTrack.artworkUrl || '';
 
   return (
     <>
@@ -125,19 +125,18 @@ export const PlayerBar = ({ themePalette }) => {
       >
         {/* Track Thumbnail & Titles */}
         <div className="flex items-center gap-3.5 min-w-0 flex-1">
-          <div className="w-11 h-11 lg:w-12 lg:h-12 rounded-xl overflow-hidden border border-white/14 bg-black flex-shrink-0 shadow-md">
-            <img
-              src={artworkUrl}
-              alt={currentTrack.title}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                if (!e.target.src.includes('sddefault.jpg')) {
-                  e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/sddefault.jpg`;
-                } else if (!e.target.src.includes('hqdefault.jpg')) {
-                  e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/hqdefault.jpg`;
-                }
-              }}
-            />
+          <div className="w-11 h-11 lg:w-12 lg:h-12 rounded-xl overflow-hidden border border-white/14 bg-[#141416] flex-shrink-0 shadow-md flex items-center justify-center">
+            {artworkUrl ? (
+              <img
+                src={artworkUrl}
+                alt={currentTrack.title}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-white/5 text-white/50">
+                ♪
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col min-w-0">

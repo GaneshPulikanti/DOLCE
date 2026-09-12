@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Pause, Heart } from 'lucide-react';
+import { Play, Pause, Heart, Music } from 'lucide-react';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { toggleFavorite, isFavorite } from '../services/db';
 
 export const TrackCard = ({ track, queue = [] }) => {
   const { currentTrack, isPlaying, playTrack, togglePlayPause } = usePlayerStore();
   const [liked, setLiked] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   const isCurrent = currentTrack?.id === track.id;
 
@@ -35,21 +36,21 @@ export const TrackCard = ({ track, queue = [] }) => {
         isCurrent ? 'border-white/40 ring-1 ring-white/30' : ''
       }`}
     >
-      {/* Artwork Container */}
-      <div className="relative aspect-square w-full rounded-xl overflow-hidden mb-3 bg-black">
-        <img
-          src={track.artworkUrl || `https://i.ytimg.com/vi/${track.id}/hq720.jpg`}
-          alt={track.title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          loading="lazy"
-          onError={(e) => {
-            if (!e.target.src.includes('sddefault.jpg')) {
-              e.target.src = `https://i.ytimg.com/vi/${track.id}/sddefault.jpg`;
-            } else if (!e.target.src.includes('hqdefault.jpg')) {
-              e.target.src = `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`;
-            }
-          }}
-        />
+      {/* Artwork Container (Enforces 1:1 HD Square Cover) */}
+      <div className="relative aspect-square w-full rounded-xl overflow-hidden mb-3 bg-[#0d0d0d] flex items-center justify-center border border-white/5">
+        {!imgError && track.artworkUrl ? (
+          <img
+            src={track.artworkUrl}
+            alt={track.title}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            loading="lazy"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-white/5 text-white/40">
+            <Music size={32} />
+          </div>
+        )}
 
         {/* Play Button Overlay (White Circle Button matching Dart UI) */}
         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
