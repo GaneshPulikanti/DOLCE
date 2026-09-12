@@ -46,30 +46,7 @@ export const PlayerBar = ({ themePalette }) => {
         setLoadingLyrics(false);
       });
     }
-  }, [currentTrack?.id]);
-
-  if (!currentTrack) return null;
-
-  const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0;
-
-  const formatTime = (secs) => {
-    if (!secs || isNaN(secs)) return '0:00';
-    const m = Math.floor(secs / 60);
-    const s = Math.floor(secs % 60);
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
-  };
-
-  const handleLike = async (e) => {
-    e.stopPropagation();
-    const newStatus = await toggleFavorite(currentTrack);
-    setLiked(newStatus);
-  };
-
-  const handleDownload = async (e) => {
-    e.stopPropagation();
-    const newStatus = await downloadTrackLocally(currentTrack);
-    setDownloaded(newStatus);
-  };
+  }, [currentTrack?.id, currentTrack?.title, currentTrack?.artistName]);
 
   // Find active synchronized lyric index
   let activeLyricIdx = -1;
@@ -113,6 +90,29 @@ export const PlayerBar = ({ themePalette }) => {
       }
     }
   }, [activeLyricIdx, isFullScreenLyrics]);
+
+  if (!currentTrack) return null;
+
+  const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  const formatTime = (secs) => {
+    if (!secs || isNaN(secs)) return '0:00';
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  const handleLike = async (e) => {
+    e.stopPropagation();
+    const newStatus = await toggleFavorite(currentTrack);
+    setLiked(newStatus);
+  };
+
+  const handleDownload = async (e) => {
+    e.stopPropagation();
+    const newStatus = await downloadTrackLocally(currentTrack);
+    setDownloaded(newStatus);
+  };
 
   const artworkUrl = currentTrack.artworkUrl || (currentTrack.id ? `https://i.ytimg.com/vi/${currentTrack.id}/hq720.jpg` : '');
 
