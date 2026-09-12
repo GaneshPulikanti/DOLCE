@@ -1,30 +1,9 @@
 import React from 'react';
-import { Menu, Search, User } from 'lucide-react';
+import { Menu, User } from 'lucide-react';
 import { useSearchStore } from '../store/useSearchStore';
 
 export const Navbar = ({ onOpenDrawer }) => {
-  const { activeTab, setActiveTab, searchQuery, setSearchQuery } = useSearchStore();
-
-  const getTitle = () => {
-    switch (activeTab) {
-      case 'search':
-        return 'Search';
-      case 'library':
-        return 'Library';
-      case 'profile':
-        return 'Taste Profile';
-      case 'home':
-      default:
-        return 'Discover';
-    }
-  };
-
-  const handleSearchChange = (e) => {
-    setSearchQuery(e.target.value);
-    if (activeTab !== 'search') {
-      setActiveTab('search');
-    }
-  };
+  const { setActiveTab } = useSearchStore();
 
   return (
     <header className="sticky top-0 z-30 w-full px-4 lg:px-8 py-3.5 flex items-center justify-between bg-[#080808]/80 backdrop-blur-xl border-b border-white/10 font-['Inter']">
@@ -38,23 +17,9 @@ export const Navbar = ({ onOpenDrawer }) => {
           <Menu size={22} />
         </button>
 
-        <h1 className="text-xl lg:text-2xl font-black text-white tracking-tight">
-          {getTitle()}
+        <h1 className="text-xl lg:text-2xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white via-white/90 to-white/70">
+          DOLCE
         </h1>
-      </div>
-
-      {/* Center: Search Input (When on Search or expanded) */}
-      <div className="hidden sm:flex flex-1 max-w-md mx-4 lg:mx-8">
-        <div className="relative w-full flex items-center">
-          <Search size={16} className="absolute left-3.5 text-white/40 pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={handleSearchChange}
-            placeholder="Search songs, artists, albums..."
-            className="w-full h-9 pl-9 pr-4 rounded-full bg-white/5 border border-white/10 text-xs text-white placeholder-white/40 focus:outline-none focus:border-white/30 focus:bg-white/10 transition-all font-medium"
-          />
-        </div>
       </div>
 
       {/* Right: User Profile Avatar */}
@@ -70,3 +35,4 @@ export const Navbar = ({ onOpenDrawer }) => {
     </header>
   );
 };
+

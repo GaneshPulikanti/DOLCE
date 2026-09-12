@@ -36,17 +36,18 @@ export const Search = () => {
     <div className="w-full min-h-screen pb-40 px-4 lg:px-12 pt-6 flex flex-col gap-6 font-['Inter']">
       {/* Search Header */}
       <div className="flex flex-col gap-4">
-        <h1 className="text-2xl lg:text-3xl font-black text-white tracking-tight">Search Catalog</h1>
+        <h1 className="text-2xl lg:text-3xl font-black text-white tracking-tight">Search Catalog & Lyrics</h1>
 
-        {/* Search Input for Mobile View */}
-        <div className="relative w-full flex items-center sm:hidden">
-          <SearchIcon size={18} className="absolute left-3.5 text-white/40 pointer-events-none" />
+        {/* Search Input Bar (Visible on all screens when Search tab is active) */}
+        <div className="relative w-full flex items-center max-w-2xl">
+          <SearchIcon size={20} className="absolute left-4 text-white/40 pointer-events-none" />
           <input
             type="text"
+            autoFocus
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search songs, artists, albums..."
-            className="w-full h-11 pl-10 pr-4 rounded-full bg-white/5 border border-white/10 text-sm text-white placeholder-white/40 focus:outline-none focus:border-white/30 focus:bg-white/10 transition-all font-medium"
+            placeholder="Search songs, artists, or lyric lines..."
+            className="w-full h-12 pl-11 pr-5 rounded-2xl bg-white/5 border border-white/15 text-sm text-white placeholder-white/40 focus:outline-none focus:border-white/40 focus:bg-white/10 transition-all font-medium shadow-inner"
           />
         </div>
 

@@ -1,21 +1,114 @@
 /**
- * DOLCE Audio Catalog Engine.
- * High-performance music streaming gateway client with HD Album Cover processing.
+ * Filters out unprofessional video files, reaction videos, status clips, and vlogs.
  */
+function isUnwantedVideoItem(title, artist) {
+  if (!title) return true;
+  const lowerTitle = title.toLowerCase();
+  const lowerArtist = (artist || '').toLowerCase();
+
+  const junkKeywords = [
+    'reaction',
+    'whatsapp status',
+    'status video',
+    'reels',
+    'shorts',
+    'dance cover',
+    'dance performance',
+    'full movie',
+    'vlog',
+    'teaser',
+    'trailer',
+    'gameplay',
+    'review',
+    'tutorial',
+    'behind the scenes',
+    'making of',
+    'bloopers',
+    'funny moments'
+  ];
+
+  for (const kw of junkKeywords) {
+    if (lowerTitle.includes(kw) || lowerArtist.includes(kw)) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 /**
- * Searches songs catalog using DOLCE Gateway.
+ * Cleans up raw YouTube song titles by removing unprofessional video tag annotations.
+ */
+function cleanSongTitle(rawTitle) {
+  if (!rawTitle) return '';
+  return rawTitle
+    .replace(/[\(\[]\s*(official\s*(music\s*)?video|official\s*audio|lyric\s*video|full\s*video(\s*song)?|4k|8k|hd|video|audio)\s*[\)\]]/gi, '')
+    .replace(/official\s*(music\s*)?video/gi, '')
+    .replace(/full\s*video\s*song/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Searches songs catalog using DOLCE Gateway with Lyric Matching & Multi-pass resolution.
+ * Finds pure audio songs by title, artist, AND matching lyric lines.
  */
 export async function searchSongs(query) {
   if (!query || !query.trim()) return [];
 
   const cleanQuery = query.trim();
-
   const apiKey = import.meta.env.VITE_DOLCE_SERVICE_KEY || 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
 
-  // 1. Try Local Vite Proxy / Vercel Serverless Gateway
-  try {
-    const res = await fetch(`/api/gateway/youtubei/v1/search?key=${apiKey}&alt=json`, {
+  const tracksMap = new Map();
+
+  // Helper to parse InnerTube search response objects
+  const parseInnerTubeContents = (data) => {
+    const contents = data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents;
+    if (!contents) return;
+
+    function findItems(obj) {
+      if (!obj || typeof obj !== 'object') return;
+      if (obj.musicResponsiveListItemRenderer) {
+        const r = obj.musicResponsiveListItemRenderer;
+        const videoId = r.playlistItemData?.videoId || 
+                        r.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.navigationEndpoint?.watchEndpoint?.videoId ||
+                        r.navigationEndpoint?.watchEndpoint?.videoId;
+        const rawTitle = r.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
+        const artist = r.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || 'Artist';
+        const thumbs = r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails;
+        const rawUrl = thumbs?.[thumbs.length - 1]?.url;
+
+        // Skip non-song videos / reactions / vlogs
+        if (rawTitle && isUnwantedVideoItem(rawTitle, artist)) {
+          return;
+        }
+
+        const title = cleanSongTitle(rawTitle);
+
+        if (videoId && title && !tracksMap.has(videoId)) {
+          tracksMap.set(videoId, {
+            id: videoId,
+            title: title,
+            artistName: artist,
+            artworkUrl: getHDArtworkUrl(rawUrl, videoId),
+            duration: '3:45',
+            durationMs: 225000,
+          });
+        }
+      }
+      for (const key in obj) {
+        if (obj.hasOwnProperty(key) && typeof obj[key] === 'object') {
+          findItems(obj[key]);
+        }
+      }
+    }
+    findItems(contents);
+  };
+
+  // 1. Concurrent Fetch: YouTube Music Search + LrcLib Lyric Match Search
+  const [ytResult, lrcResult] = await Promise.allSettled([
+    // YouTube Music general search without restrictive params
+    fetch(`/api/gateway/youtubei/v1/search?key=${apiKey}&alt=json`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -27,76 +120,113 @@ export async function searchSongs(query) {
             hl: 'en'
           }
         },
-        query: cleanQuery,
-        params: 'Eg-KAQwIARAAGAAgACgAMABqChAEEAMQCRAFEAo='
+        query: cleanQuery
       })
-    });
+    }).then(r => r.ok ? r.json() : null),
 
-    if (res.ok) {
-      const data = await res.json();
-      const songs = parseInnerTubeSearchSongs(data);
-      if (songs.length > 0) return songs;
-    }
-  } catch (_) {}
+    // LrcLib lyrics database search for lyric matches
+    fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(cleanQuery)}`).then(r => r.ok ? r.json() : null)
+  ]);
 
-  // 2. Direct Media Engine Gateway Search
-  try {
-    const res = await fetch(`https://music.youtube.com/youtubei/v1/search?key=${apiKey}&alt=json`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        context: {
-          client: {
-            clientName: 'WEB_REMIX',
-            clientVersion: '1.20260526.04.00',
-            gl: 'IN',
-            hl: 'en'
-          }
-        },
-        query: cleanQuery,
-        params: 'Eg-KAQwIARAAGAAgACgAMABqChAEEAMQCRAFEAo='
-      })
-    });
+  if (ytResult.status === 'fulfilled' && ytResult.value) {
+    parseInnerTubeContents(ytResult.value);
+  }
 
-    if (res.ok) {
-      const data = await res.json();
-      const songs = parseInnerTubeSearchSongs(data);
-      if (songs.length > 0) return songs;
-    }
-  } catch (_) {}
-
-  // 3. Fallback High Availability Mirror API
-  const backupEndpoints = [
-    `https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(cleanQuery)}&filter=music_songs`,
-    `https://invidious.drgns.space/api/v1/search?q=${encodeURIComponent(cleanQuery)}&type=video`,
-  ];
-
-  for (const endpoint of backupEndpoints) {
+  // If local gateway returned sparse results, try direct YT Music endpoint
+  if (tracksMap.size < 5) {
     try {
-      const res = await fetch(endpoint);
+      const res = await fetch(`https://music.youtube.com/youtubei/v1/search?key=${apiKey}&alt=json`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          context: {
+            client: {
+              clientName: 'WEB_REMIX',
+              clientVersion: '1.20260526.04.00',
+              gl: 'IN',
+              hl: 'en'
+            }
+          },
+          query: cleanQuery
+        })
+      });
       if (res.ok) {
         const data = await res.json();
-        const items = Array.isArray(data) ? data : (data.items || []);
-        const songs = items
-          .map(item => {
-            const vId = item.videoId || extractVideoId(item.url);
-            const rawUrl = item.thumbnail || item.videoThumbnails?.[0]?.url;
-            return {
-              id: vId,
-              title: item.title,
-              artistName: item.author || item.uploaderName || 'Artist',
-              artworkUrl: getHDArtworkUrl(rawUrl, vId),
-              duration: formatDurationSeconds(item.lengthSeconds || item.duration),
-              durationMs: (item.lengthSeconds || item.duration || 225) * 1000,
-            };
-          })
-          .filter(s => s.id);
-        if (songs.length > 0) return songs;
+        parseInnerTubeContents(data);
       }
     } catch (_) {}
   }
 
-  return [];
+  // Process LrcLib Lyric Matches to resolve any missing songs that have matching lyrics
+  if (lrcResult.status === 'fulfilled' && Array.isArray(lrcResult.value) && lrcResult.value.length > 0) {
+    const lyricMatches = lrcResult.value.slice(0, 5);
+    for (const match of lyricMatches) {
+      if (match.trackName && match.artistName) {
+        const q = `${match.trackName} ${match.artistName}`;
+        try {
+          const res = await fetch(`/api/gateway/youtubei/v1/search?key=${apiKey}&alt=json`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              context: {
+                client: {
+                  clientName: 'WEB_REMIX',
+                  clientVersion: '1.20260526.04.00',
+                  gl: 'IN',
+                  hl: 'en'
+                }
+              },
+              query: q
+            })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            parseInnerTubeContents(data);
+          }
+        } catch (_) {}
+      }
+    }
+  }
+
+  // Backup Endpoints (Piped / Invidious) if map is still sparse
+  if (tracksMap.size < 5) {
+    const backupEndpoints = [
+      `https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(cleanQuery)}&filter=music_songs`,
+      `https://invidious.drgns.space/api/v1/search?q=${encodeURIComponent(cleanQuery)}&type=video`,
+    ];
+
+    for (const endpoint of backupEndpoints) {
+      try {
+        const res = await fetch(endpoint);
+        if (res.ok) {
+          const data = await res.json();
+          const items = Array.isArray(data) ? data : (data.items || []);
+          for (const item of items) {
+            const vId = item.videoId || extractVideoId(item.url);
+            const rawUrl = item.thumbnail || item.videoThumbnails?.[0]?.url;
+            const rawTitle = item.title;
+            const artist = item.author || item.uploaderName || 'Artist';
+            if (rawTitle && isUnwantedVideoItem(rawTitle, artist)) continue;
+            const title = cleanSongTitle(rawTitle);
+
+            if (vId && title && !tracksMap.has(vId)) {
+              tracksMap.set(vId, {
+                id: vId,
+                title: title,
+                artistName: artist,
+                artworkUrl: getHDArtworkUrl(rawUrl, vId),
+                duration: formatDurationSeconds(item.lengthSeconds || item.duration),
+                durationMs: (item.lengthSeconds || item.duration || 225) * 1000,
+              });
+            }
+          }
+          if (tracksMap.size >= 10) break;
+        }
+      } catch (_) {}
+    }
+  }
+
+  return Array.from(tracksMap.values());
 }
 
 /**
