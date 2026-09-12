@@ -13,7 +13,7 @@ export const PlayerBar = ({ themePalette }) => {
   const { 
     currentTrack, queue, isPlaying, togglePlayPause, 
     playTrack, skipNext, skipPrev, currentTime, duration, seek, 
-    isShuffle, toggleShuffle, repeatMode, cycleRepeatMode,
+    isShuffle, repeatMode, cyclePlaybackMode,
     isExpanded, setExpanded 
   } = usePlayerStore();
 
@@ -59,6 +59,24 @@ export const PlayerBar = ({ themePalette }) => {
       }
     }
   }
+
+  const renderPlaybackModeIcon = () => {
+    if (isShuffle) {
+      return <Shuffle size={22} className="text-white" />;
+    }
+    if (repeatMode === 'all') {
+      return <Repeat size={22} className="text-white" />;
+    }
+    if (repeatMode === 'one') {
+      return (
+        <div className="relative flex flex-col items-center">
+          <Repeat size={22} className="text-white" />
+          <span className="text-[9px] font-black text-white leading-none -mt-1">1</span>
+        </div>
+      );
+    }
+    return <Shuffle size={22} className="text-white/40 hover:text-white" />;
+  };
 
   // ── Auto-scroll active lyric line to VERTICAL CENTER of container ──
   useEffect(() => {
@@ -312,13 +330,18 @@ export const PlayerBar = ({ themePalette }) => {
 
               {/* Playback Controls Row */}
               <div className="w-full flex items-center justify-between py-2">
+                {/* Combined Playback Mode Button (Shuffle -> Repeat All -> Repeat One -> Off) */}
                 <button 
-                  onClick={toggleShuffle}
-                  className={`p-3 transition-colors ${
-                    isShuffle ? 'text-white' : 'text-white/40 hover:text-white'
-                  }`}
+                  onClick={cyclePlaybackMode}
+                  className="p-3 transition-colors flex items-center justify-center transform active:scale-90"
+                  title={
+                    isShuffle ? "Mode: Shuffle" 
+                    : repeatMode === 'all' ? "Mode: Repeat All" 
+                    : repeatMode === 'one' ? "Mode: Repeat One" 
+                    : "Mode: Off (Click to Shuffle)"
+                  }
                 >
-                  <Shuffle size={22} />
+                  {renderPlaybackModeIcon()}
                 </button>
 
                 <button 
@@ -343,14 +366,15 @@ export const PlayerBar = ({ themePalette }) => {
                   <SkipForward size={32} />
                 </button>
 
+                {/* Up Next Queue Toggle Button */}
                 <button 
-                  onClick={cycleRepeatMode}
-                  className={`p-3 transition-colors ${
-                    repeatMode !== 'off' ? 'text-white' : 'text-white/40 hover:text-white'
+                  onClick={() => setShowQueue(!showQueue)}
+                  className={`p-3 transition-colors rounded-full transform active:scale-90 ${
+                    showQueue ? 'text-white bg-white/20' : 'text-white/40 hover:text-white'
                   }`}
+                  title="Up Next Queue"
                 >
-                  <Repeat size={22} />
-                  {repeatMode === 'one' && <span className="text-[10px] font-bold block -mt-1">1</span>}
+                  <ListMusic size={22} />
                 </button>
               </div>
 

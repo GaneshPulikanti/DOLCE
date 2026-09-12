@@ -173,6 +173,19 @@ export const usePlayerStore = create((set, get) => {
       set({ repeatMode: nextMode });
     },
 
+    cyclePlaybackMode: () => {
+      const { isShuffle, repeatMode } = get();
+      if (!isShuffle && repeatMode === 'off') {
+        set({ isShuffle: true, repeatMode: 'all' });
+      } else if (isShuffle) {
+        set({ isShuffle: false, repeatMode: 'all' });
+      } else if (repeatMode === 'all') {
+        set({ isShuffle: false, repeatMode: 'one' });
+      } else {
+        set({ isShuffle: false, repeatMode: 'off' });
+      }
+    },
+
     setExpanded: (isExpanded) => set({ isExpanded }),
   };
 });
