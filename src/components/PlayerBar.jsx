@@ -165,7 +165,7 @@ export const PlayerBar = ({ themePalette }) => {
         </div>
       </div>
 
-      {/* ─── Full-Screen Expanded Modal (Apple Music Dynamic Backdrop) ─── */}
+      {/* ─── Full-Screen Expanded Modal (Apple Music Glassmorphism & Spotify Lyrics) ─── */}
       <AnimatePresence>
         {isExpanded && (
           <motion.div
@@ -173,198 +173,91 @@ export const PlayerBar = ({ themePalette }) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed inset-0 z-50 backdrop-blur-3xl flex flex-col p-6 lg:p-12 overflow-y-auto transition-colors duration-700"
+            className="fixed inset-0 z-50 backdrop-blur-3xl flex flex-col p-4 sm:p-6 lg:p-10 overflow-y-auto transition-colors duration-700 select-none"
             style={modalBg}
           >
-            {/* Ambient Animated Fluid Glow Mesh Overlay */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-40 z-0">
+            {/* Ambient Animated Fluid Mesh Backdrop */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-35 z-0">
               <div 
-                className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full filter blur-[100px] animate-pulse"
+                className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] rounded-full filter blur-[120px] animate-pulse"
                 style={{ background: themePalette?.secondary || '#ec4899' }}
               />
             </div>
 
-            {/* Top Bar Header & View Switcher */}
-            <div className="relative z-10 flex items-center justify-between mb-6">
+            {/* Top Bar Header */}
+            <div className="relative z-10 flex items-center justify-between mb-6 max-w-xl w-full mx-auto">
               <button 
                 onClick={() => setExpanded(false)}
-                className="p-3 rounded-full glass-card text-white/80 hover:text-white transition-all"
+                className="p-3 rounded-full glass-card text-white/80 hover:text-white transition-all transform active:scale-95"
               >
                 <ChevronDown size={24} />
               </button>
 
-              {/* View Switcher Tabs */}
-              <div className="flex items-center gap-1 p-1 glass-card rounded-full">
-                <button
-                  onClick={() => setModalTab('artwork')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    modalTab === 'artwork' ? 'bg-white/25 text-white' : 'text-white/60 hover:text-white'
-                  }`}
-                >
-                  <Disc size={14} />
-                  <span>Cover</span>
-                </button>
-
-                <button
-                  onClick={() => setModalTab('lyrics')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    modalTab === 'lyrics' ? 'bg-white/25 text-white' : 'text-white/60 hover:text-white'
-                  }`}
-                >
-                  <MessageSquareQuote size={14} />
-                  <span>Lyrics</span>
-                </button>
-
-                <button
-                  onClick={() => setModalTab('queue')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    modalTab === 'queue' ? 'bg-white/25 text-white' : 'text-white/60 hover:text-white'
-                  }`}
-                >
-                  <ListMusic size={14} />
-                  <span>Queue ({queue.length})</span>
-                </button>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] uppercase font-extrabold tracking-widest text-white/50">
+                  Playing From Catalog
+                </span>
+                <span className="text-xs font-bold text-white/90 truncate max-w-[200px]">
+                  {currentTrack.artistName}
+                </span>
               </div>
 
-              <div className="w-10" />
+              <button
+                onClick={handleDownload}
+                title={downloaded ? 'Saved Offline' : 'Download Offline'}
+                className={`p-3 rounded-full glass-card transition-all ${
+                  downloaded ? 'text-purple-400 bg-purple-500/20 border border-purple-500/30' : 'text-white/80 hover:text-white'
+                }`}
+              >
+                <Download size={22} color={downloaded ? '#c084fc' : 'currentColor'} />
+              </button>
             </div>
 
-            {/* Main Content Body */}
-            <div className="relative z-10 flex-1 max-w-lg w-full mx-auto flex flex-col items-center justify-center">
+            {/* Scrollable Center Content Area */}
+            <div className="relative z-10 flex-1 max-w-xl w-full mx-auto flex flex-col items-center gap-6 pb-12">
               
-              {/* TAB 1: ARTWORK COVER */}
-              {modalTab === 'artwork' && (
-                <div 
-                  className="relative w-64 h-64 sm:w-80 sm:h-80 lg:w-96 lg:h-96 rounded-3xl overflow-hidden mb-8 border border-white/20 bg-black transition-all duration-700"
-                  style={{
-                    boxShadow: `0 25px 70px -10px ${shadowColor}`
+              {/* 1. Large Cover Artwork with Apple Music Dynamic Glow */}
+              <div 
+                className="relative w-64 h-64 sm:w-80 sm:h-80 lg:w-96 lg:h-96 rounded-3xl overflow-hidden my-2 border border-white/20 bg-black transition-all duration-700 shadow-2xl"
+                style={{
+                  boxShadow: `0 30px 80px -15px ${shadowColor}`
+                }}
+              >
+                <img
+                  src={currentTrack.artworkUrl || `https://i.ytimg.com/vi/${currentTrack.id}/hq720.jpg`}
+                  alt={currentTrack.title}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    if (!e.target.src.includes('sddefault.jpg')) {
+                      e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/sddefault.jpg`;
+                    } else if (!e.target.src.includes('hqdefault.jpg')) {
+                      e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/hqdefault.jpg`;
+                    }
                   }}
-                >
-                  <img
-                    src={currentTrack.artworkUrl || `https://i.ytimg.com/vi/${currentTrack.id}/hq720.jpg`}
-                    alt={currentTrack.title}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      if (!e.target.src.includes('sddefault.jpg')) {
-                        e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/sddefault.jpg`;
-                      } else if (!e.target.src.includes('hqdefault.jpg')) {
-                        e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/hqdefault.jpg`;
-                      }
-                    }}
-                  />
-                </div>
-              )}
+                />
+              </div>
 
-              {/* TAB 2: SYNCHRONIZED LYRICS */}
-              {modalTab === 'lyrics' && (
-                <div className="w-full h-80 sm:h-96 rounded-3xl p-6 glass-card border border-white/15 overflow-y-auto mb-8 flex flex-col items-center justify-start text-center scroll-smooth" ref={lyricsContainerRef}>
-                  {loadingLyrics ? (
-                    <div className="flex flex-col items-center justify-center h-full text-white/50 animate-pulse">
-                      <MessageSquareQuote size={36} className="mb-2 text-purple-400" />
-                      <p className="text-sm font-semibold">Loading synchronized lyrics...</p>
-                    </div>
-                  ) : lyricsData.synced.length > 0 ? (
-                    <div className="flex flex-col gap-6 py-6 w-full">
-                      {lyricsData.synced.map((line, idx) => (
-                        <p
-                          key={idx}
-                          onClick={() => seek(line.time)}
-                          className={`cursor-pointer transition-all duration-300 text-lg sm:text-2xl font-bold leading-relaxed ${
-                            idx === activeLyricIdx
-                              ? 'text-white scale-105 opacity-100 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]'
-                              : 'text-white/40 opacity-50 hover:opacity-80 scale-95'
-                          }`}
-                        >
-                          {line.text}
-                        </p>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-white/70 whitespace-pre-line text-sm sm:text-base leading-relaxed py-6">
-                      {lyricsData.plain}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* TAB 3: UP NEXT QUEUE */}
-              {modalTab === 'queue' && (
-                <div className="w-full h-80 sm:h-96 rounded-3xl p-4 glass-card border border-white/15 overflow-y-auto mb-8 flex flex-col gap-2">
-                  <span className="text-xs uppercase font-extrabold tracking-wider text-purple-300 px-2 py-1">
-                    Up Next ({queue.length} Tracks)
-                  </span>
-                  {queue.map((track, qIdx) => {
-                    const isTrackActive = currentTrack.id === track.id;
-                    return (
-                      <div
-                        key={`${track.id}-${qIdx}`}
-                        onClick={() => playTrack(track, queue)}
-                        className={`flex items-center justify-between p-2.5 rounded-2xl cursor-pointer transition-all ${
-                          isTrackActive ? 'bg-purple-500/25 border border-purple-500/40 text-white' : 'hover:bg-white/10 text-white/70'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <img
-                            src={track.artworkUrl}
-                            alt={track.title}
-                            className="w-10 h-10 rounded-lg object-cover"
-                          />
-                          <div className="flex flex-col min-w-0">
-                            <h5 className="text-sm font-bold truncate text-white">
-                              {track.title}
-                            </h5>
-                            <p className="text-xs text-white/50 truncate font-medium">
-                              {track.artistName}
-                            </p>
-                          </div>
-                        </div>
-
-                        {isTrackActive && (
-                          <span className="text-xs font-bold text-purple-400 px-2 py-1 rounded-full bg-purple-500/20">
-                            Playing
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Title, Artist, Like & Download Bar */}
-              <div className="w-full flex items-center justify-between mb-6">
+              {/* 2. Track Meta & Favorite Action */}
+              <div className="w-full flex items-center justify-between px-2">
                 <div className="min-w-0 pr-4">
-                  <h2 className="text-2xl sm:text-3xl font-extrabold text-white truncate">
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-white truncate tracking-tight">
                     {currentTrack.title}
                   </h2>
-                  <p className="text-base sm:text-lg text-white/70 font-medium truncate mt-1">
+                  <p className="text-base sm:text-lg text-white/70 font-medium truncate mt-0.5">
                     {currentTrack.artistName}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {/* Download Locally Toggle Button */}
-                  <button
-                    onClick={handleDownload}
-                    title={downloaded ? 'Saved Offline' : 'Download for Offline'}
-                    className={`p-3 rounded-full glass-card transition-all ${
-                      downloaded ? 'text-purple-400 bg-purple-500/20 border border-purple-500/30' : 'text-white/80 hover:text-white'
-                    }`}
-                  >
-                    <Download size={22} color={downloaded ? '#c084fc' : 'currentColor'} />
-                  </button>
-
-                  {/* Favorite Like Button */}
-                  <button
-                    onClick={handleLike}
-                    className="p-3 rounded-full glass-card text-white/80 hover:text-pink-500 transition-all"
-                  >
-                    <Heart size={24} fill={liked ? '#ec4899' : 'none'} color={liked ? '#ec4899' : 'currentColor'} />
-                  </button>
-                </div>
+                <button
+                  onClick={handleLike}
+                  className="p-3 rounded-full glass-card text-white/80 hover:text-pink-500 transition-all transform active:scale-95"
+                >
+                  <Heart size={26} fill={liked ? '#ec4899' : 'none'} color={liked ? '#ec4899' : 'currentColor'} />
+                </button>
               </div>
 
-              {/* Progress Scrubber */}
-              <div className="w-full mb-6">
+              {/* 3. Scrubber Bar & Timers */}
+              <div className="w-full px-2">
                 <input
                   type="range"
                   min={0}
@@ -380,12 +273,12 @@ export const PlayerBar = ({ themePalette }) => {
                 </div>
               </div>
 
-              {/* Playback Controls */}
-              <div className="w-full flex items-center justify-between mb-8">
+              {/* 4. Playback Control Bar */}
+              <div className="w-full flex items-center justify-between py-2 px-4">
                 <button 
                   onClick={toggleShuffle}
                   className={`p-3 rounded-full transition-colors ${
-                    isShuffle ? 'text-white' : 'text-white/40 hover:text-white'
+                    isShuffle ? 'text-white bg-white/10' : 'text-white/40 hover:text-white'
                   }`}
                 >
                   <Shuffle size={22} />
@@ -393,22 +286,22 @@ export const PlayerBar = ({ themePalette }) => {
 
                 <button 
                   onClick={skipPrev}
-                  className="p-3 text-white/80 hover:text-white transition-colors"
+                  className="p-3 text-white/80 hover:text-white transition-colors transform active:scale-90"
                 >
                   <SkipBack size={32} />
                 </button>
 
                 <button
                   onClick={togglePlayPause}
-                  className="w-20 h-20 rounded-full text-white flex items-center justify-center shadow-2xl hover:scale-105 transition-all"
-                  style={{ backgroundColor: accentColor, boxShadow: `0 10px 30px ${shadowColor}` }}
+                  className="w-20 h-20 rounded-full text-white flex items-center justify-center shadow-2xl hover:scale-105 transition-all transform active:scale-95"
+                  style={{ backgroundColor: accentColor, boxShadow: `0 12px 35px ${shadowColor}` }}
                 >
                   {isPlaying ? <Pause size={36} fill="white" /> : <Play size={36} fill="white" className="ml-1" />}
                 </button>
 
                 <button 
                   onClick={skipNext}
-                  className="p-3 text-white/80 hover:text-white transition-colors"
+                  className="p-3 text-white/80 hover:text-white transition-colors transform active:scale-90"
                 >
                   <SkipForward size={32} />
                 </button>
@@ -416,7 +309,7 @@ export const PlayerBar = ({ themePalette }) => {
                 <button 
                   onClick={cycleRepeatMode}
                   className={`p-3 rounded-full transition-colors ${
-                    repeatMode !== 'off' ? 'text-white' : 'text-white/40 hover:text-white'
+                    repeatMode !== 'off' ? 'text-white bg-white/10' : 'text-white/40 hover:text-white'
                   }`}
                 >
                   <Repeat size={22} />
@@ -425,7 +318,7 @@ export const PlayerBar = ({ themePalette }) => {
               </div>
 
               {/* Volume Scrubber */}
-              <div className="w-full flex items-center gap-3 px-4 py-2.5 glass-card rounded-full max-w-xs">
+              <div className="w-full flex items-center gap-3 px-4 py-2.5 glass-card rounded-full max-w-xs mb-4">
                 <button onClick={toggleMute} className="text-white/60 hover:text-white">
                   {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
                 </button>
@@ -439,6 +332,102 @@ export const PlayerBar = ({ themePalette }) => {
                   style={{ accentColor: accentColor }}
                 />
               </div>
+
+              {/* 5. SPOTIFY-STYLE LYRICS CARD (Positioned Directly Underneath Cover & Controls) */}
+              <div 
+                className="w-full rounded-3xl p-6 glass-panel border border-white/20 shadow-2xl backdrop-blur-2xl flex flex-col gap-4 text-left transition-all"
+                style={{
+                  background: `linear-gradient(135deg, rgba(255,255,255,0.08) 0%, ${themePalette?.dominant || 'rgba(139, 92, 246, 0.2)'} 100%)`
+                }}
+              >
+                <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                  <span className="text-xs uppercase font-black tracking-widest text-white/90 flex items-center gap-2">
+                    <MessageSquareQuote size={18} className="text-purple-400" />
+                    <span>Synchronized Lyrics</span>
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/15 text-white/80">
+                    Spotify Style
+                  </span>
+                </div>
+
+                <div 
+                  className="w-full max-h-72 overflow-y-auto scroll-smooth pr-2 flex flex-col gap-4"
+                  ref={lyricsContainerRef}
+                >
+                  {loadingLyrics ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-white/50 animate-pulse">
+                      <MessageSquareQuote size={32} className="mb-2 text-purple-400" />
+                      <p className="text-xs font-semibold">Fetching synchronized lyrics...</p>
+                    </div>
+                  ) : lyricsData.synced.length > 0 ? (
+                    lyricsData.synced.map((line, idx) => (
+                      <p
+                        key={idx}
+                        onClick={() => seek(line.time)}
+                        className={`cursor-pointer transition-all duration-300 text-lg sm:text-xl font-bold leading-relaxed ${
+                          idx === activeLyricIdx
+                            ? 'text-white scale-[1.02] opacity-100 drop-shadow-[0_0_12px_rgba(255,255,255,0.9)]'
+                            : 'text-white/40 opacity-50 hover:opacity-80'
+                        }`}
+                      >
+                        {line.text}
+                      </p>
+                    ))
+                  ) : (
+                    <div className="py-6 text-white/70 whitespace-pre-line text-sm sm:text-base leading-relaxed font-medium">
+                      {lyricsData.plain}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 6. UP NEXT QUEUE DRAWER (Positioned Below Lyrics) */}
+              <div className="w-full rounded-3xl p-5 glass-panel border border-white/15 backdrop-blur-2xl flex flex-col gap-3">
+                <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+                  <span className="text-xs uppercase font-black tracking-widest text-white/90 flex items-center gap-2">
+                    <ListMusic size={18} className="text-purple-400" />
+                    <span>Up Next ({queue.length} Tracks)</span>
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-2 max-h-60 overflow-y-auto">
+                  {queue.map((track, qIdx) => {
+                    const isTrackActive = currentTrack.id === track.id;
+                    return (
+                      <div
+                        key={`${track.id}-${qIdx}`}
+                        onClick={() => playTrack(track, queue)}
+                        className={`flex items-center justify-between p-2.5 rounded-2xl cursor-pointer transition-all ${
+                          isTrackActive ? 'bg-purple-500/30 border border-purple-500/40 text-white shadow-md' : 'hover:bg-white/10 text-white/70'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <img
+                            src={track.artworkUrl}
+                            alt={track.title}
+                            className="w-10 h-10 rounded-xl object-cover shadow bg-black"
+                          />
+                          <div className="flex flex-col min-w-0">
+                            <h5 className="text-sm font-bold truncate text-white">
+                              {track.title}
+                            </h5>
+                            <p className="text-xs text-white/50 truncate font-medium">
+                              {track.artistName}
+                            </p>
+                          </div>
+                        </div>
+
+                        {isTrackActive && (
+                          <span className="text-xs font-bold text-purple-300 px-2.5 py-1 rounded-full bg-purple-500/25">
+                            Playing
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
             </div>
           </motion.div>
         )}
