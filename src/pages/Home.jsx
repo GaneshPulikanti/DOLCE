@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Sparkles, TrendingUp, Music, Play } from 'lucide-react';
-import { getHomeFeed } from '../services/ytmusic';
+import { getHomeFeed } from '../services/catalog';
 import { TrackCard } from '../components/TrackCard';
 import { usePlayerStore } from '../store/usePlayerStore';
 

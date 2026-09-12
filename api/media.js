@@ -21,7 +21,7 @@ module.exports = async function handler(req, res) {
     if (req.query && req.query.path) {
       targetPath = Array.isArray(req.query.path) ? req.query.path.join('/') : req.query.path;
     } else {
-      targetPath = urlObj.pathname.replace('/api/yt', '').replace(/^\/+/, '');
+      targetPath = urlObj.pathname.replace('/api/media', '').replace(/^\/+/, '');
     }
 
     const targetUrl = `https://www.youtube.com/${targetPath}${queryString}`;

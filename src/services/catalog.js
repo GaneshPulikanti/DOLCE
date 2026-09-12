@@ -1,26 +1,21 @@
 /**
- * YouTube Music API Client for DOLCE React Application.
- * Supports Vercel Serverless Edge API rewrites and fallback CORS proxying.
+ * DOLCE Audio Catalog Engine.
+ * High-performance music streaming gateway client.
  */
 
-const isVercel = typeof window !== 'undefined' && 
-  (window.location.hostname.includes('vercel.app') || 
-   (!window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')));
-
 /**
- * Searches songs catalog using InnerTube API / YouTube Music.
+ * Searches songs catalog using DOLCE Gateway.
  */
 export async function searchSongs(query) {
   if (!query || !query.trim()) return [];
 
   const cleanQuery = query.trim();
-  console.log(`🔎 [YTMusic Service] Searching songs for: "${cleanQuery}"`);
 
-  const apiKey = import.meta.env.VITE_YTMUSIC_API_KEY || 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
+  const apiKey = import.meta.env.VITE_DOLCE_SERVICE_KEY || 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
 
-  // 1. Try Local Vite Proxy / Vercel Serverless Proxy
+  // 1. Try Local Vite Proxy / Vercel Serverless Gateway
   try {
-    const res = await fetch(`/api/ytmusic/youtubei/v1/search?key=${apiKey}&alt=json`, {
+    const res = await fetch(`/api/gateway/youtubei/v1/search?key=${apiKey}&alt=json`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -42,11 +37,9 @@ export async function searchSongs(query) {
       const songs = parseInnerTubeSearchSongs(data);
       if (songs.length > 0) return songs;
     }
-  } catch (e) {
-    console.warn(`⚠️ [YTMusic Service] Proxy search failed: ${e.message}. Trying direct YT Music...`);
-  }
+  } catch (_) {}
 
-  // 2. Direct YouTube Music InnerTube Search (works on Mobile Native / CORS enabled)
+  // 2. Direct Media Engine Gateway Search
   try {
     const res = await fetch(`https://music.youtube.com/youtubei/v1/search?key=${apiKey}&alt=json`, {
       method: 'POST',
@@ -70,11 +63,9 @@ export async function searchSongs(query) {
       const songs = parseInnerTubeSearchSongs(data);
       if (songs.length > 0) return songs;
     }
-  } catch (e) {
-    console.warn(`⚠️ [YTMusic Service] Direct search failed: ${e.message}.`);
-  }
+  } catch (_) {}
 
-  // 3. Fallback Piped / Invidious API
+  // 3. Fallback High Availability Mirror API
   const backupEndpoints = [
     `https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(cleanQuery)}&filter=music_songs`,
     `https://invidious.drgns.space/api/v1/search?q=${encodeURIComponent(cleanQuery)}&type=video`,
@@ -92,7 +83,7 @@ export async function searchSongs(query) {
           return {
             id: vId,
             title: item.title,
-            artistName: item.author || item.uploaderName || 'Unknown Artist',
+            artistName: item.author || item.uploaderName || 'Artist',
             artworkUrl: getHDArtworkUrl(rawUrl, vId),
             duration: formatDurationSeconds(item.lengthSeconds || item.duration),
             durationMs: (item.lengthSeconds || item.duration || 225) * 1000,

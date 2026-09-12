@@ -3,12 +3,12 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/api/ytmusic/:path*",
-      "destination": "/api/ytmusic?path=:path*"
+      "source": "/api/gateway/:path*",
+      "destination": "/api/gateway?path=:path*"
     },
     {
-      "source": "/api/yt/:path*",
-      "destination": "/api/yt?path=:path*"
+      "source": "/api/media/:path*",
+      "destination": "/api/media?path=:path*"
     },
     {
       "source": "/((?!api/|.*\\..*).*)",

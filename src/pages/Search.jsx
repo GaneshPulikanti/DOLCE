@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Search as SearchIcon, Music, Filter } from 'lucide-react';
-import { searchSongs } from '../services/ytmusic';
+import { searchSongs } from '../services/catalog';
 import { TrackCard } from '../components/TrackCard';
 import { useSearchStore } from '../store/useSearchStore';
 
