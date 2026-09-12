@@ -16,72 +16,85 @@ export async function searchSongs(query) {
   const cleanQuery = query.trim();
   console.log(`🔎 [YTMusic Service] Searching songs for: "${cleanQuery}"`);
 
-  // 1. Try Vercel Serverless Edge API or Direct Proxy
+  // 1. Try Local Vite Proxy / Vercel Serverless Proxy
   try {
-    const apiEndpoint = isVercel 
-      ? `/api/ytmusic/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30&alt=json`
-      : `https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(cleanQuery)}&filter=music_songs`;
+    const res = await fetch(`/api/ytmusic/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30&alt=json`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        context: {
+          client: {
+            clientName: 'WEB_REMIX',
+            clientVersion: '1.20260526.04.00',
+            gl: 'IN',
+            hl: 'en'
+          }
+        },
+        query: cleanQuery,
+        params: 'Eg-KAQwIARAAGAAgACgAMABqChAEEAMQCRAFEAo='
+      })
+    });
 
-    if (isVercel) {
-      const res = await fetch(apiEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          context: {
-            client: {
-              clientName: 'WEB_REMIX',
-              clientVersion: '1.20260526.04.00',
-              gl: 'IN',
-              hl: 'en'
-            }
-          },
-          query: cleanQuery,
-          params: 'Eg-KAQwIARAAGAAgACgAMABqChAEEAMQCRAFEAo='
-        })
-      });
+    if (res.ok) {
+      const data = await res.json();
+      const songs = parseInnerTubeSearchSongs(data);
+      if (songs.length > 0) return songs;
+    }
+  } catch (e) {
+    console.warn(`⚠️ [YTMusic Service] Proxy search failed: ${e.message}. Trying direct YT Music...`);
+  }
 
+  // 2. Direct YouTube Music InnerTube Search (works on Mobile Native / CORS enabled)
+  try {
+    const res = await fetch(`https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30&alt=json`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        context: {
+          client: {
+            clientName: 'WEB_REMIX',
+            clientVersion: '1.20260526.04.00',
+            gl: 'IN',
+            hl: 'en'
+          }
+        },
+        query: cleanQuery,
+        params: 'Eg-KAQwIARAAGAAgACgAMABqChAEEAMQCRAFEAo='
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const songs = parseInnerTubeSearchSongs(data);
+      if (songs.length > 0) return songs;
+    }
+  } catch (e) {
+    console.warn(`⚠️ [YTMusic Service] Direct search failed: ${e.message}.`);
+  }
+
+  // 3. Fallback Piped / Invidious API
+  const backupEndpoints = [
+    `https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(cleanQuery)}&filter=music_songs`,
+    `https://invidious.drgns.space/api/v1/search?q=${encodeURIComponent(cleanQuery)}&type=video`,
+  ];
+
+  for (const endpoint of backupEndpoints) {
+    try {
+      const res = await fetch(endpoint);
       if (res.ok) {
         const data = await res.json();
-        const songs = parseInnerTubeSearchSongs(data);
-        if (songs.length > 0) return songs;
-      }
-    } else {
-      // Piped API for localhost dev
-      const res = await fetch(apiEndpoint);
-      if (res.ok) {
-        const data = await res.json();
-        const items = data.items || [];
+        const items = Array.isArray(data) ? data : (data.items || []);
         const songs = items.map(item => ({
-          id: extractVideoId(item.url),
+          id: item.videoId || extractVideoId(item.url),
           title: item.title,
-          artistName: item.uploaderName || 'Unknown Artist',
-          artworkUrl: item.thumbnail,
-          duration: item.duration ? formatDurationSeconds(item.duration) : '3:45',
-          durationMs: item.duration ? item.duration * 1000 : 225000,
+          artistName: item.author || item.uploaderName || 'Unknown Artist',
+          artworkUrl: item.thumbnail || item.videoThumbnails?.[0]?.url || `https://img.youtube.com/vi/${item.videoId || extractVideoId(item.url)}/hqdefault.jpg`,
+          duration: formatDurationSeconds(item.lengthSeconds || item.duration),
+          durationMs: (item.lengthSeconds || item.duration || 225) * 1000,
         })).filter(s => s.id);
         if (songs.length > 0) return songs;
       }
-    }
-  } catch (e) {
-    console.warn(`⚠️ [YTMusic Service] Primary search failed: ${e.message}. Trying Invidious fallback...`);
-  }
-
-  // 2. Invidious / Piped Backup Search
-  try {
-    const backupRes = await fetch(`https://invidious.drgns.space/api/v1/search?q=${encodeURIComponent(cleanQuery)}&type=video`);
-    if (backupRes.ok) {
-      const data = await backupRes.json();
-      return data.slice(0, 20).map(v => ({
-        id: v.videoId,
-        title: v.title,
-        artistName: v.author,
-        artworkUrl: v.videoThumbnails?.[0]?.url || `https://img.youtube.com/vi/${v.videoId}/hqdefault.jpg`,
-        duration: formatDurationSeconds(v.lengthSeconds),
-        durationMs: (v.lengthSeconds || 200) * 1000,
-      }));
-    }
-  } catch (err) {
-    console.error(`🔴 [YTMusic Service] Backup search failed: ${err.message}`);
+    } catch (_) {}
   }
 
   return [];
