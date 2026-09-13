@@ -132,11 +132,25 @@ function isUnwantedVideoItem(title, artist, queryContext = '') {
     'video song',
     'full episode',
     'podcast episode',
-    'episode'
+    'episode',
+    'dappu song',
+    'bit song',
+    'ringtone',
+    'ring tone',
+    'whatsapp',
+    'cut song',
+    'short video'
   ];
 
   for (const kw of junkKeywords) {
     if (lowerTitle.includes(kw) || lowerArtist.includes(kw)) {
+      return true;
+    }
+  }
+
+  // Reject unofficial fan uploader names
+  if (lowerArtist.includes('viralvmusic') || lowerArtist.includes('status video') || lowerArtist.includes('creation') || lowerArtist.includes('edits')) {
+    if (!lowerArtist.includes('official') && !lowerArtist.includes('music')) {
       return true;
     }
   }
@@ -436,21 +450,24 @@ export async function searchCatalog(query) {
     const title = (item.title || item.name || '').toLowerCase();
     const artist = (item.artistName || item.author || item.subtitle || '').toLowerCase();
 
-    // 🏆 MAXIMUM SCORE for exact or partial title match to query
-    if (title.includes(lowerQuery) || lowerQuery.includes(title)) {
-      score += 500;
-    }
-    if (normalizedQuery && (title.includes(normalizedQuery) || normalizedQuery.includes(title))) {
-      score += 450;
+    // 🏆 EXACT Match Boost
+    if (title === lowerQuery || title === normalizedQuery) {
+      score += 10000;
+    } else if (title.startsWith(lowerQuery) || (normalizedQuery && title.startsWith(normalizedQuery))) {
+      score += 5000;
+    } else if (title.includes(lowerQuery) || lowerQuery.includes(title)) {
+      score += 1000;
+    } else if (normalizedQuery && (title.includes(normalizedQuery) || normalizedQuery.includes(title))) {
+      score += 800;
     }
 
-    // 🏆 Top score for Telugu indicators
+    // 🏆 Top score for Telugu indicators & artists
     if (teluguKeywords.some(kw => title.includes(kw) || artist.includes(kw))) {
-      score += 100;
+      score += 200;
     }
     // 🇮🇳 High score for major Indian labels
     if (artist.includes('t-series') || artist.includes('zee music') || artist.includes('saregama') || artist.includes('sony music') || artist.includes('aditya') || artist.includes('lahari')) {
-      score += 50;
+      score += 150;
     }
 
     return score;

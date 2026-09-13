@@ -7,8 +7,16 @@ import { db } from '../services/db';
 import { useSearchStore } from '../store/useSearchStore';
 
 export const Home = () => {
-  const [sections, setSections] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [sections, setSections] = useState(() => {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('DOLCE_HOME_FEED_CACHE_V2');
+        if (cached) return JSON.parse(cached);
+      } catch (_) {}
+    }
+    return [];
+  });
+  const [loading, setLoading] = useState(() => sections.length === 0);
   const favorites = useLiveQuery(() => db.favorites.toArray()) || [];
   const historyCount = useLiveQuery(() => db.history.count()) || 0;
   const { setActiveTab } = useSearchStore();
@@ -16,7 +24,7 @@ export const Home = () => {
   useEffect(() => {
     let isMounted = true;
     getHomeFeed().then((data) => {
-      if (isMounted) {
+      if (isMounted && data && data.length > 0) {
         setSections(data);
         setLoading(false);
       }

@@ -15,12 +15,9 @@ export async function getPersonalizedHomeFeed() {
       db.favorites.orderBy('addedAt').reverse().limit(10).toArray()
     ]);
 
-    const sections = [];
     const usedTrackIds = new Set();
-
-    // Helper to add unique tracks to section
     const createSection = (title, tracks) => {
-      const filtered = tracks.filter(t => {
+      const filtered = (tracks || []).filter(t => {
         if (!t || !t.id || usedTrackIds.has(t.id)) return false;
         usedTrackIds.add(t.id);
         return isValidAudioSong(t);
@@ -31,66 +28,87 @@ export async function getPersonalizedHomeFeed() {
       return null;
     };
 
-    // ── SECTION 1: Quick Picks (Based on Recent Listening or Favorites) ──
+    // Prepare all promise queries concurrently
+    const queryTasks = [];
+
+    // Task 1: Quick Picks
+    let quickPicksIndex = -1;
     if (historyTracks.length > 0) {
       const recentTrack = historyTracks[0];
-      const quickPicks = await searchSongs(`${recentTrack.artistName} ${recentTrack.title} songs`);
-      const s = createSection('⚡ Quick Picks for You', [...historyTracks, ...quickPicks]);
-      if (s) sections.push(s);
+      quickPicksIndex = queryTasks.length;
+      queryTasks.push({
+        title: '⚡ Quick Picks for You',
+        promise: searchSongs(`${recentTrack.artistName} ${recentTrack.title} songs`),
+        prepend: historyTracks
+      });
     }
 
-    // ── SECTION 2: Based on your Top Artist ──
+    // Task 2: Top Artist
     if (topArtists.length > 0) {
       const primaryArtist = topArtists[0];
-      const artistTracks = await searchSongs(`${primaryArtist} top hits songs`);
-      const s = createSection(`🎧 Similar to ${primaryArtist}`, artistTracks);
-      if (s) sections.push(s);
+      queryTasks.push({
+        title: `🎧 Similar to ${primaryArtist}`,
+        promise: searchSongs(`${primaryArtist} top hits songs`)
+      });
     }
 
-    // ── SECTION 3: Based on Last Listened Song ──
+    // Task 3: Seed Song
     if (historyTracks.length > 1) {
       const seedTrack = historyTracks[1];
-      const relatedTracks = await searchSongs(`${seedTrack.title} ${seedTrack.artistName} radio mix`);
-      const s = createSection(`✨ More Like "${seedTrack.title}"`, relatedTracks);
-      if (s) sections.push(s);
+      queryTasks.push({
+        title: `✨ More Like "${seedTrack.title}"`,
+        promise: searchSongs(`${seedTrack.title} ${seedTrack.artistName} radio mix`)
+      });
     }
 
-    // ── SECTION 4: Favorites & Deep Cuts ──
+    // Task 4: Favorites
     if (favorites.length > 0) {
       const favSample = favorites[Math.floor(Math.random() * favorites.length)];
-      const favMatches = await searchSongs(`${favSample.artistName} best audio songs`);
-      const s = createSection(`❤️ Inspired by Your Liked Songs`, [...favorites, ...favMatches]);
-      if (s) sections.push(s);
+      queryTasks.push({
+        title: `❤️ Inspired by Your Liked Songs`,
+        promise: searchSongs(`${favSample.artistName} best audio songs`),
+        prepend: favorites
+      });
     }
 
-    // ── SECTION 5: Dynamic Trending & Genre Discovery (Prioritizes Telugu & Indian Hits) ──
-    const trendingQueries = [
-      { title: '🔥 Telugu Chartbusters & Hits', query: 'telugu top hits songs aditya music' },
+    // Task 5: Regional Trending Categories (Telugu & Hindi Hits)
+    const defaultTrending = [
+      { title: '🔥 Telugu Chartbusters 2026', query: 'telugu top hits songs aditya music' },
       { title: '❤️ Telugu Love Melodies', query: 'telugu romantic love songs sid sriram' },
-      { title: '⚡ Mass Party Beats', query: 'telugu mass songs thaman dsp' },
-      { title: '🎧 Trending Indian Hits', query: 'top indian songs hits hindi telugu' },
+      { title: '⚡ Mass Beats & Party', query: 'telugu mass songs thaman dsp' },
+      { title: '🎧 Bollywood Blockbusters', query: 'top hindi songs hits arijit singh' },
       { title: '🌧️ Telugu Rain & Lo-Fi Chill', query: 'telugu lofi songs chill' },
     ];
 
-    // Pick trending queries dynamically
-    const selectedTrending = trendingQueries.sort(() => 0.5 - Math.random()).slice(0, 3);
-    for (const item of selectedTrending) {
-      if (sections.length >= 5) break;
-      const tTracks = await searchSongs(item.query);
-      const s = createSection(item.title, tTracks);
-      if (s) sections.push(s);
-    }
+    defaultTrending.forEach(item => {
+      queryTasks.push({
+        title: item.title,
+        promise: searchSongs(item.query)
+      });
+    });
 
-    // Fallback if no history yet
-    if (sections.length === 0) {
-      for (const item of trendingQueries) {
-        const tTracks = await searchSongs(item.query);
-        const s = createSection(item.title, tTracks);
-        if (s) sections.push(s);
+    // Execute ALL queries in parallel (Ultra-fast load!)
+    const results = await Promise.allSettled(queryTasks.map(t => t.promise));
+
+    const sections = [];
+    queryTasks.forEach((task, idx) => {
+      if (results[idx].status === 'fulfilled' && results[idx].value) {
+        const rawTracks = task.prepend ? [...task.prepend, ...results[idx].value] : results[idx].value;
+        const section = createSection(task.title, rawTracks);
+        if (section) sections.push(section);
       }
+    });
+
+    const finalSections = sections.filter(Boolean).slice(0, 5);
+
+    // Save cache locally for 0ms instant startup on next app open
+    if (typeof localStorage !== 'undefined' && finalSections.length > 0) {
+      try {
+        localStorage.setItem('DOLCE_HOME_FEED_CACHE_V2', JSON.stringify(finalSections));
+      } catch (_) {}
     }
 
-    return sections.filter(Boolean);
+    return finalSections;
   } catch (e) {
     console.error('Failed to build personalized home feed:', e);
     return [];
