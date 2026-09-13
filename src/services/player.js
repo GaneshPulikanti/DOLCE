@@ -63,8 +63,9 @@ class AudioEngine {
             console.log('🛸 [AudioEngine] YouTube IFrame API Ready.');
             this.secureIframeElement();
             if (this.pendingVideoId) {
-              this.playTrack(this.pendingVideoId);
+              this.playTrack(this.pendingVideoId, this.pendingStartSeconds || 0);
               this.pendingVideoId = null;
+              this.pendingStartSeconds = 0;
             }
           },
           onStateChange: (event) => this.handleYtStateChange(event),
@@ -176,6 +177,7 @@ class AudioEngine {
       }
     } else {
       this.pendingVideoId = videoId;
+      this.pendingStartSeconds = startSeconds;
     }
   }
 
