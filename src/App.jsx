@@ -83,11 +83,9 @@ export const App = () => {
       {/* Top App Bar Header */}
       <Navbar onOpenDrawer={() => setIsDrawerOpen(true)} />
 
-      {/* Main Page Area with Touch Swipe & Buttery Smooth Horizontal Transitions */}
+      {/* Main Page Area */}
       <main 
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        className="relative z-10 flex-1 w-full max-w-7xl mx-auto overflow-y-auto overflow-x-hidden"
+        className="relative z-10 flex-1 w-full max-w-7xl mx-auto overflow-y-auto overflow-x-hidden no-scrollbar"
       >
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
