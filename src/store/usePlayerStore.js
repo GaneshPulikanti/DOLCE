@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { audioEngine } from '../services/player';
 import { recordHistory } from '../services/db';
+import { syncMediaSession, updateMediaPosition } from '../services/mediaSession';
 
 export const usePlayerStore = create((set, get) => {
   // Wire audio engine listeners
@@ -11,19 +12,32 @@ export const usePlayerStore = create((set, get) => {
       isLoading: stateStr === 'buffering',
     });
 
+    syncMediaSession({
+      track: get().currentTrack,
+      isPlaying,
+      onPlay: () => get().togglePlayPause(),
+      onPause: () => get().togglePlayPause(),
+      onSkipNext: () => get().skipNext(),
+      onSkipPrev: () => get().skipPrev(),
+      onSeek: (s) => get().seek(s),
+    });
+
     if (stateStr === 'ended') {
       get().skipNext();
     }
   };
 
   audioEngine.onProgress = (currentTime, duration) => {
+    const validDuration = duration || get().duration || 210;
     set({
       currentTime,
-      duration: duration || get().duration || 210,
+      duration: validDuration,
     });
 
+    updateMediaPosition(currentTime, validDuration);
+
     // Gapless Pre-Buffering: Cue next track in buffer when current track reaches 65% progress
-    if (duration > 0 && currentTime / duration > 0.65) {
+    if (validDuration > 0 && currentTime / validDuration > 0.65) {
       const { queue, currentIndex } = get();
       if (queue && queue[currentIndex + 1]) {
         audioEngine.cueNextTrack(queue[currentIndex + 1].id);
@@ -78,6 +92,16 @@ export const usePlayerStore = create((set, get) => {
 
       audioEngine.playTrack(track.id);
       recordHistory(track);
+
+      syncMediaSession({
+        track,
+        isPlaying: true,
+        onPlay: () => get().togglePlayPause(),
+        onPause: () => get().togglePlayPause(),
+        onSkipNext: () => get().skipNext(),
+        onSkipPrev: () => get().skipPrev(),
+        onSeek: (s) => get().seek(s),
+      });
 
       // Cue next track in buffer if available for 0ms gapless skip
       if (queue[currentIndex + 1]) {
