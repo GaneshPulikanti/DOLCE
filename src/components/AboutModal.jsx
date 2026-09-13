@@ -35,50 +35,60 @@ export const AboutModal = ({ isOpen, onClose }) => {
               <X size={18} />
             </button>
 
-            {/* Top Featured Developer Profile & Photo */}
+            {/* 1. Primary Header: App Logo & Title */}
             <div className="flex flex-col items-center text-center gap-3 pt-2">
-              <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 border-white/30 shadow-2xl p-1 bg-gradient-to-tr from-purple-500 via-pink-500 to-amber-400">
-                <img 
-                  src="/developer.jpg" 
-                  alt="Ganesh Pulikanti" 
-                  className="w-full h-full object-cover rounded-full shadow-inner" 
-                />
+              <div className="relative w-20 h-20 sm:w-22 sm:h-22 rounded-3xl overflow-hidden border border-white/25 shadow-2xl bg-gradient-to-tr from-purple-900/60 to-pink-600/60 p-1 flex items-center justify-center">
+                <img src="/favicon.png" alt="DOLCE Logo" className="w-full h-full object-cover rounded-2xl" />
               </div>
-
-              <div className="flex flex-col items-center gap-0.5">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-pink-400">
-                  Lead Developer & Creator
+              <div className="flex flex-col items-center">
+                <h2 className="text-3xl sm:text-4xl font-black text-white tracking-widest">DOLCE</h2>
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-pink-400 mt-1">
+                  Ambient Music Streaming v1.0
                 </span>
-                <h3 className="text-2xl font-black text-white tracking-tight font-['Plus_Jakarta_Sans']">
-                  Ganesh Pulikanti
-                </h3>
-                <a
-                  href="https://github.com/GaneshPulikanti"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-1 px-3.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-all transform active:scale-95 flex items-center gap-1.5 shadow-md"
-                >
-                  <span>GitHub: @GaneshPulikanti</span>
-                </a>
               </div>
             </div>
 
-            {/* App Description Box */}
-            <div className="glass-panel p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 text-xs text-white/80 leading-relaxed text-center flex flex-col gap-1.5 mt-1">
-              <div className="flex items-center justify-center gap-2">
-                <img src="/favicon.png" alt="DOLCE Logo" className="w-5 h-5 rounded-md" />
-                <span className="font-black text-white tracking-wider text-sm">DOLCE AUDIO</span>
-                <span className="text-[10px] text-pink-400 font-mono font-bold">v1.0</span>
-              </div>
-              <p className="text-white/70">
-                High-fidelity ambient music streaming application with real-time synchronized lyrics, offline downloads, and dynamic artwork theme matching.
+            {/* 2. App Overview Description */}
+            <div className="glass-panel p-4 rounded-2xl bg-white/[0.04] border border-white/10 text-xs sm:text-sm text-white/80 leading-relaxed text-center">
+              <p>
+                <strong className="text-white">DOLCE</strong> is a high-fidelity music streaming application designed for seamless audio playback, real-time synchronized lyrics, and personalized music discovery. Engineered with an ultra-responsive glassmorphic interface, DOLCE delivers an immersive, ad-free music listening experience across Web and Mobile.
               </p>
             </div>
 
-            {/* Footer */}
+            {/* 3. Developer Showcase Card (Ganesh Pulikanti) */}
+            <div className="glass-panel p-4 rounded-2xl bg-gradient-to-r from-purple-900/40 via-pink-950/30 to-black/80 border border-purple-500/30 flex items-center justify-between shadow-xl gap-3">
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden border-2 border-white/30 shadow-lg p-0.5 bg-gradient-to-tr from-purple-500 to-pink-500 flex-shrink-0">
+                  <img 
+                    src="/developer.jpg" 
+                    alt="Ganesh Pulikanti" 
+                    className="w-full h-full object-cover rounded-full" 
+                  />
+                </div>
+                <div className="flex flex-col min-w-0 text-left">
+                  <span className="text-[10px] font-black uppercase tracking-[0.16em] text-pink-400 truncate">
+                    Lead Developer & Creator
+                  </span>
+                  <h4 className="text-sm sm:text-base font-black text-white truncate font-['Plus_Jakarta_Sans'] mt-0.5">
+                    Ganesh Pulikanti
+                  </h4>
+                </div>
+              </div>
+
+              <a
+                href="https://github.com/GaneshPulikanti"
+                target="_blank"
+                rel="noreferrer"
+                className="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-all transform active:scale-95 flex-shrink-0"
+              >
+                <span>@GaneshPulikanti</span>
+              </a>
+            </div>
+
+            {/* 4. Footer */}
             <div className="pt-2 border-t border-white/10 text-center text-[11px] text-white/50 font-medium">
               <p>Designed & Developed by <strong className="text-white font-bold">Ganesh Pulikanti</strong></p>
-              <p>© 2026 DOLCE Audio</p>
+              <p>© 2026 DOLCE Audio · All rights reserved</p>
             </div>
           </motion.div>
         </div>

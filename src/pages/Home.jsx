@@ -12,7 +12,7 @@ export const Home = () => {
       try {
         const cached = localStorage.getItem('DOLCE_HOME_FEED_CACHE_V2');
         if (cached) return JSON.parse(cached);
-      } catch (_) {}
+      } catch (_) { }
     }
     return [];
   });
@@ -41,11 +41,11 @@ export const Home = () => {
 
   return (
     <div className="w-full min-h-screen pb-40 px-4 lg:px-12 pt-4 flex flex-col gap-6 font-['Plus_Jakarta_Sans']">
-      
+
       {/* ── Greeting Header ── */}
       <div className="flex flex-col items-start gap-0.5">
         <span className="text-xs font-medium text-white/50 tracking-wider">
-          {getGreeting()}, Ganesh
+          {getGreeting()},
         </span>
         <h2 className="text-2xl lg:text-3xl font-black text-white tracking-tight">
           Welcome to DOLCE
@@ -54,7 +54,7 @@ export const Home = () => {
 
       {/* ── Synced Liked Songs Card (If favorites exist) ── */}
       {favorites.length > 0 && (
-        <div 
+        <div
           onClick={() => setActiveTab('library')}
           className="w-full rounded-3xl p-5 glass-panel border border-white/14 bg-white/[0.04] backdrop-blur-2xl flex items-center justify-between cursor-pointer hover:bg-white/[0.08] transition-all shadow-xl"
         >
