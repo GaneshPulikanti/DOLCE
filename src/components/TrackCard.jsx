@@ -21,14 +21,31 @@ export const TrackCard = ({ track, queue = [] }) => {
   }, [track.id]);
 
   const handleImgError = () => {
-    if (fallbackStage === 0 && track.id) {
+    if (fallbackStage === 0) {
       setFallbackStage(1);
-      setImgSrc(`https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`);
-    } else if (fallbackStage === 1 && track.id) {
+      if (track.artworkUrl) {
+        setImgSrc(`https://wsrv.nl/?url=${encodeURIComponent(track.artworkUrl)}&w=400&h=400&fit=cover`);
+      } else if (track.id) {
+        setImgSrc(`https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`);
+      } else {
+        setFallbackStage(4);
+      }
+    } else if (fallbackStage === 1) {
       setFallbackStage(2);
-      setImgSrc(`https://img.youtube.com/vi/${track.id}/mqdefault.jpg`);
-    } else {
+      if (track.id) {
+        setImgSrc(`https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`);
+      } else {
+        setFallbackStage(4);
+      }
+    } else if (fallbackStage === 2) {
       setFallbackStage(3);
+      if (track.id) {
+        setImgSrc(`https://wsrv.nl/?url=i.ytimg.com/vi/${track.id}/hqdefault.jpg`);
+      } else {
+        setFallbackStage(4);
+      }
+    } else {
+      setFallbackStage(4);
     }
   };
 
@@ -56,7 +73,7 @@ export const TrackCard = ({ track, queue = [] }) => {
     >
       {/* Artwork Container (Enforces 1:1 HD Square Cover) */}
       <div className="relative aspect-square w-full rounded-xl overflow-hidden mb-3 bg-[#0d0d0d] flex items-center justify-center border border-white/5">
-        {fallbackStage < 3 && imgSrc ? (
+        {fallbackStage < 4 && imgSrc ? (
           <img
             src={imgSrc}
             alt={track.title}

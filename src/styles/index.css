@@ -68,7 +68,14 @@ html, body {
   font-family: var(--font-family);
   user-select: none;
   -webkit-user-select: none;
-  touch-action: manipulation;
+  touch-action: pan-y;
+  overscroll-behavior: none;
+  overscroll-behavior-x: none;
+}
+
+#root, main {
+  touch-action: pan-y;
+  overscroll-behavior-x: none;
 }
 
 #root {

@@ -443,7 +443,9 @@ export const PlayerBar = ({ themePalette }) => {
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      if (currentTrack?.id && !e.target.src.includes(`i.ytimg.com/vi/${currentTrack.id}`)) {
+                      if (!e.target.src.includes('wsrv.nl') && currentTrack?.artworkUrl) {
+                        e.target.src = `https://wsrv.nl/?url=${encodeURIComponent(currentTrack.artworkUrl)}&w=600&h=600&fit=cover`;
+                      } else if (currentTrack?.id && !e.target.src.includes(`i.ytimg.com/vi/${currentTrack.id}`)) {
                         e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/hqdefault.jpg`;
                       } else {
                         setCoverImgError(true);
@@ -657,18 +659,21 @@ export const PlayerBar = ({ themePalette }) => {
                           const isActive = idx === activeLyricIdx;
                           const dist = Math.abs(idx - activeLyricIdx);
                           const activeClass = isActive 
-                            ? 'text-white font-black text-xl sm:text-2xl drop-shadow-md scale-105 opacity-100' 
+                            ? 'text-white scale-110 opacity-100 font-extrabold' 
                             : dist === 1 
-                            ? 'text-white/70 font-bold text-base sm:text-lg scale-95 opacity-45' 
-                            : 'text-white/40 font-semibold text-sm sm:text-base scale-90 opacity-20';
+                            ? 'text-white/70 scale-95 opacity-45 font-bold' 
+                            : 'text-white/40 scale-90 opacity-20 font-semibold';
 
                           return (
                             <p
                               key={idx}
                               data-lyric-index={idx}
                               onClick={() => seek(line.time)}
-                              style={isActive ? { textShadow: activeLyricGlow } : {}}
-                              className={`cursor-pointer leading-relaxed font-lyrics transition-all duration-300 transform ${activeClass}`}
+                              style={{
+                                textShadow: isActive ? activeLyricGlow : 'none',
+                                willChange: 'transform, opacity',
+                              }}
+                              className={`cursor-pointer leading-relaxed text-lg sm:text-xl font-lyrics transition-[transform,opacity] duration-300 ease-out transform ${activeClass}`}
                             >
                               {line.text}
                             </p>
@@ -718,10 +723,10 @@ export const PlayerBar = ({ themePalette }) => {
                 <img 
                   src={artworkUrl} 
                   alt={currentTrack.title} 
-                  className="w-12 h-12 rounded-xl object-cover border border-white/20 shadow-lg"
+                  className="w-12 h-12 rounded-xl object-cover border border-white/20 shadow-md"
                 />
                 <div className="flex flex-col min-w-0">
-                  <h3 className="text-lg font-extrabold text-white truncate">{currentTrack.title}</h3>
+                  <h4 className="text-sm font-extrabold text-white truncate">{currentTrack.title}</h4>
                   <p className="text-xs font-semibold text-white/60 truncate">{currentTrack.artistName}</p>
                 </div>
               </div>
@@ -752,11 +757,14 @@ export const PlayerBar = ({ themePalette }) => {
                     key={idx}
                     data-full-lyric-index={idx}
                     onClick={() => seek(line.time)}
-                    style={idx === activeLyricIdx ? { textShadow: activeLyricGlow } : {}}
-                    className={`cursor-pointer transition-all duration-400 text-2xl sm:text-4xl md:text-5xl font-black leading-relaxed tracking-tight ${
+                    style={{
+                      textShadow: idx === activeLyricIdx ? activeLyricGlow : 'none',
+                      willChange: 'transform, opacity',
+                    }}
+                    className={`cursor-pointer transition-[transform,opacity] duration-300 ease-out transform text-2xl sm:text-4xl md:text-5xl font-black leading-relaxed tracking-tight ${
                       idx === activeLyricIdx
                         ? 'text-white opacity-100 scale-105'
-                        : 'text-white/30 opacity-35 hover:opacity-70 scale-95'
+                        : 'text-white/30 opacity-30 hover:opacity-70 scale-95'
                     }`}
                   >
                     {line.text}

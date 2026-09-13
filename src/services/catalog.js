@@ -701,11 +701,8 @@ export function getHDArtworkUrl(url, videoId) {
   }
 
   if (hdUrl.includes('googleusercontent.com') || hdUrl.includes('ggpht.com')) {
-    hdUrl = hdUrl.replace(/=w\d+-h\d+-[^?]+/, '=w540-h540-l90-rj');
-    hdUrl = hdUrl.replace(/=w\d+-h\d+/, '=w540-h540-l90-rj');
-    hdUrl = hdUrl.replace(/=s\d+-[^?]+/, '=s540-c');
-    hdUrl = hdUrl.replace(/=s\d+$/, '=s540');
-    return hdUrl;
+    const baseUrl = hdUrl.split('=')[0];
+    return `${baseUrl}=s540-c`;
   }
 
   if (hdUrl.includes('ytimg.com') || hdUrl.includes('youtube.com')) {
