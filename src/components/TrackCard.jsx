@@ -42,21 +42,14 @@ export const TrackCard = ({ track, queue = [] }) => {
           <img
             src={track.artworkUrl}
             alt={track.title}
-            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
-              track.artworkUrl?.includes('ytimg.com') ? 'scale-[1.25]' : ''
-            }`}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
-            onError={(e) => {
-              if (track.id && !e.target.src.includes('hqdefault.jpg')) {
-                e.target.src = `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`;
-              } else {
-                setImgError(true);
-              }
-            }}
+            onError={() => setImgError(true)}
           />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-white/5 text-white/40">
-            <Music size={32} />
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-tr from-pink-900/40 via-purple-900/40 to-slate-900/60 text-white/50 border border-white/10">
+            <Music size={32} className="text-white/60 mb-1" />
+            <span className="text-[10px] font-bold text-white/40 tracking-wider uppercase">DOLCE</span>
           </div>
         )}
 

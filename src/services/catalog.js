@@ -46,6 +46,18 @@ function isUnwantedVideoItem(title, artist) {
   const lowerTitle = title.toLowerCase();
   const lowerArtist = (artist || '').toLowerCase();
 
+  // 🚫 REJECT Unofficial DJ / Fan Channel uploads (e.g., "DJ Kawal", "Shubhadip Dey")
+  if (lowerArtist.startsWith('dj ') || lowerArtist.includes(' dj') || lowerArtist.includes('dj ') || lowerArtist === 'dj') {
+    if (!lowerArtist.includes('snake') && !lowerArtist.includes('khaled')) {
+      return true;
+    }
+  }
+
+  // 🚫 REJECT Fan mashups (e.g., "Raabta x Tum Ho Toh")
+  if (lowerTitle.includes(' x ') || lowerTitle.includes(' × ') || lowerTitle.includes(' X ')) {
+    return true;
+  }
+
   if (lowerArtist === 'video' || lowerArtist.startsWith('video') || lowerArtist.includes('video •')) {
     return true;
   }
@@ -62,13 +74,26 @@ function isUnwantedVideoItem(title, artist) {
   }
 
   const junkKeywords = [
-    'reaction',
-    'whatsapp status',
+    'mashup',
+    'mash up',
+    'remix',
+    're-mix',
+    'bootleg',
+    'slowed',
+    'reverb',
+    '8d',
+    '3d audio',
+    'fan edit',
+    'fan cover',
+    'cover song',
+    'dance cover',
+    'lofi remix',
     'status video',
+    'whatsapp status',
+    'instagram status',
     'reels',
     'shorts',
-    'dance cover',
-    'dance performance',
+    'reaction',
     'full movie',
     'vlog',
     'teaser',
@@ -81,7 +106,6 @@ function isUnwantedVideoItem(title, artist) {
     'bloopers',
     'funny moments',
     'tiktok',
-    'instagram status',
     'full video song',
     'official video song',
     'lyric video',

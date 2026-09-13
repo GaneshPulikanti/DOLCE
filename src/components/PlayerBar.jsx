@@ -4,7 +4,8 @@ import {
   Heart, ChevronDown, ChevronUp, Download, MessageSquareQuote, ListMusic,
   Maximize2, Minimize2, X, Radio, FolderPlus, Plus, Check, ListPlus
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Music } from 'lucide-react';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { 
   db, toggleFavorite, isFavorite, downloadTrackLocally, isDownloadedLocally,
@@ -21,6 +22,8 @@ export const PlayerBar = ({ themePalette }) => {
     isExpanded, setExpanded 
   } = usePlayerStore();
 
+  const dragControls = useDragControls();
+
   const [liked, setLiked] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
   const [lyricsData, setLyricsData] = useState({ synced: [], plain: '' });
@@ -33,6 +36,7 @@ export const PlayerBar = ({ themePalette }) => {
   const [isFullScreenLyrics, setIsFullScreenLyrics] = useState(false);
   const [inlineLyricY, setInlineLyricY] = useState(0);
   const [userScrolledFullLyrics, setUserScrolledFullLyrics] = useState(false);
+  const [coverImgError, setCoverImgError] = useState(false);
 
   const lyricsContainerRef = useRef(null);
   const inlineListRef = useRef(null);
@@ -348,6 +352,8 @@ export const PlayerBar = ({ themePalette }) => {
             }}
             exit={{ opacity: 0, y: '100%' }}
             drag={isExpanded ? "y" : false}
+            dragControls={dragControls}
+            dragListener={false}
             dragConstraints={{ top: 0, bottom: 400 }}
             dragElastic={{ top: 0, bottom: 0.5 }}
             onDragEnd={(e, { offset, velocity }) => {
@@ -359,9 +365,13 @@ export const PlayerBar = ({ themePalette }) => {
             className="fixed inset-0 z-50 flex flex-col overflow-y-auto select-none font-['Inter'] touch-pan-y"
             style={{ background: dominantBg }}
           >
-            {/* Top Pull Down Pill Handle */}
-            <div className="w-full pt-3 pb-1 flex justify-center pointer-events-none z-20">
-              <div className="w-12 h-1.5 rounded-full bg-white/30 backdrop-blur-md" />
+            {/* Top Pull Down Pill Handle Bar (Drag Target for Minimizing) */}
+            <div 
+              onPointerDown={(e) => dragControls.start(e)}
+              onTouchStart={(e) => dragControls.start(e)}
+              className="w-full pt-3 pb-1 flex justify-center cursor-grab active:cursor-grabbing z-20 touch-none"
+            >
+              <div className="w-12 h-1.5 rounded-full bg-white/40 backdrop-blur-md" />
             </div>
 
             {/* 1. Dynamic Glassmorphic Ambient Artwork Background */}
@@ -377,10 +387,14 @@ export const PlayerBar = ({ themePalette }) => {
             </div>
 
             {/* 2. Top Header Row (Chevron, NOW PLAYING, Actions) */}
-            <div className="relative z-10 flex items-center justify-between px-6 pt-2 pb-2 max-w-xl w-full mx-auto">
+            <div 
+              onPointerDown={(e) => dragControls.start(e)}
+              onTouchStart={(e) => dragControls.start(e)}
+              className="relative z-10 flex items-center justify-between px-6 pt-1 pb-2 max-w-xl w-full mx-auto cursor-grab active:cursor-grabbing touch-none"
+            >
               <button 
-                onClick={() => setExpanded(false)}
-                className="p-2 text-white/80 hover:text-white transition-colors"
+                onClick={(e) => { e.stopPropagation(); setExpanded(false); }}
+                className="p-2 text-white/80 hover:text-white transition-colors pointer-events-auto"
               >
                 <ChevronDown size={30} />
               </button>
@@ -389,7 +403,7 @@ export const PlayerBar = ({ themePalette }) => {
                 NOW PLAYING
               </span>
 
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
                 <button
                   onClick={handleDownload}
                   title={downloaded ? 'Saved Offline' : 'Download Offline'}
@@ -413,19 +427,22 @@ export const PlayerBar = ({ themePalette }) => {
               
               {/* 3. Cover Artwork Box */}
               <div 
-                className="relative w-64 h-64 sm:w-72 sm:h-72 aspect-square rounded-3xl overflow-hidden border border-white/30 bg-[#141416] flex-shrink-0 my-2 flex items-center justify-center transition-all duration-700"
+                className="relative w-64 h-64 sm:w-72 sm:h-72 aspect-square rounded-3xl overflow-hidden border border-white/30 bg-[#141416] flex-shrink-0 my-2 flex items-center justify-center transition-all duration-700 shadow-2xl"
                 style={{ boxShadow: glowShadow }}
               >
-                <img
-                  src={artworkUrl}
-                  alt={currentTrack.title}
-                  className={`w-full h-full object-cover ${artworkUrl?.includes('ytimg.com') ? 'scale-[1.25]' : ''}`}
-                  onError={(e) => {
-                    if (currentTrack?.id && !e.target.src.includes('hqdefault.jpg')) {
-                      e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/hqdefault.jpg`;
-                    }
-                  }}
-                />
+                {!coverImgError && artworkUrl ? (
+                  <img
+                    src={artworkUrl}
+                    alt={currentTrack.title}
+                    className="w-full h-full object-cover"
+                    onError={() => setCoverImgError(true)}
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-tr from-rose-900/50 via-purple-900/50 to-slate-900/80 text-white/50 border border-white/10">
+                    <Music size={48} className="text-white/70 mb-2" />
+                    <span className="text-xs font-black text-white/50 tracking-widest uppercase">DOLCE AUDIO</span>
+                  </div>
+                )}
               </div>
 
               {/* Track Title & Artist Name with Like Button */}
