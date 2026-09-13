@@ -5,6 +5,7 @@ import { TrackCard } from '../components/TrackCard';
 import { useSearchStore } from '../store/useSearchStore';
 import { usePlayerStore } from '../store/usePlayerStore';
 
+import { CollectionModal } from '../components/CollectionModal';
 import { addRecentSearch } from '../services/db';
 
 export const Search = () => {
@@ -12,7 +13,8 @@ export const Search = () => {
   const { playTrack } = usePlayerStore();
   const [catalogResults, setCatalogResults] = useState({ songs: [], albums: [], playlists: [], artists: [] });
   const [loading, setLoading] = useState(false);
-  const [loadingCollectionId, setLoadingCollectionId] = useState(null);
+  const [selectedCollection, setSelectedCollection] = useState(null);
+  const [isCollectionOpen, setIsCollectionOpen] = useState(false);
 
   useEffect(() => {
     if (!searchQuery || !searchQuery.trim()) {
@@ -173,7 +175,10 @@ export const Search = () => {
                 {catalogResults.albums.map((album) => (
                   <div
                     key={album.id}
-                    onClick={() => handlePlayCollection(album.id)}
+                    onClick={() => {
+                      setSelectedCollection({ ...album, type: 'album' });
+                      setIsCollectionOpen(true);
+                    }}
                     className="group relative rounded-2xl glass-panel p-3 bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] hover:border-white/25 transition-all duration-300 cursor-pointer flex flex-col gap-2.5 shadow-lg"
                   >
                     <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-black/40">
@@ -183,17 +188,13 @@ export const Search = () => {
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                        {loadingCollectionId === album.id ? (
-                          <Loader2 size={32} className="text-white animate-spin" />
-                        ) : (
-                          <div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-xl scale-90 group-hover:scale-100 transition-transform">
-                            <Play size={20} fill="black" className="ml-0.5" />
-                          </div>
-                        )}
+                        <div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-xl scale-90 group-hover:scale-100 transition-transform">
+                          <Play size={20} fill="black" className="ml-0.5" />
+                        </div>
                       </div>
                     </div>
                     <div className="flex flex-col min-w-0">
-                      <h4 className="text-sm font-bold text-white truncate group-hover:text-pink-300 transition-colors">
+                      <h4 className="text-sm font-bold text-white truncate group-hover:text-purple-300 transition-colors">
                         {album.title}
                       </h4>
                       <p className="text-xs text-white/50 truncate mt-0.5">
@@ -217,7 +218,10 @@ export const Search = () => {
                 {catalogResults.playlists.map((playlist) => (
                   <div
                     key={playlist.id}
-                    onClick={() => handlePlayCollection(playlist.id)}
+                    onClick={() => {
+                      setSelectedCollection({ ...playlist, type: 'playlist' });
+                      setIsCollectionOpen(true);
+                    }}
                     className="group relative rounded-2xl glass-panel p-3 bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] hover:border-white/25 transition-all duration-300 cursor-pointer flex flex-col gap-2.5 shadow-lg"
                   >
                     <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-black/40">
@@ -227,13 +231,9 @@ export const Search = () => {
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                        {loadingCollectionId === playlist.id ? (
-                          <Loader2 size={32} className="text-white animate-spin" />
-                        ) : (
-                          <div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-xl scale-90 group-hover:scale-100 transition-transform">
-                            <Play size={20} fill="black" className="ml-0.5" />
-                          </div>
-                        )}
+                        <div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-xl scale-90 group-hover:scale-100 transition-transform">
+                          <Play size={20} fill="black" className="ml-0.5" />
+                        </div>
                       </div>
                     </div>
                     <div className="flex flex-col min-w-0">
@@ -261,9 +261,9 @@ export const Search = () => {
                 {catalogResults.artists.map((artist) => (
                   <div
                     key={artist.id}
-                    onClick={async () => {
-                      setSearchQuery(artist.name);
-                      setFilterCategory('songs');
+                    onClick={() => {
+                      setSelectedCollection({ ...artist, type: 'artist' });
+                      setIsCollectionOpen(true);
                     }}
                     className="group relative rounded-2xl glass-panel p-4 bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] transition-all duration-300 cursor-pointer flex flex-col items-center text-center gap-3 shadow-lg"
                   >
@@ -298,6 +298,13 @@ export const Search = () => {
           </div>
         )
       )}
+
+      {/* Collection & Artist Detail Modal */}
+      <CollectionModal
+        collection={selectedCollection}
+        isOpen={isCollectionOpen}
+        onClose={() => setIsCollectionOpen(false)}
+      />
     </div>
   );
 };
