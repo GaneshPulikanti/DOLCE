@@ -56,32 +56,33 @@ export const AboutModal = ({ isOpen, onClose }) => {
             </div>
 
             {/* 3. Developer Showcase Card (Ganesh Pulikanti) */}
-            <div className="glass-panel p-4 rounded-2xl bg-gradient-to-r from-purple-900/40 via-pink-950/30 to-black/80 border border-purple-500/30 flex items-center justify-between shadow-xl gap-3">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden border-2 border-white/30 shadow-lg p-0.5 bg-gradient-to-tr from-purple-500 to-pink-500 flex-shrink-0">
-                  <img 
-                    src="/developer.jpg" 
-                    alt="Ganesh Pulikanti" 
-                    className="w-full h-full object-cover rounded-full" 
-                  />
-                </div>
-                <div className="flex flex-col min-w-0 text-left">
-                  <span className="text-[10px] font-black uppercase tracking-[0.16em] text-pink-400 truncate">
-                    Lead Developer & Creator
-                  </span>
-                  <h4 className="text-sm sm:text-base font-black text-white truncate font-['Plus_Jakarta_Sans'] mt-0.5">
-                    Ganesh Pulikanti
-                  </h4>
-                </div>
+            <div className="glass-panel p-5 rounded-2xl bg-gradient-to-br from-purple-900/40 via-pink-950/30 to-black/80 border border-purple-500/30 flex flex-col items-center text-center gap-3.5 shadow-xl">
+              {/* Prominent Big Developer Photo */}
+              <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 border-white/30 shadow-2xl p-1 bg-gradient-to-tr from-purple-500 via-pink-500 to-amber-400 flex-shrink-0">
+                <img 
+                  src="/developer.jpg" 
+                  alt="Ganesh Pulikanti" 
+                  className="w-full h-full object-cover rounded-full shadow-inner" 
+                />
+              </div>
+
+              {/* Developer Title & Name Underneath */}
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-pink-400">
+                  Lead Developer & Creator
+                </span>
+                <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight font-['Plus_Jakarta_Sans']">
+                  Ganesh Pulikanti
+                </h3>
               </div>
 
               <a
                 href="https://github.com/GaneshPulikanti"
                 target="_blank"
                 rel="noreferrer"
-                className="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-all transform active:scale-95 flex-shrink-0"
+                className="mt-0.5 px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-all transform active:scale-95 shadow-md flex items-center gap-1.5"
               >
-                <span>@GaneshPulikanti</span>
+                <span>GitHub: @GaneshPulikanti</span>
               </a>
             </div>
 
