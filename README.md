@@ -30,6 +30,15 @@
 
 ---
 
+## 📡 Data Services & API Architecture
+
+- **Catalog & Search Service**: Multi-pass resolution for songs, albums, playlists, and verified artists via YouTube Music (`WEB_REMIX`) InnerTube endpoints with smart Indian & Telugu music priority scoring.
+- **Audio Stream Engine**: High-performance official YouTube IFrame Embed API (`https://www.youtube-nocookie.com`) for 100% uptime and stream reliability.
+- **Synchronized Lyrics API**: Integration with LRCLib (`https://lrclib.net`) for fetching real-time line-by-line synced lyrics.
+- **Dynamic Palette Extractor**: Canvas-based RGB color extraction algorithm for real-time ambient glow matching song artwork.
+
+---
+
 ## 📁 Project Structure
 
 ```
