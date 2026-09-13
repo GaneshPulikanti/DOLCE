@@ -28,7 +28,7 @@ export const Search = () => {
       const res = await searchCatalog(searchQuery);
       setCatalogResults(res);
       setLoading(false);
-    }, 350);
+    }, 160);
 
     return () => clearTimeout(timer);
   }, [searchQuery]);

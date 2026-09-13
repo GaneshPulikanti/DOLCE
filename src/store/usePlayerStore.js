@@ -21,6 +21,14 @@ export const usePlayerStore = create((set, get) => {
       currentTime,
       duration: duration || get().duration || 210,
     });
+
+    // Gapless Pre-Buffering: Cue next track in buffer when current track reaches 65% progress
+    if (duration > 0 && currentTime / duration > 0.65) {
+      const { queue, currentIndex } = get();
+      if (queue && queue[currentIndex + 1]) {
+        audioEngine.cueNextTrack(queue[currentIndex + 1].id);
+      }
+    }
   };
 
   return {
@@ -71,7 +79,12 @@ export const usePlayerStore = create((set, get) => {
       audioEngine.playTrack(track.id);
       recordHistory(track);
 
-      // ♾️ Infinite Auto-Queue: Expand radio recommendations in background if queue is near end
+      // Cue next track in buffer if available for 0ms gapless skip
+      if (queue[currentIndex + 1]) {
+        audioEngine.cueNextTrack(queue[currentIndex + 1].id);
+      }
+
+      // ♾️ Infinite Auto-Queue: Expand radio & album recommendations in background if queue is near end
       if (queue.length - currentIndex <= 3) {
         get().expandInfiniteQueue(track);
       }
@@ -81,15 +94,34 @@ export const usePlayerStore = create((set, get) => {
       if (!seedTrack || !seedTrack.title) return;
       try {
         const { searchSongs, isValidAudioSong } = await import('../services/catalog');
-        const query = `${seedTrack.artistName || ''} ${seedTrack.title} songs radio`;
-        const related = await searchSongs(query);
+        
+        // Pass 1: Try movie/album full soundtrack pass for seedTrack
+        const albumQuery = `${seedTrack.artistName || ''} ${seedTrack.title} movie full songs`;
+        const radioQuery = `${seedTrack.artistName || ''} ${seedTrack.title} songs radio`;
+        
+        const [albumRes, radioRes] = await Promise.allSettled([
+          searchSongs(albumQuery),
+          searchSongs(radioQuery)
+        ]);
+
+        const albumTracks = albumRes.status === 'fulfilled' ? albumRes.value : [];
+        const radioTracks = radioRes.status === 'fulfilled' ? radioRes.value : [];
 
         const currentQueue = get().queue;
         const existingIds = new Set(currentQueue.map(q => q.id));
 
-        const newTracks = related.filter(r => r && r.id && !existingIds.has(r.id) && isValidAudioSong(r));
+        const combined = [...albumTracks, ...radioTracks];
+        const newTracks = combined.filter(r => r && r.id && !existingIds.has(r.id) && isValidAudioSong(r));
+        
         if (newTracks.length > 0) {
-          set({ queue: [...currentQueue, ...newTracks] });
+          const updatedQueue = [...currentQueue, ...newTracks];
+          set({ queue: updatedQueue });
+          
+          // Cue the next track in YouTube player for instant playback
+          const currIdx = get().currentIndex;
+          if (updatedQueue[currIdx + 1]) {
+            audioEngine.cueNextTrack(updatedQueue[currIdx + 1].id);
+          }
         }
       } catch (e) {
         console.error('Failed to expand infinite queue:', e);

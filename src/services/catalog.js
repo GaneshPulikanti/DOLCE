@@ -276,6 +276,8 @@ async function fetchYtMusicBrowse(browseId) {
   return null;
 }
 
+const searchCacheMap = new Map();
+
 /**
  * Multi-Category Search Engine (Songs, Albums, Playlists, Artists).
  */
@@ -285,6 +287,11 @@ export async function searchCatalog(query) {
   }
 
   const cleanQuery = query.trim();
+  const cacheKey = cleanQuery.toLowerCase();
+
+  if (searchCacheMap.has(cacheKey)) {
+    return searchCacheMap.get(cacheKey);
+  }
 
   const tracksMap = new Map();
   const albumsMap = new Map();
@@ -499,12 +506,15 @@ export async function searchCatalog(query) {
   allPlaylists.sort((a, b) => scorePriority(b) - scorePriority(a));
   allArtists.sort((a, b) => scorePriority(b) - scorePriority(a));
 
-  return {
+  const finalResult = {
     songs: allSongs,
     albums: allAlbums,
     playlists: allPlaylists,
     artists: allArtists,
   };
+
+  searchCacheMap.set(cacheKey, finalResult);
+  return finalResult;
 }
 
 /**
