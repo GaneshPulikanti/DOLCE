@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Heart, ChevronRight, Sparkles } from 'lucide-react';
+import { Heart, ChevronRight } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getHomeFeed } from '../services/catalog';
 import { TrackCard } from '../components/TrackCard';
@@ -9,7 +9,6 @@ import { useSearchStore } from '../store/useSearchStore';
 export const Home = () => {
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMood, setSelectedMood] = useState(null);
   const favorites = useLiveQuery(() => db.favorites.toArray()) || [];
   const { setActiveTab } = useSearchStore();
 
@@ -24,16 +23,6 @@ export const Home = () => {
     return () => { isMounted = false; };
   }, []);
 
-  const moods = [
-    { label: 'All', value: null },
-    { label: 'Romance', value: 'Romance' },
-    { label: 'Feel good', value: 'Feel good' },
-    { label: 'Workout', value: 'Workout' },
-    { label: 'Energize', value: 'Energize' },
-    { label: 'Focus', value: 'Focus' },
-    { label: 'Relax', value: 'Relax' },
-  ];
-
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
@@ -44,32 +33,13 @@ export const Home = () => {
   return (
     <div className="w-full min-h-screen pb-40 px-4 lg:px-12 pt-4 flex flex-col gap-6 font-['Inter']">
       
-      {/* ── Frosted Mood Category Chips Bar ── */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2">
-        {moods.map((mood, idx) => {
-          const isSelected = selectedMood === mood.value;
-          return (
-            <button
-              key={idx}
-              onClick={() => setSelectedMood(mood.value)}
-              className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 ${
-                isSelected
-                  ? 'bg-white text-black font-bold shadow-lg shadow-white/10 scale-105'
-                  : 'bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              {mood.label}
-            </button>
-          );
-        })}
-      </div>
-
       {/* ── Greeting Header ── */}
       <div className="flex flex-col items-start gap-0.5">
         <span className="text-xs font-medium text-white/50 tracking-wider">
           {getGreeting()},
         </span>
         <h2 className="text-2xl lg:text-3xl font-black text-white tracking-tight">
+          Welcome to DOLCE
         </h2>
       </div>
 
@@ -94,7 +64,7 @@ export const Home = () => {
         </div>
       )}
 
-      {/* ── Curated YouTube Recommendation Sections (Horizontal Carousels) ── */}
+      {/* ── Curated Recommendation Sections (Horizontal Carousels) ── */}
       {loading ? (
         <div className="flex flex-col gap-8">
           {[1, 2, 3].map((i) => (

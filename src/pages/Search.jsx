@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search as SearchIcon, Music, Disc, ListMusic, User, Play, Loader2, Sparkles, Flame, Radio, Heart, Dumbbell, PartyPopper } from 'lucide-react';
+import { Search as SearchIcon, Music, Disc, ListMusic, User, Play, Loader2, Sparkles } from 'lucide-react';
 import { searchCatalog, fetchCollectionTracks } from '../services/catalog';
 import { TrackCard } from '../components/TrackCard';
 import { useSearchStore } from '../store/useSearchStore';
@@ -38,17 +38,18 @@ export const Search = () => {
     }
   };
 
+  // Spotify-Authentic Matte Solid Colors (No AI gradients, no icons)
   const popularGenres = [
-    { name: 'Telugu Top Hits', query: 'Telugu Top Hits', bg: 'from-amber-600 to-orange-700', icon: '🇮🇳' },
-    { name: 'Hindi Melodies', query: 'Hindi Melodies Hits', bg: 'from-pink-600 to-rose-700', icon: '🎵' },
-    { name: 'English Pop', query: 'English Pop Songs', bg: 'from-blue-600 to-indigo-800', icon: '🎸' },
-    { name: 'Tamil Beats', query: 'Tamil Hits', bg: 'from-purple-600 to-violet-900', icon: '🎺' },
-    { name: 'Punjabi Energy', query: 'Punjabi Hits', bg: 'from-yellow-500 to-amber-700', icon: '🕺' },
-    { name: 'Romantic Love', query: 'Romantic Love Songs', bg: 'from-rose-500 to-red-700', icon: '❤️' },
-    { name: 'Lofi & Chill', query: 'Chill Lofi Songs', bg: 'from-emerald-600 to-teal-800', icon: '🌧️' },
-    { name: 'Workout & Gym', query: 'Workout Motivation Songs', bg: 'from-orange-500 to-red-600', icon: '⚡' },
-    { name: 'Devotional', query: 'Devotional Songs', bg: 'from-cyan-600 to-blue-800', icon: '🕉️' },
-    { name: 'Party & EDM', query: 'Party Dance Hits', bg: 'from-fuchsia-600 to-pink-800', icon: '🎉' },
+    { name: 'Telugu Hits', query: 'Telugu Top Hits', bgColor: 'bg-[#8d67ab]' },
+    { name: 'Hindi Melodies', query: 'Hindi Melodies Hits', bgColor: 'bg-[#e8115b]' },
+    { name: 'English Pop', query: 'English Pop Songs', bgColor: 'bg-[#148a08]' },
+    { name: 'Tamil Beats', query: 'Tamil Hits', bgColor: 'bg-[#bc5900]' },
+    { name: 'Punjabi Energy', query: 'Punjabi Hits', bgColor: 'bg-[#d84000]' },
+    { name: 'Romantic Love', query: 'Romantic Love Songs', bgColor: 'bg-[#dc148c]' },
+    { name: 'Lofi & Chill', query: 'Chill Lofi Songs', bgColor: 'bg-[#27856a]' },
+    { name: 'Workout & Gym', query: 'Workout Motivation Songs', bgColor: 'bg-[#7d4b32]' },
+    { name: 'Devotional', query: 'Devotional Songs', bgColor: 'bg-[#503750]' },
+    { name: 'Party & EDM', query: 'Party Dance Hits', bgColor: 'bg-[#8400e7]' },
   ];
 
   const categories = [
@@ -110,11 +111,10 @@ export const Search = () => {
         )}
       </div>
 
-      {/* ── 1. SPOTIFY-STYLE POPULAR GENRES GRID (Shown when search is empty) ── */}
+      {/* ── SPOTIFY MATTE GENRES GRID (Shown when search is empty) ── */}
       {!searchQuery && (
         <div className="flex flex-col gap-4 mt-2">
           <h2 className="text-lg lg:text-xl font-extrabold text-white flex items-center gap-2">
-            <Sparkles size={20} className="text-amber-400" />
             <span>Browse Popular Genres & Languages</span>
           </h2>
 
@@ -123,18 +123,11 @@ export const Search = () => {
               <div
                 key={idx}
                 onClick={() => setSearchQuery(genre.query)}
-                className={`group relative h-28 sm:h-32 rounded-2xl bg-gradient-to-br ${genre.bg} p-4 flex flex-col justify-between overflow-hidden cursor-pointer shadow-xl transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl border border-white/10`}
+                className={`group relative h-24 sm:h-28 rounded-2xl ${genre.bgColor} p-4 flex flex-col justify-start overflow-hidden cursor-pointer shadow-lg transition-all duration-200 hover:scale-[1.02] border border-white/10`}
               >
-                <span className="text-base sm:text-lg font-black text-white leading-tight font-['Inter'] drop-shadow-md z-10">
+                <span className="text-base sm:text-lg font-black text-white leading-tight font-['Inter'] drop-shadow-sm z-10">
                   {genre.name}
                 </span>
-                
-                <span className="text-3xl sm:text-4xl self-end z-10 group-hover:scale-125 transition-transform duration-300">
-                  {genre.icon}
-                </span>
-
-                {/* Ambient glow decoration */}
-                <div className="absolute -bottom-4 -right-4 w-20 h-20 rounded-full bg-white/15 blur-xl pointer-events-none group-hover:scale-150 transition-transform" />
               </div>
             ))}
           </div>
