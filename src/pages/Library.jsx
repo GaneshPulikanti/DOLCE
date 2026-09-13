@@ -107,7 +107,7 @@ export const Library = () => {
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-xl overflow-hidden bg-black/40 border border-white/10 flex-shrink-0">
                   {selectedPlaylist.artworkUrl || selectedPlaylist.tracks?.[0]?.artworkUrl ? (
-                    <img src={selectedPlaylist.artworkUrl || selectedPlaylist.tracks[0].artworkUrl} alt={selectedPlaylist.name} className="w-full h-full object-cover" />
+                    <img src={selectedPlaylist.artworkUrl || selectedPlaylist.tracks[0].artworkUrl} alt={selectedPlaylist.name} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-white/30"><ListMusic size={24} /></div>
                   )}
@@ -168,7 +168,7 @@ export const Library = () => {
                 >
                   <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-black/40 flex items-center justify-center">
                     {coverImg ? (
-                      <img src={coverImg} alt={pl.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                      <img src={coverImg} alt={pl.name} referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                     ) : (
                       <ListMusic size={32} className="text-white/40" />
                     )}

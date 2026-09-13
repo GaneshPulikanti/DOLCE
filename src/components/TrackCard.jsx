@@ -6,13 +6,31 @@ import { toggleFavorite, isFavorite } from '../services/db';
 export const TrackCard = ({ track, queue = [] }) => {
   const { currentTrack, isPlaying, playTrack, togglePlayPause } = usePlayerStore();
   const [liked, setLiked] = useState(false);
-  const [imgError, setImgError] = useState(false);
+  const [imgSrc, setImgSrc] = useState(track.artworkUrl);
+  const [fallbackStage, setFallbackStage] = useState(0);
 
   const isCurrent = currentTrack?.id === track.id;
 
   useEffect(() => {
+    setImgSrc(track.artworkUrl);
+    setFallbackStage(0);
+  }, [track.artworkUrl, track.id]);
+
+  useEffect(() => {
     isFavorite(track.id).then(setLiked);
   }, [track.id]);
+
+  const handleImgError = () => {
+    if (fallbackStage === 0 && track.id) {
+      setFallbackStage(1);
+      setImgSrc(`https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`);
+    } else if (fallbackStage === 1 && track.id) {
+      setFallbackStage(2);
+      setImgSrc(`https://img.youtube.com/vi/${track.id}/mqdefault.jpg`);
+    } else {
+      setFallbackStage(3);
+    }
+  };
 
   const handlePlayClick = (e) => {
     e.stopPropagation();
@@ -38,13 +56,14 @@ export const TrackCard = ({ track, queue = [] }) => {
     >
       {/* Artwork Container (Enforces 1:1 HD Square Cover) */}
       <div className="relative aspect-square w-full rounded-xl overflow-hidden mb-3 bg-[#0d0d0d] flex items-center justify-center border border-white/5">
-        {!imgError && track.artworkUrl ? (
+        {fallbackStage < 3 && imgSrc ? (
           <img
-            src={track.artworkUrl}
+            src={imgSrc}
             alt={track.title}
+            referrerPolicy="no-referrer"
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
-            onError={() => setImgError(true)}
+            onError={handleImgError}
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-tr from-pink-900/40 via-purple-900/40 to-slate-900/60 text-white/50 border border-white/10">

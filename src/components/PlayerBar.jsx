@@ -270,7 +270,13 @@ export const PlayerBar = ({ themePalette }) => {
               <img
                 src={artworkUrl}
                 alt={currentTrack.title}
+                referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  if (currentTrack?.id) {
+                    e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/hqdefault.jpg`;
+                  }
+                }}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-white/5 text-white/50">
@@ -434,8 +440,15 @@ export const PlayerBar = ({ themePalette }) => {
                   <img
                     src={artworkUrl}
                     alt={currentTrack.title}
+                    referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"
-                    onError={() => setCoverImgError(true)}
+                    onError={(e) => {
+                      if (currentTrack?.id && !e.target.src.includes(`i.ytimg.com/vi/${currentTrack.id}`)) {
+                        e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/hqdefault.jpg`;
+                      } else {
+                        setCoverImgError(true);
+                      }
+                    }}
                   />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-tr from-rose-900/50 via-purple-900/50 to-slate-900/80 text-white/50 border border-white/10">
@@ -566,9 +579,15 @@ export const PlayerBar = ({ themePalette }) => {
                           >
                             <div className="flex items-center gap-3.5 min-w-0 flex-1">
                               <img
-                                src={track.artworkUrl}
+                                src={track.artworkUrl || (track.id ? `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg` : '')}
                                 alt={track.title}
+                                referrerPolicy="no-referrer"
                                 className="w-11 h-11 rounded-xl object-cover bg-black border border-white/10 flex-shrink-0"
+                                onError={(e) => {
+                                  if (track.id) {
+                                    e.target.src = `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`;
+                                  }
+                                }}
                               />
                               <div className="flex flex-col min-w-0">
                                 <h5 className="text-sm font-bold truncate text-white font-['Plus_Jakarta_Sans']">

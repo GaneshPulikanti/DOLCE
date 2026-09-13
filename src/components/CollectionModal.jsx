@@ -121,6 +121,7 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
                 <img
                   src={artworkUrl}
                   alt={title}
+                  referrerPolicy="no-referrer"
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -214,9 +215,15 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
                         </span>
                         <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-black/40 border border-white/10 flex-shrink-0">
                           <img
-                            src={track.artworkUrl}
+                            src={track.artworkUrl || (track.id ? `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg` : '')}
                             alt={track.title}
+                            referrerPolicy="no-referrer"
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              if (track.id) {
+                                e.target.src = `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`;
+                              }
+                            }}
                           />
                           {isCurrent && isPlaying && (
                             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">

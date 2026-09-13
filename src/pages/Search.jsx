@@ -185,6 +185,7 @@ export const Search = () => {
                       <img
                         src={album.artworkUrl}
                         alt={album.title}
+                        referrerPolicy="no-referrer"
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
@@ -228,6 +229,7 @@ export const Search = () => {
                       <img
                         src={playlist.artworkUrl}
                         alt={playlist.title}
+                        referrerPolicy="no-referrer"
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
@@ -271,6 +273,7 @@ export const Search = () => {
                       <img
                         src={artist.artworkUrl}
                         alt={artist.name}
+                        referrerPolicy="no-referrer"
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                       />
                     </div>

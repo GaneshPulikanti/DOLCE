@@ -663,6 +663,17 @@ export async function getStreamUrl(videoId) {
 export function getHDArtworkUrl(url, videoId) {
   let hdUrl = url || '';
 
+  if (!hdUrl && videoId) {
+    return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+  }
+
+  // Enforce https protocol
+  if (hdUrl.startsWith('http://')) {
+    hdUrl = hdUrl.replace('http://', 'https://');
+  } else if (hdUrl.startsWith('//')) {
+    hdUrl = `https:${hdUrl}`;
+  }
+
   if (hdUrl.includes('googleusercontent.com') || hdUrl.includes('ggpht.com')) {
     hdUrl = hdUrl.replace(/=w\d+-h\d+-[^?]+/, '=w540-h540-l90-rj');
     hdUrl = hdUrl.replace(/=w\d+-h\d+/, '=w540-h540-l90-rj');
@@ -676,11 +687,7 @@ export function getHDArtworkUrl(url, videoId) {
     return hdUrl;
   }
 
-  if (videoId) {
-    return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
-  }
-
-  return hdUrl || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+  return hdUrl || (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '');
 }
 
 function extractVideoId(url) {
