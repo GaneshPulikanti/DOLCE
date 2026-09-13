@@ -177,7 +177,7 @@ export async function searchSongs(query) {
 }
 
 async function fetchYtMusicSearch(query) {
-  const apiKey = import.meta.env.VITE_DOLCE_SERVICE_KEY || 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
+  const apiKey = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_DOLCE_SERVICE_KEY) || 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
   const body = JSON.stringify({
     context: {
       client: {
@@ -221,7 +221,7 @@ async function fetchYtMusicSearch(query) {
 }
 
 async function fetchYtMusicBrowse(browseId) {
-  const apiKey = import.meta.env.VITE_DOLCE_SERVICE_KEY || 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
+  const apiKey = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_DOLCE_SERVICE_KEY) || 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
   const body = JSON.stringify({
     context: {
       client: {
@@ -373,8 +373,15 @@ export async function searchCatalog(query) {
     findItems(contents);
   };
 
-  // Regional Prioritization Pass: Fetch Indian & Telugu results for generic queries
+  // Normalize query variations (e.g., "one nenokkadine" -> "1 nenokkadine", "no. 1 nenokkadine")
   const lowerQuery = cleanQuery.toLowerCase();
+  const normalizedQuery = lowerQuery
+    .replace(/\bone\b/g, '1')
+    .replace(/\btwo\b/g, '2')
+    .replace(/\bthree\b/g, '3')
+    .replace(/\bno\.?\s*/g, '')
+    .trim();
+
   const isLanguageSpecific = lowerQuery.includes('english') || lowerQuery.includes('korean') || lowerQuery.includes('spanish') || lowerQuery.includes('punjabi') || lowerQuery.includes('tamil') || lowerQuery.includes('hindi');
   
   const searchPromises = [
@@ -382,26 +389,24 @@ export async function searchCatalog(query) {
     customFetch(`https://lrclib.net/api/search?q=${encodeURIComponent(cleanQuery)}`).then(r => r.ok ? r.json() : null)
   ];
 
+  if (normalizedQuery !== lowerQuery) {
+    searchPromises.push(fetchYtMusicSearch(normalizedQuery));
+    searchPromises.push(fetchYtMusicSearch(`${normalizedQuery} album`));
+  } else {
+    searchPromises.push(fetchYtMusicSearch(`${cleanQuery} songs`));
+  }
+
   if (!isLanguageSpecific && !lowerQuery.includes('telugu')) {
-    searchPromises.push(fetchYtMusicSearch(`${cleanQuery} telugu indian`));
+    searchPromises.push(fetchYtMusicSearch(`${normalizedQuery} telugu`));
   }
 
   const results = await Promise.allSettled(searchPromises);
 
-  if (results[0].status === 'fulfilled' && results[0].value) {
-    parseInnerTubeContents(results[0].value);
-  }
-  if (results[2] && results[2].status === 'fulfilled' && results[2].value) {
-    parseInnerTubeContents(results[2].value);
-  }
-
-  // Backup search if initial pass returned few songs
-  if (tracksMap.size < 5) {
-    try {
-      const backupData = await fetchYtMusicSearch(`${cleanQuery} telugu songs`);
-      if (backupData) parseInnerTubeContents(backupData);
-    } catch (_) {}
-  }
+  results.forEach(res => {
+    if (res.status === 'fulfilled' && res.value) {
+      parseInnerTubeContents(res.value);
+    }
+  });
 
   // Process LrcLib Lyric Matches for additional song tracks
   const lrcResult = results[1];
@@ -431,6 +436,14 @@ export async function searchCatalog(query) {
     const title = (item.title || item.name || '').toLowerCase();
     const artist = (item.artistName || item.author || item.subtitle || '').toLowerCase();
 
+    // 🏆 MAXIMUM SCORE for exact or partial title match to query
+    if (title.includes(lowerQuery) || lowerQuery.includes(title)) {
+      score += 500;
+    }
+    if (normalizedQuery && (title.includes(normalizedQuery) || normalizedQuery.includes(title))) {
+      score += 450;
+    }
+
     // 🏆 Top score for Telugu indicators
     if (teluguKeywords.some(kw => title.includes(kw) || artist.includes(kw))) {
       score += 100;
@@ -439,17 +452,30 @@ export async function searchCatalog(query) {
     if (artist.includes('t-series') || artist.includes('zee music') || artist.includes('saregama') || artist.includes('sony music') || artist.includes('aditya') || artist.includes('lahari')) {
       score += 50;
     }
-    // Query title match
-    if (title.includes(lowerQuery)) {
-      score += 80;
-    }
+
     return score;
   }
 
   const allSongs = Array.from(tracksMap.values()).filter(isValidAudioSong);
-  const allAlbums = Array.from(albumsMap.values());
+  let allAlbums = Array.from(albumsMap.values());
   const allPlaylists = Array.from(playlistsMap.values());
   const allArtists = Array.from(artistsMap.values());
+
+  // 🎵 Synthetic Album Promotion: If searching for a movie soundtrack and playlists match movie title, surface as Album
+  allPlaylists.forEach(pl => {
+    const plTitle = (pl.title || '').toLowerCase();
+    if (plTitle.includes(lowerQuery) || (normalizedQuery && plTitle.includes(normalizedQuery))) {
+      if (!allAlbums.some(a => (a.title || '').toLowerCase().includes(normalizedQuery))) {
+        allAlbums.unshift({
+          id: pl.id,
+          title: pl.title,
+          artistName: pl.author || 'Official Motion Picture Soundtrack',
+          subtitle: pl.subtitle || 'Album / Playlist',
+          artworkUrl: pl.artworkUrl,
+        });
+      }
+    }
+  });
 
   allSongs.sort((a, b) => scorePriority(b) - scorePriority(a));
   allAlbums.sort((a, b) => scorePriority(b) - scorePriority(a));
@@ -533,7 +559,7 @@ export async function fetchCollectionTracks(browseId) {
   }
 }
 
-import { getPersonalizedHomeFeed } from './recommendations';
+import { getPersonalizedHomeFeed } from './recommendations.js';
 
 /**
  * Fetches Home Feed curated sections powered by YouTube-style personalization & user listening history.

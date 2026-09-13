@@ -1,5 +1,5 @@
-import { searchSongs, isValidAudioSong } from './catalog';
-import { getRecentHistory, getTopArtistsFromHistory, db } from './db';
+import { searchSongs, isValidAudioSong } from './catalog.js';
+import { getRecentHistory, getTopArtistsFromHistory, db } from './db.js';
 
 /**
  * Personalized YouTube-style Recommendation Engine for DOLCE.

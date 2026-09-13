@@ -1,5 +1,5 @@
 import Dexie from 'dexie';
-import { fetchLyrics } from './lyrics';
+import { fetchLyrics } from './lyrics.js';
 
 export const db = new Dexie('DolceMusicDB');
 
