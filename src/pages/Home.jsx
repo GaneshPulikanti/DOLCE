@@ -45,7 +45,7 @@ export const Home = () => {
       {/* ── Greeting Header ── */}
       <div className="flex flex-col items-start gap-0.5">
         <span className="text-xs font-medium text-white/50 tracking-wider">
-          {getGreeting()},
+          {getGreeting()}, Ganesh
         </span>
         <h2 className="text-2xl lg:text-3xl font-black text-white tracking-tight">
           Welcome to DOLCE

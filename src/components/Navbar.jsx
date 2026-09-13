@@ -14,17 +14,24 @@ export const Navbar = ({ onOpenDrawer, onOpenAbout }) => {
           <Menu size={22} />
         </button>
 
-        <h1 
+        <div 
           onClick={onOpenAbout}
-          className="text-xl lg:text-2xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white via-white/90 to-white/70 flex items-center gap-2.5 cursor-pointer hover:opacity-90 transition-opacity"
+          className="flex items-center gap-2.5 cursor-pointer hover:opacity-90 transition-opacity"
         >
           <img 
             src="/favicon.png" 
             alt="DOLCE Logo" 
-            className="w-8 h-8 rounded-xl object-cover border border-white/14 shadow-md" 
+            className="w-8 h-8 rounded-xl object-cover border border-white/14 shadow-md flex-shrink-0" 
           />
-          <span>DOLCE</span>
-        </h1>
+          <div className="flex flex-col leading-none">
+            <span className="text-xl lg:text-2xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white via-white/90 to-white/70">
+              DOLCE
+            </span>
+            <span className="text-[9px] font-extrabold text-pink-400/90 tracking-wider uppercase mt-0.5">
+              by Ganesh Pulikanti
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Right: Info / About App Button */}
