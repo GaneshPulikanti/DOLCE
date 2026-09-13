@@ -58,12 +58,15 @@ export const AboutModal = ({ isOpen, onClose }) => {
             {/* 3. Developer Showcase Card (Ganesh Pulikanti) */}
             <div className="glass-panel p-5 rounded-2xl bg-gradient-to-br from-purple-900/40 via-pink-950/30 to-black/80 border border-purple-500/30 flex flex-col items-center text-center gap-3.5 shadow-xl">
               {/* Prominent Big Developer Photo */}
-              <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 border-white/30 shadow-2xl p-1 bg-gradient-to-tr from-purple-500 via-pink-500 to-amber-400 flex-shrink-0">
-                <img 
-                  src="/developer.jpg" 
-                  alt="Ganesh Pulikanti" 
-                  className="w-full h-full object-cover rounded-full shadow-inner" 
-                />
+              <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 border-white/30 shadow-2xl p-1 bg-gradient-to-tr from-purple-500 via-pink-500 to-amber-400 flex-shrink-0 flex items-center justify-center">
+                <picture className="w-full h-full">
+                  <source srcSet="/developer.heic" type="image/heic" />
+                  <img 
+                    src="/developer.jpg" 
+                    alt="Ganesh Pulikanti" 
+                    className="w-full h-full object-cover rounded-full shadow-inner" 
+                  />
+                </picture>
               </div>
 
               {/* Developer Title & Name Underneath */}
