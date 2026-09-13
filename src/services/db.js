@@ -116,6 +116,36 @@ export async function removeTrackFromPlaylist(playlistId, trackId) {
   return true;
 }
 
+export async function saveFullPlaylistToLibrary(collection, tracks = []) {
+  if (!collection || (!collection.id && !collection.title)) return false;
+
+  const playlistTitle = collection.title || collection.name || 'Saved Playlist';
+  const artworkUrl = collection.artworkUrl || (tracks[0]?.artworkUrl) || '/favicon.png';
+  const id = `pl_saved_${collection.id || Date.now()}`;
+
+  const existing = await db.playlists.get(id);
+  if (existing) {
+    await db.playlists.delete(id);
+    return false; // Removed
+  } else {
+    await db.playlists.put({
+      id,
+      name: playlistTitle,
+      artworkUrl,
+      author: collection.artistName || collection.author || collection.subtitle || 'Saved Album/Playlist',
+      tracks: tracks || [],
+      createdAt: Date.now(),
+    });
+    return true; // Added
+  }
+}
+
+export async function isPlaylistSaved(collectionId) {
+  if (!collectionId) return false;
+  const item = await db.playlists.get(`pl_saved_${collectionId}`);
+  return !!item;
+}
+
 // ─── History ───
 export async function recordHistory(track) {
   if (!track || !track.id) return;

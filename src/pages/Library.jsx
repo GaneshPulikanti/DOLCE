@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Heart, History, Download, ListMusic, Play } from 'lucide-react';
+import { Heart, History, Download, ListMusic, Play, Trash2 } from 'lucide-react';
 import { db } from '../services/db';
 import { TrackCard } from '../components/TrackCard';
 import { usePlayerStore } from '../store/usePlayerStore';
@@ -18,8 +18,16 @@ export const Library = () => {
 
   const selectedPlaylist = playlists.find(p => p.id === selectedPlaylistId);
 
+  const handleDeletePlaylist = async (e, playlistId) => {
+    e.stopPropagation();
+    await db.playlists.delete(playlistId);
+    if (selectedPlaylistId === playlistId) {
+      setSelectedPlaylistId(null);
+    }
+  };
+
   return (
-    <div className="w-full min-h-screen pb-40 px-4 lg:px-12 pt-6 flex flex-col gap-6 font-['Plus_Jakarta_Sans']">
+    <div className="w-full min-h-screen pb-40 px-4 lg:px-12 pt-6 flex flex-col gap-6 font-['Plus_Jakarta_Sans'] select-none">
       {/* Header & Sub-Tabs */}
       <div className="flex flex-col gap-4">
         <h1 className="text-2xl lg:text-3xl font-black text-white tracking-tight">Your Library</h1>
@@ -95,17 +103,45 @@ export const Library = () => {
       {activeSubTab === 'playlists' && (
         selectedPlaylist ? (
           <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div className="flex flex-col">
-                <h2 className="text-xl font-bold text-white">{selectedPlaylist.name}</h2>
-                <span className="text-xs text-white/50">{selectedPlaylist.tracks?.length || 0} songs</span>
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-xl overflow-hidden bg-black/40 border border-white/10 flex-shrink-0">
+                  {selectedPlaylist.artworkUrl || selectedPlaylist.tracks?.[0]?.artworkUrl ? (
+                    <img src={selectedPlaylist.artworkUrl || selectedPlaylist.tracks[0].artworkUrl} alt={selectedPlaylist.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white/30"><ListMusic size={24} /></div>
+                  )}
+                </div>
+                <div className="flex flex-col">
+                  <h2 className="text-xl font-bold text-white">{selectedPlaylist.name}</h2>
+                  <span className="text-xs text-white/50">{selectedPlaylist.tracks?.length || 0} songs</span>
+                </div>
               </div>
-              <button
-                onClick={() => setSelectedPlaylistId(null)}
-                className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-all"
-              >
-                Back to Playlists
-              </button>
+
+              <div className="flex items-center gap-3">
+                {selectedPlaylist.tracks && selectedPlaylist.tracks.length > 0 && (
+                  <button
+                    onClick={() => playTrack(selectedPlaylist.tracks[0], selectedPlaylist.tracks)}
+                    className="px-4 py-2 rounded-full bg-white text-black text-xs font-black flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-lg"
+                  >
+                    <Play size={14} fill="black" />
+                    <span>PLAY ALL</span>
+                  </button>
+                )}
+                <button
+                  onClick={(e) => handleDeletePlaylist(e, selectedPlaylist.id)}
+                  className="p-2 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all"
+                  title="Delete Playlist"
+                >
+                  <Trash2 size={16} />
+                </button>
+                <button
+                  onClick={() => setSelectedPlaylistId(null)}
+                  className="px-3.5 py-2 rounded-full bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-all"
+                >
+                  Back
+                </button>
+              </div>
             </div>
 
             {selectedPlaylist.tracks && selectedPlaylist.tracks.length > 0 ? (
@@ -116,48 +152,61 @@ export const Library = () => {
               </div>
             ) : (
               <div className="py-12 text-center text-white/40 text-xs font-bold">
-                No songs in this playlist yet. Add songs from the expanded player!
+                No songs in this playlist yet. Add songs from the loaded collections or track menu!
               </div>
             )}
           </div>
         ) : playlists.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 lg:gap-6">
-            {playlists.map((pl) => (
-              <div
-                key={pl.id}
-                onClick={() => setSelectedPlaylistId(pl.id)}
-                className="group relative rounded-2xl glass-panel p-4 bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] hover:border-white/25 transition-all duration-300 cursor-pointer flex flex-col gap-3 shadow-lg"
-              >
-                <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-black/40 flex items-center justify-center">
-                  {pl.tracks && pl.tracks[0]?.artworkUrl ? (
-                    <img src={pl.tracks[0].artworkUrl} alt={pl.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                  ) : (
-                    <ListMusic size={32} className="text-white/40" />
-                  )}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <div 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (pl.tracks && pl.tracks.length > 0) playTrack(pl.tracks[0], pl.tracks);
-                      }}
-                      className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-xl scale-90 group-hover:scale-100 transition-transform"
-                    >
-                      <Play size={20} fill="black" className="ml-0.5" />
+            {playlists.map((pl) => {
+              const coverImg = pl.artworkUrl || (pl.tracks && pl.tracks[0]?.artworkUrl);
+              return (
+                <div
+                  key={pl.id}
+                  onClick={() => setSelectedPlaylistId(pl.id)}
+                  className="group relative rounded-2xl glass-panel p-4 bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] hover:border-white/25 transition-all duration-300 cursor-pointer flex flex-col gap-3 shadow-lg"
+                >
+                  <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-black/40 flex items-center justify-center">
+                    {coverImg ? (
+                      <img src={coverImg} alt={pl.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    ) : (
+                      <ListMusic size={32} className="text-white/40" />
+                    )}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      {pl.tracks && pl.tracks.length > 0 && (
+                        <div 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            playTrack(pl.tracks[0], pl.tracks);
+                          }}
+                          className="w-11 h-11 rounded-full bg-white text-black flex items-center justify-center shadow-xl scale-90 group-hover:scale-100 transition-transform"
+                          title="Play Playlist"
+                        >
+                          <Play size={18} fill="black" className="ml-0.5" />
+                        </div>
+                      )}
+                      <div
+                        onClick={(e) => handleDeletePlaylist(e, pl.id)}
+                        className="w-11 h-11 rounded-full bg-red-600/80 text-white flex items-center justify-center shadow-xl scale-90 group-hover:scale-100 transition-transform hover:bg-red-600"
+                        title="Remove Playlist"
+                      >
+                        <Trash2 size={18} />
+                      </div>
                     </div>
                   </div>
+                  <div className="flex flex-col min-w-0">
+                    <h4 className="text-sm font-bold text-white truncate group-hover:text-pink-300 transition-colors">{pl.name}</h4>
+                    <p className="text-xs text-white/50 truncate mt-0.5">{pl.tracks?.length || 0} songs</p>
+                  </div>
                 </div>
-                <div className="flex flex-col min-w-0">
-                  <h4 className="text-sm font-bold text-white truncate group-hover:text-pink-300 transition-colors">{pl.name}</h4>
-                  <p className="text-xs text-white/50 truncate mt-0.5">{pl.tracks?.length || 0} songs</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center text-white/50">
             <ListMusic size={48} className="mb-4 text-white/20" />
-            <h3 className="text-lg font-bold text-white mb-1">No custom playlists</h3>
-            <p className="text-xs">Tap the Add to Playlist icon in the player header to create your first playlist</p>
+            <h3 className="text-lg font-bold text-white mb-1">No playlists in your library</h3>
+            <p className="text-xs">Open any loaded playlist or album and tap "Add to Playlists" to save it here</p>
           </div>
         )
       )}

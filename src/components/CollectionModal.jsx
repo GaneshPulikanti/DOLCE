@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Play, Shuffle, Music, Heart, Loader2, Disc, User, ListMusic } from 'lucide-react';
+import { X, Play, Shuffle, Music, Heart, Loader2, Disc, User, ListMusic, Plus, Check } from 'lucide-react';
 import { fetchCollectionTracks, searchSongs } from '../services/catalog';
 import { usePlayerStore } from '../store/usePlayerStore';
-import { db, toggleFavorite, isFavorite } from '../services/db';
+import { db, toggleFavorite, isFavorite, saveFullPlaylistToLibrary, isPlaylistSaved } from '../services/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 
 export const CollectionModal = ({ collection, isOpen, onClose }) => {
   const { playTrack, currentTrack, isPlaying } = usePlayerStore();
   const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isSaved, setIsSaved] = useState(false);
   const favorites = useLiveQuery(() => db.favorites.toArray()) || [];
   const favIds = new Set(favorites.map(f => f.id));
 
@@ -19,6 +20,10 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
     let isMounted = true;
     setLoading(true);
     setTracks([]);
+
+    isPlaylistSaved(collection.id).then(saved => {
+      if (isMounted) setIsSaved(saved);
+    });
 
     const loadData = async () => {
       let resultTracks = [];
@@ -61,6 +66,11 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
       const shuffled = [...tracks].sort(() => Math.random() - 0.5);
       playTrack(shuffled[0], shuffled);
     }
+  };
+
+  const handleToggleSavePlaylist = async () => {
+    const savedNow = await saveFullPlaylistToLibrary(collection, tracks);
+    setIsSaved(savedNow);
   };
 
   return (
@@ -129,22 +139,47 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
                   {loading ? 'Fetching tracks...' : `${tracks.length} Songs`}
                 </span>
 
-                {/* Play & Shuffle Buttons */}
-                {!loading && tracks.length > 0 && (
-                  <div className="flex items-center gap-3 mt-2">
+                {/* Play, Shuffle & Add to Playlists Buttons */}
+                {!loading && (
+                  <div className="flex items-center flex-wrap gap-2.5 mt-2">
+                    {tracks.length > 0 && (
+                      <>
+                        <button
+                          onClick={handlePlayAll}
+                          className="px-5 py-2.5 rounded-full bg-white text-black font-extrabold text-xs flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-xl"
+                        >
+                          <Play size={16} fill="black" />
+                          <span>PLAY ALL</span>
+                        </button>
+                        <button
+                          onClick={handleShufflePlay}
+                          className="p-2.5 rounded-full bg-white/10 border border-white/15 text-white hover:bg-white/20 active:scale-95 transition-all"
+                          title="Shuffle Play"
+                        >
+                          <Shuffle size={18} />
+                        </button>
+                      </>
+                    )}
                     <button
-                      onClick={handlePlayAll}
-                      className="px-5 py-2.5 rounded-full bg-white text-black font-extrabold text-xs flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-xl"
+                      onClick={handleToggleSavePlaylist}
+                      className={`px-4 py-2.5 rounded-full border text-xs font-bold flex items-center gap-2 transition-all active:scale-95 ${
+                        isSaved
+                          ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30'
+                          : 'bg-white/10 border-white/15 text-white hover:bg-white/20'
+                      }`}
+                      title={isSaved ? "Saved in Playlists" : "Add to Playlists"}
                     >
-                      <Play size={16} fill="black" />
-                      <span>PLAY ALL</span>
-                    </button>
-                    <button
-                      onClick={handleShufflePlay}
-                      className="p-2.5 rounded-full bg-white/10 border border-white/15 text-white hover:bg-white/20 active:scale-95 transition-all"
-                      title="Shuffle Play"
-                    >
-                      <Shuffle size={18} />
+                      {isSaved ? (
+                        <>
+                          <Check size={16} className="text-emerald-400" />
+                          <span>Saved in Playlists</span>
+                        </>
+                      ) : (
+                        <>
+                          <Plus size={16} />
+                          <span>Add to Playlists</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 )}
