@@ -26,6 +26,54 @@ export const App = () => {
     }
   }, [currentTrack?.artworkUrl, currentTrack?.id]);
 
+  // Strictly block horizontal touch swipe gestures outside horizontal scroll elements
+  useEffect(() => {
+    let startX = 0;
+    let startY = 0;
+
+    const handleTouchStart = (e) => {
+      if (e.touches && e.touches.length > 0) {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+      }
+    };
+
+    const handleTouchMove = (e) => {
+      if (!e.touches || e.touches.length === 0) return;
+      const deltaX = Math.abs(e.touches[0].clientX - startX);
+      const deltaY = Math.abs(e.touches[0].clientY - startY);
+
+      if (deltaX > deltaY && deltaX > 15) {
+        let target = e.target;
+        let isInsideHorizontalScroll = false;
+
+        while (target && target !== document.body) {
+          if (
+            target.scrollWidth > target.clientWidth &&
+            (window.getComputedStyle(target).overflowX === 'auto' ||
+              window.getComputedStyle(target).overflowX === 'scroll')
+          ) {
+            isInsideHorizontalScroll = true;
+            break;
+          }
+          target = target.parentElement;
+        }
+
+        if (!isInsideHorizontalScroll && e.cancelable) {
+          e.preventDefault();
+        }
+      }
+    };
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, []);
+
   const orb1Style = themePalette ? {
     background: `radial-gradient(circle, ${themePalette.dominant} 0%, rgba(0, 0, 0, 0) 75%)`
   } : {};

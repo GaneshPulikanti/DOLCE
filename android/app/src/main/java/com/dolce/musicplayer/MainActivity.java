@@ -1,6 +1,7 @@
 package com.dolce.musicplayer;
 
 import android.os.Bundle;
+import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
@@ -20,6 +21,10 @@ public class MainActivity extends BridgeActivity {
             settings.setMediaPlaybackRequiresUserGesture(false);
             settings.setJavaScriptEnabled(true);
             settings.setDomStorageEnabled(true);
+            
+            // Strictly disable all WebView overscroll and horizontal drag gestures
+            webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+            webView.setHorizontalScrollBarEnabled(false);
         }
     }
 
