@@ -64,4 +64,5 @@ app.*.map.json
 *.jks
 
 .vercel
+*.apk
 
