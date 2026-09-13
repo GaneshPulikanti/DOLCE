@@ -31,7 +31,7 @@ export const Home = () => {
   };
 
   return (
-    <div className="w-full min-h-screen pb-40 px-4 lg:px-12 pt-4 flex flex-col gap-6 font-['Inter']">
+    <div className="w-full min-h-screen pb-40 px-4 lg:px-12 pt-4 flex flex-col gap-6 font-['Plus_Jakarta_Sans']">
       
       {/* ── Greeting Header ── */}
       <div className="flex flex-col items-start gap-0.5">

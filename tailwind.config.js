@@ -7,8 +7,13 @@ export default {
   theme: {
     extend: {
       fontFamily: {
+        sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+        jakarta: ['"Plus Jakarta Sans"', 'sans-serif'],
         inter: ['Inter', 'sans-serif'],
-        lyrics: ['Outfit', 'Plus Jakarta Sans', 'Inter', 'sans-serif'],
+        sora: ['Sora', 'sans-serif'],
+        outfit: ['Outfit', 'sans-serif'],
+        syne: ['Syne', 'sans-serif'],
+        lyrics: ['"Plus Jakarta Sans"', 'Outfit', 'Inter', 'sans-serif'],
       },
     },
   },

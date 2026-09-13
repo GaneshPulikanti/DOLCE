@@ -70,7 +70,7 @@ export const App = () => {
   const direction = currentIndex >= prevIdx ? 1 : -1;
 
   return (
-    <div className="relative w-full h-full min-h-screen bg-[#050505] text-white flex flex-col overflow-hidden selection:bg-white/20 selection:text-white font-['Inter']">
+    <div className="relative w-full h-full min-h-screen bg-[#050505] text-white flex flex-col overflow-hidden selection:bg-white/20 selection:text-white font-['Plus_Jakarta_Sans']">
       {/* Background Ambient Orbs */}
       <div className="bg-glow-container pointer-events-none">
         <div className="bg-glow-orb-1 transition-all duration-1000 opacity-20" style={orb1Style} />

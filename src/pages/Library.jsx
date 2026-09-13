@@ -19,7 +19,7 @@ export const Library = () => {
   const selectedPlaylist = playlists.find(p => p.id === selectedPlaylistId);
 
   return (
-    <div className="w-full min-h-screen pb-40 px-4 lg:px-12 pt-6 flex flex-col gap-6 font-['Inter']">
+    <div className="w-full min-h-screen pb-40 px-4 lg:px-12 pt-6 flex flex-col gap-6 font-['Plus_Jakarta_Sans']">
       {/* Header & Sub-Tabs */}
       <div className="flex flex-col gap-4">
         <h1 className="text-2xl lg:text-3xl font-black text-white tracking-tight">Your Library</h1>

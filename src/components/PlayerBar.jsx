@@ -280,10 +280,10 @@ export const PlayerBar = ({ themePalette }) => {
           </div>
 
           <div className="flex flex-col min-w-0">
-            <h4 className="text-sm lg:text-base font-bold text-white truncate font-['Inter']">
+            <h4 className="text-sm lg:text-base font-bold text-white truncate font-['Plus_Jakarta_Sans']">
               {currentTrack.title}
             </h4>
-            <p className="text-xs text-white/60 truncate font-medium font-['Inter'] mt-0.5">
+            <p className="text-xs text-white/60 truncate font-medium font-['Plus_Jakarta_Sans'] mt-0.5">
               {currentTrack.artistName}
             </p>
           </div>
@@ -362,7 +362,7 @@ export const PlayerBar = ({ themePalette }) => {
               }
             }}
             transition={isPullingUp ? { duration: 0 } : { type: 'spring', damping: 26, stiffness: 210, mass: 0.8 }}
-            className="fixed inset-0 z-50 flex flex-col overflow-y-auto select-none font-['Inter'] touch-pan-y"
+            className="fixed inset-0 z-50 flex flex-col overflow-y-auto select-none font-['Plus_Jakarta_Sans'] touch-pan-y"
             style={{ background: dominantBg }}
           >
             {/* Top Pull Down Pill Handle Bar (Drag Target for Minimizing) */}
@@ -399,7 +399,7 @@ export const PlayerBar = ({ themePalette }) => {
                 <ChevronDown size={30} />
               </button>
 
-              <span className="text-xs uppercase font-bold tracking-[0.2em] text-white/70 font-['Inter']">
+              <span className="text-xs uppercase font-bold tracking-[0.2em] text-white/70 font-['Plus_Jakarta_Sans']">
                 NOW PLAYING
               </span>
 
@@ -448,10 +448,10 @@ export const PlayerBar = ({ themePalette }) => {
               {/* Track Title & Artist Name with Like Button */}
               <div className="w-full flex items-center justify-between pt-2">
                 <div className="flex flex-col min-w-0 pr-4">
-                  <h2 className="text-xl sm:text-2xl font-extrabold text-white truncate font-['Inter'] tracking-tight">
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-white truncate font-['Plus_Jakarta_Sans'] tracking-tight">
                     {currentTrack.title}
                   </h2>
-                  <p className="text-sm sm:text-base text-white/60 truncate font-semibold font-['Inter'] mt-1">
+                  <p className="text-sm sm:text-base text-white/60 truncate font-semibold font-['Plus_Jakarta_Sans'] mt-1">
                     {currentTrack.artistName}
                   </p>
                 </div>
@@ -474,7 +474,7 @@ export const PlayerBar = ({ themePalette }) => {
                   onChange={(e) => seek(parseFloat(e.target.value))}
                   className="w-full h-1.5 rounded-lg bg-white/20 appearance-none cursor-pointer accent-white"
                 />
-                <div className="flex justify-between text-xs text-white/60 font-bold mt-2 font-['Inter']">
+                <div className="flex justify-between text-xs text-white/60 font-bold mt-2 font-['Plus_Jakarta_Sans']">
                   <span>{formatTime(currentTime)}</span>
                   <span>{formatTime(duration)}</span>
                 </div>
@@ -535,7 +535,7 @@ export const PlayerBar = ({ themePalette }) => {
                 /* Up Next Queue (Opens right here under player controls) */
                 <div className="w-full rounded-3xl p-6 border border-white/10 bg-black/30 backdrop-blur-xl flex flex-col gap-4 text-left shadow-2xl mt-2 mb-6 transition-all">
                   <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                    <span className="text-xs uppercase font-extrabold tracking-[0.15em] text-white/80 flex items-center gap-2 font-['Inter']">
+                    <span className="text-xs uppercase font-extrabold tracking-[0.15em] text-white/80 flex items-center gap-2 font-['Plus_Jakarta_Sans']">
                       <ListMusic size={18} className="text-white" />
                       <span>UP NEXT QUEUE ({queue.length})</span>
                     </span>
@@ -571,17 +571,17 @@ export const PlayerBar = ({ themePalette }) => {
                                 className="w-11 h-11 rounded-xl object-cover bg-black border border-white/10 flex-shrink-0"
                               />
                               <div className="flex flex-col min-w-0">
-                                <h5 className="text-sm font-bold truncate text-white font-['Inter']">
+                                <h5 className="text-sm font-bold truncate text-white font-['Plus_Jakarta_Sans']">
                                   {track.title}
                                 </h5>
-                                <p className="text-xs text-white/50 truncate font-medium font-['Inter'] mt-0.5">
+                                <p className="text-xs text-white/50 truncate font-medium font-['Plus_Jakarta_Sans'] mt-0.5">
                                   {track.artistName}
                                 </p>
                               </div>
                             </div>
 
                             {isTrackActive && (
-                              <span className="text-xs font-bold text-white px-3 py-1 rounded-full bg-white/20 border border-white/30 font-['Inter'] flex-shrink-0">
+                              <span className="text-xs font-bold text-white px-3 py-1 rounded-full bg-white/20 border border-white/30 font-['Plus_Jakarta_Sans'] flex-shrink-0">
                                 Playing
                               </span>
                             )}
@@ -589,7 +589,7 @@ export const PlayerBar = ({ themePalette }) => {
                         );
                       })
                     ) : (
-                      <div className="py-10 text-center text-white/50 font-bold font-['Inter'] text-sm">
+                      <div className="py-10 text-center text-white/50 font-bold font-['Plus_Jakarta_Sans'] text-sm">
                         No songs in queue
                       </div>
                     )}
@@ -599,7 +599,7 @@ export const PlayerBar = ({ themePalette }) => {
                 /* Spotify-Style Synchronized Lyrics Container (Clean Glass, No White Box Disturbance) */
                 <div className="w-full rounded-3xl p-6 border border-white/10 bg-black/30 backdrop-blur-xl flex flex-col gap-4 text-left shadow-2xl mt-2 mb-6 select-none overflow-hidden">
                   <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                    <span className="text-xs uppercase font-extrabold tracking-[0.15em] text-white/80 flex items-center gap-2 font-['Inter']">
+                    <span className="text-xs uppercase font-extrabold tracking-[0.15em] text-white/80 flex items-center gap-2 font-['Plus_Jakarta_Sans']">
                       <MessageSquareQuote size={18} className="text-white" />
                       <span>LYRICS</span>
                     </span>
@@ -622,7 +622,7 @@ export const PlayerBar = ({ themePalette }) => {
                     {loadingLyrics ? (
                       <div className="flex flex-col items-center justify-center py-10 text-white/40 animate-pulse">
                         <MessageSquareQuote size={32} className="mb-2 text-white/60" />
-                        <p className="text-xs font-bold font-['Inter']">Loading lyrics...</p>
+                        <p className="text-xs font-bold font-['Plus_Jakarta_Sans']">Loading lyrics...</p>
                       </div>
                     ) : lyricsData.synced.length > 0 ? (
                       <motion.div
@@ -680,7 +680,7 @@ export const PlayerBar = ({ themePalette }) => {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.96 }}
             transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-[60] flex flex-col justify-between overflow-hidden font-['Inter'] select-none p-6"
+            className="fixed inset-0 z-[60] flex flex-col justify-between overflow-hidden font-['Plus_Jakarta_Sans'] select-none p-6"
             style={{ background: dominantBg }}
           >
             {/* Ambient Background Blur */}
@@ -727,7 +727,7 @@ export const PlayerBar = ({ themePalette }) => {
               {loadingLyrics ? (
                 <div className="flex flex-col items-center justify-center h-full text-white/40 animate-pulse">
                   <MessageSquareQuote size={48} className="mb-3 text-white/60" />
-                  <p className="text-sm font-bold font-['Inter']">Loading full screen lyrics...</p>
+                  <p className="text-sm font-bold font-['Plus_Jakarta_Sans']">Loading full screen lyrics...</p>
                 </div>
               ) : lyricsData.synced.length > 0 ? (
                 lyricsData.synced.map((line, idx) => (
@@ -774,7 +774,7 @@ export const PlayerBar = ({ themePalette }) => {
                         }
                       }
                     }}
-                    className="pointer-events-auto px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-xl border border-white/20 text-white text-xs font-bold shadow-2xl flex items-center gap-2 transition-all cursor-pointer font-['Inter']"
+                    className="pointer-events-auto px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-xl border border-white/20 text-white text-xs font-bold shadow-2xl flex items-center gap-2 transition-all cursor-pointer font-['Plus_Jakarta_Sans']"
                   >
                     <Radio size={13} className="text-white/80 animate-pulse" />
                     <span>Sync with song</span>
@@ -837,7 +837,7 @@ export const PlayerBar = ({ themePalette }) => {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md rounded-3xl glass-panel p-6 bg-[#121216]/95 border border-white/20 shadow-2xl flex flex-col gap-5 text-left font-['Inter']"
+              className="w-full max-w-md rounded-3xl glass-panel p-6 bg-[#121216]/95 border border-white/20 shadow-2xl flex flex-col gap-5 text-left font-['Plus_Jakarta_Sans']"
             >
               {/* Modal Header */}
               <div className="flex items-center justify-between border-b border-white/10 pb-3">

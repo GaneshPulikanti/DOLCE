@@ -74,10 +74,10 @@ export const TrackCard = ({ track, queue = [] }) => {
 
       {/* Track Metadata */}
       <div className="flex flex-col min-w-0">
-        <h4 className="text-xs lg:text-sm font-bold text-white truncate font-['Inter']">
+        <h4 className="text-xs lg:text-sm font-bold text-white truncate font-['Plus_Jakarta_Sans']">
           {track.title}
         </h4>
-        <p className="text-[11px] text-white/50 truncate mt-0.5 font-medium font-['Inter']">
+        <p className="text-[11px] text-white/50 truncate mt-0.5 font-medium font-['Plus_Jakarta_Sans']">
           {track.artistName}
         </p>
       </div>

@@ -66,7 +66,7 @@ export const Search = () => {
                         catalogResults.artists.length > 0;
 
   return (
-    <div className="w-full min-h-screen pb-40 px-4 lg:px-12 pt-6 flex flex-col gap-6 font-['Inter']">
+    <div className="w-full min-h-screen pb-40 px-4 lg:px-12 pt-6 flex flex-col gap-6 font-['Plus_Jakarta_Sans']">
       {/* Search Header */}
       <div className="flex flex-col gap-4">
         <h1 className="text-2xl lg:text-3xl font-black text-white tracking-tight">Search Catalog & Lyrics</h1>
@@ -125,7 +125,7 @@ export const Search = () => {
                 onClick={() => setSearchQuery(genre.query)}
                 className={`group relative h-24 sm:h-28 rounded-2xl ${genre.bgColor} p-4 flex flex-col justify-start overflow-hidden cursor-pointer shadow-lg transition-all duration-200 hover:scale-[1.02] border border-white/10`}
               >
-                <span className="text-base sm:text-lg font-black text-white leading-tight font-['Inter'] drop-shadow-sm z-10">
+                <span className="text-base sm:text-lg font-black text-white leading-tight font-['Plus_Jakarta_Sans'] drop-shadow-sm z-10">
                   {genre.name}
                 </span>
               </div>

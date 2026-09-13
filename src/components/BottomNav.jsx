@@ -14,7 +14,7 @@ export const BottomNav = () => {
   const currentIndex = Math.max(0, tabs.findIndex((t) => t.id === activeTab));
 
   return (
-    <nav className="fixed bottom-3 left-4 right-4 z-40 max-w-md mx-auto pointer-events-auto font-['Inter']">
+    <nav className="fixed bottom-3 left-4 right-4 z-40 max-w-md mx-auto pointer-events-auto font-['Plus_Jakarta_Sans']">
       <div className="relative w-full h-14 rounded-full glass-panel bg-[#121215]/90 border border-white/15 backdrop-blur-2xl shadow-2xl p-1.5 flex items-center justify-between overflow-hidden">
         
         {/* Sliding Active Pill Highlight (Stays 100% strictly within the bar container) */}

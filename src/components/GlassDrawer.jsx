@@ -23,7 +23,7 @@ export const GlassDrawer = ({ isOpen, onClose }) => {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex font-['Inter'] select-none">
+        <div className="fixed inset-0 z-50 flex font-['Plus_Jakarta_Sans'] select-none">
           {/* Smooth Fade Backdrop Overlay */}
           <motion.div 
             initial={{ opacity: 0 }}

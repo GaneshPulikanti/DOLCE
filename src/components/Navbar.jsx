@@ -3,7 +3,7 @@ import { Menu } from 'lucide-react';
 
 export const Navbar = ({ onOpenDrawer }) => {
   return (
-    <header className="sticky top-0 z-30 w-full px-4 lg:px-8 py-3.5 flex items-center justify-between bg-[#080808]/80 backdrop-blur-xl border-b border-white/10 font-['Inter']">
+    <header className="sticky top-0 z-30 w-full px-4 lg:px-8 py-3.5 flex items-center justify-between bg-[#080808]/80 backdrop-blur-xl border-b border-white/10 font-['Plus_Jakarta_Sans']">
       {/* Left: Hamburger Drawer Menu Button & Title */}
       <div className="flex items-center gap-3.5">
         <button
