@@ -7,7 +7,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { 
-  toggleFavorite, isFavorite, downloadTrackLocally, isDownloadedLocally,
+  db, toggleFavorite, isFavorite, downloadTrackLocally, isDownloadedLocally,
   getUserPlaylists, createPlaylist, addTrackToPlaylist 
 } from '../services/db';
 import { fetchLyrics } from '../services/lyrics';
