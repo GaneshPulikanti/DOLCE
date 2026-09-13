@@ -17,6 +17,11 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (Build.VERSION.SDK_INT >= 33) {
+            if (checkSelfPermission("android.permission.POST_NOTIFICATIONS") != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 101);
+            }
+        }
         startBackgroundAudioService();
 
         keepAliveRunnable = new Runnable() {
