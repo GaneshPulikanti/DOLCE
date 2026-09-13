@@ -403,10 +403,13 @@ export async function searchCatalog(query) {
     .replace(/\bno\.?\s*/g, '')
     .trim();
 
-  const isLanguageSpecific = lowerQuery.includes('english') || lowerQuery.includes('korean') || lowerQuery.includes('spanish') || lowerQuery.includes('punjabi') || lowerQuery.includes('tamil') || lowerQuery.includes('hindi');
-  
+  const queryWords = lowerQuery.split(/\s+/).filter(w => w.length > 2);
+  const normWords = normalizedQuery.split(/\s+/).filter(w => w.length > 2);
+  const mainWords = [...new Set([...queryWords, ...normWords])];
+
   const searchPromises = [
     fetchYtMusicSearch(cleanQuery),
+    fetchYtMusicSearch(`${cleanQuery} full songs`),
     customFetch(`https://lrclib.net/api/search?q=${encodeURIComponent(cleanQuery)}`).then(r => r.ok ? r.json() : null)
   ];
 
@@ -430,7 +433,7 @@ export async function searchCatalog(query) {
   });
 
   // Process LrcLib Lyric Matches for additional song tracks
-  const lrcResult = results[1];
+  const lrcResult = results[2];
   if (lrcResult && lrcResult.status === 'fulfilled' && Array.isArray(lrcResult.value) && lrcResult.value.length > 0) {
     const lyricMatches = lrcResult.value.slice(0, 3);
     for (const match of lyricMatches) {
@@ -457,20 +460,37 @@ export async function searchCatalog(query) {
     const title = (item.title || item.name || '').toLowerCase();
     const artist = (item.artistName || item.author || item.subtitle || '').toLowerCase();
 
-    // 🏆 EXACT Match Boost
+    // 🏆 1. EXACT & PREFIX Title Match Boost
     if (title === lowerQuery || title === normalizedQuery) {
-      score += 10000;
+      score += 20000;
     } else if (title.startsWith(lowerQuery) || (normalizedQuery && title.startsWith(normalizedQuery))) {
-      score += 5000;
+      score += 10000;
     } else if (title.includes(lowerQuery) || lowerQuery.includes(title)) {
-      score += 1000;
+      score += 5000;
     } else if (normalizedQuery && (title.includes(normalizedQuery) || normalizedQuery.includes(title))) {
-      score += 800;
+      score += 4000;
     }
 
-    // 🏆 Top score for Telugu indicators & artists
+    // 🏆 2. Multi-word Match Boost
+    let matchedWordsCount = 0;
+    mainWords.forEach(w => {
+      if (title.includes(w) || artist.includes(w)) {
+        matchedWordsCount++;
+        score += 1500;
+      }
+    });
+    if (mainWords.length > 1 && matchedWordsCount === mainWords.length) {
+      score += 3000;
+    }
+
+    // 🏆 3. Artist Match Boost
+    if (artist.includes(lowerQuery) || (normalizedQuery && artist.includes(normalizedQuery))) {
+      score += 2500;
+    }
+
+    // 🏆 4. Top score for Telugu indicators & artists
     if (teluguKeywords.some(kw => title.includes(kw) || artist.includes(kw))) {
-      score += 200;
+      score += 300;
     }
     // 🇮🇳 High score for major Indian labels
     if (artist.includes('t-series') || artist.includes('zee music') || artist.includes('saregama') || artist.includes('sony music') || artist.includes('aditya') || artist.includes('lahari')) {
@@ -480,10 +500,20 @@ export async function searchCatalog(query) {
     return score;
   }
 
-  const allSongs = Array.from(tracksMap.values()).filter(isValidAudioSong);
-  let allAlbums = Array.from(albumsMap.values());
-  const allPlaylists = Array.from(playlistsMap.values());
-  const allArtists = Array.from(artistsMap.values());
+  const sortStatically = (list) => {
+    return list.sort((a, b) => {
+      const scoreDiff = scorePriority(b) - scorePriority(a);
+      if (scoreDiff !== 0) return scoreDiff;
+      const titleA = (a.title || a.name || '').toLowerCase();
+      const titleB = (b.title || b.name || '').toLowerCase();
+      return titleA.localeCompare(titleB);
+    });
+  };
+
+  const allSongs = sortStatically(Array.from(tracksMap.values()).filter(isValidAudioSong));
+  let allAlbums = sortStatically(Array.from(albumsMap.values()));
+  const allPlaylists = sortStatically(Array.from(playlistsMap.values()));
+  const allArtists = sortStatically(Array.from(artistsMap.values()));
 
   // 🎵 Synthetic Album Promotion: If searching for a movie soundtrack and playlists match movie title, surface as Album
   allPlaylists.forEach(pl => {
@@ -500,11 +530,6 @@ export async function searchCatalog(query) {
       }
     }
   });
-
-  allSongs.sort((a, b) => scorePriority(b) - scorePriority(a));
-  allAlbums.sort((a, b) => scorePriority(b) - scorePriority(a));
-  allPlaylists.sort((a, b) => scorePriority(b) - scorePriority(a));
-  allArtists.sort((a, b) => scorePriority(b) - scorePriority(a));
 
   const finalResult = {
     songs: allSongs,

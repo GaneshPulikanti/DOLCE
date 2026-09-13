@@ -19,18 +19,27 @@ export const Search = () => {
   useEffect(() => {
     if (!searchQuery || !searchQuery.trim()) {
       setCatalogResults({ songs: [], albums: [], playlists: [], artists: [] });
+      setLoading(false);
       return;
     }
 
-    const timer = setTimeout(async () => {
-      setLoading(true);
-      addRecentSearch(searchQuery);
-      const res = await searchCatalog(searchQuery);
-      setCatalogResults(res);
-      setLoading(false);
-    }, 160);
+    let isCurrentRequest = true;
+    setLoading(true);
 
-    return () => clearTimeout(timer);
+    const timer = setTimeout(async () => {
+      const trimmed = searchQuery.trim();
+      addRecentSearch(trimmed);
+      const res = await searchCatalog(trimmed);
+      if (isCurrentRequest) {
+        setCatalogResults(res);
+        setLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      isCurrentRequest = false;
+      clearTimeout(timer);
+    };
   }, [searchQuery]);
 
   const handlePlayCollection = async (browseId) => {
