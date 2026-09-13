@@ -10,6 +10,22 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        startBackgroundAudioService();
+    }
+
+    private void startBackgroundAudioService() {
+        try {
+            android.content.Intent serviceIntent = new android.content.Intent(this, BackgroundAudioService.class);
+            serviceIntent.putExtra("title", "DOLCE Music");
+            serviceIntent.putExtra("artist", "Ambient Audio Streaming");
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent);
+            } else {
+                startService(serviceIntent);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
