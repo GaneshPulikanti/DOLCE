@@ -63,15 +63,16 @@ export async function getPersonalizedHomeFeed() {
       if (s) sections.push(s);
     }
 
-    // ── SECTION 5: Dynamic Trending & Genre Discovery (Always fresh) ──
+    // ── SECTION 5: Dynamic Trending & Genre Discovery (Prioritizes Telugu & Indian Hits) ──
     const trendingQueries = [
-      { title: '🔥 Trending Music Hits', query: 'top hits music songs' },
-      { title: '🌧️ Rain & Chill Lo-Fi', query: 'lofi chill beats songs' },
-      { title: '⚡ High Energy Workout', query: 'workout motivation songs' },
-      { title: '❤️ Romantic Acoustic Melodies', query: 'romantic acoustic love songs' },
+      { title: '🔥 Telugu Chartbusters & Hits', query: 'telugu top hits songs aditya music' },
+      { title: '❤️ Telugu Love Melodies', query: 'telugu romantic love songs sid sriram' },
+      { title: '⚡ Mass Party Beats', query: 'telugu mass songs thaman dsp' },
+      { title: '🎧 Trending Indian Hits', query: 'top indian songs hits hindi telugu' },
+      { title: '🌧️ Telugu Rain & Lo-Fi Chill', query: 'telugu lofi songs chill' },
     ];
 
-    // Pick 2-3 trending queries dynamically
+    // Pick trending queries dynamically
     const selectedTrending = trendingQueries.sort(() => 0.5 - Math.random()).slice(0, 3);
     for (const item of selectedTrending) {
       if (sections.length >= 5) break;

@@ -373,27 +373,40 @@ export async function searchCatalog(query) {
     findItems(contents);
   };
 
-  // Concurrent Fetch: Multi-Pass YouTube Music Search + LrcLib Lyric Match Search
-  const [ytData, lrcResult] = await Promise.allSettled([
+  // Regional Prioritization Pass: Fetch Indian & Telugu results for generic queries
+  const lowerQuery = cleanQuery.toLowerCase();
+  const isLanguageSpecific = lowerQuery.includes('english') || lowerQuery.includes('korean') || lowerQuery.includes('spanish') || lowerQuery.includes('punjabi') || lowerQuery.includes('tamil') || lowerQuery.includes('hindi');
+  
+  const searchPromises = [
     fetchYtMusicSearch(cleanQuery),
     customFetch(`https://lrclib.net/api/search?q=${encodeURIComponent(cleanQuery)}`).then(r => r.ok ? r.json() : null)
-  ]);
+  ];
 
-  if (ytData.status === 'fulfilled' && ytData.value) {
-    parseInnerTubeContents(ytData.value);
+  if (!isLanguageSpecific && !lowerQuery.includes('telugu')) {
+    searchPromises.push(fetchYtMusicSearch(`${cleanQuery} telugu indian`));
+  }
+
+  const results = await Promise.allSettled(searchPromises);
+
+  if (results[0].status === 'fulfilled' && results[0].value) {
+    parseInnerTubeContents(results[0].value);
+  }
+  if (results[2] && results[2].status === 'fulfilled' && results[2].value) {
+    parseInnerTubeContents(results[2].value);
   }
 
   // Backup search if initial pass returned few songs
   if (tracksMap.size < 5) {
     try {
-      const backupData = await fetchYtMusicSearch(`${cleanQuery} songs`);
+      const backupData = await fetchYtMusicSearch(`${cleanQuery} telugu songs`);
       if (backupData) parseInnerTubeContents(backupData);
     } catch (_) {}
   }
 
   // Process LrcLib Lyric Matches for additional song tracks
-  if (lrcResult.status === 'fulfilled' && Array.isArray(lrcResult.value) && lrcResult.value.length > 0) {
-    const lyricMatches = lrcResult.value.slice(0, 5);
+  const lrcResult = results[1];
+  if (lrcResult && lrcResult.status === 'fulfilled' && Array.isArray(lrcResult.value) && lrcResult.value.length > 0) {
+    const lyricMatches = lrcResult.value.slice(0, 3);
     for (const match of lyricMatches) {
       if (match.trackName && match.artistName) {
         const q = `${match.trackName} ${match.artistName}`;
@@ -405,11 +418,49 @@ export async function searchCatalog(query) {
     }
   }
 
+  const teluguKeywords = [
+    'telugu', 'aditya music', 'lahari', 't-series telugu', 'mango music', 
+    'saregama telugu', 'anirudh', 'sid sriram', 'dsp', 'thaman', 'devi sri prasad', 
+    'keeravani', 'spb', 'chitra', 'gopichand', 'rampothineni', 'prabhas', 
+    'allu arjun', 'mahesh babu', 'jr ntr', 'nani', 'vijay devarakonda', 'ram charan', 
+    'pawan kalyan', 'anurag kulkarni', 'shreya ghoshal', 'chinmayi', 'm.m. keeravani'
+  ];
+
+  function scorePriority(item) {
+    let score = 0;
+    const title = (item.title || item.name || '').toLowerCase();
+    const artist = (item.artistName || item.author || item.subtitle || '').toLowerCase();
+
+    // 🏆 Top score for Telugu indicators
+    if (teluguKeywords.some(kw => title.includes(kw) || artist.includes(kw))) {
+      score += 100;
+    }
+    // 🇮🇳 High score for major Indian labels
+    if (artist.includes('t-series') || artist.includes('zee music') || artist.includes('saregama') || artist.includes('sony music') || artist.includes('aditya') || artist.includes('lahari')) {
+      score += 50;
+    }
+    // Query title match
+    if (title.includes(lowerQuery)) {
+      score += 80;
+    }
+    return score;
+  }
+
+  const allSongs = Array.from(tracksMap.values()).filter(isValidAudioSong);
+  const allAlbums = Array.from(albumsMap.values());
+  const allPlaylists = Array.from(playlistsMap.values());
+  const allArtists = Array.from(artistsMap.values());
+
+  allSongs.sort((a, b) => scorePriority(b) - scorePriority(a));
+  allAlbums.sort((a, b) => scorePriority(b) - scorePriority(a));
+  allPlaylists.sort((a, b) => scorePriority(b) - scorePriority(a));
+  allArtists.sort((a, b) => scorePriority(b) - scorePriority(a));
+
   return {
-    songs: Array.from(tracksMap.values()).filter(isValidAudioSong),
-    albums: Array.from(albumsMap.values()),
-    playlists: Array.from(playlistsMap.values()),
-    artists: Array.from(artistsMap.values()),
+    songs: allSongs,
+    albums: allAlbums,
+    playlists: allPlaylists,
+    artists: allArtists,
   };
 }
 
