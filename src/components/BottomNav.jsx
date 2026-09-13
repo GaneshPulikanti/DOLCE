@@ -12,61 +12,21 @@ export const BottomNav = () => {
   ];
 
   const currentIndex = Math.max(0, tabs.findIndex((t) => t.id === activeTab));
-  
-  // Percent horizontal offset: 16.666%, 50%, 83.333%
-  const locPercent = (currentIndex * 2 + 1) / 6 * 100;
-  // Rotation angle calculation for rolling bubble
-  const rotationAngle = (currentIndex - 0) * 360;
 
   return (
-    <nav className="fixed bottom-2 left-4 right-4 z-30 h-16 max-w-md mx-auto pointer-events-auto">
-      {/* ── Background Curved Capsule Container with SVG U-Scoop Dip ── */}
-      <div className="absolute inset-0 rounded-[28px] overflow-hidden shadow-2xl bg-[#141416] border border-white/10">
-        <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 300 64">
-          <defs>
-            <filter id="dipShadow" x="-10%" y="-10%" width="120%" height="120%">
-              <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="#000000" floodOpacity="0.6" />
-            </filter>
-          </defs>
-
-          {/* Dynamic U-Scoop Cutout Path */}
-          <path
-            d={`
-              M 0 0 
-              H ${locPercent * 3 - 35} 
-              C ${locPercent * 3 - 20} 0, ${locPercent * 3 - 15} 24, ${locPercent * 3} 24 
-              C ${locPercent * 3 + 15} 24, ${locPercent * 3 + 20} 0, ${locPercent * 3 + 35} 0 
-              H 300 
-              V 64 
-              H 0 
-              Z
-            `}
-            fill="#141416"
-            className="transition-all duration-400 ease-out"
-          />
-        </svg>
-      </div>
-
-      {/* ── Sliding Rolling Active Circle Bubble ── */}
-      <div
-        className="absolute -top-3.5 w-13 h-13 rounded-full glass-panel border border-white/30 bg-white/14 backdrop-blur-xl shadow-[0_0_20px_rgba(255,255,255,0.2)] flex items-center justify-center transition-all duration-400 ease-out z-20 pointer-events-none"
-        style={{
-          left: `calc(${locPercent}% - 26px)`,
-        }}
-      >
+    <nav className="fixed bottom-3 left-4 right-4 z-40 max-w-md mx-auto pointer-events-auto font-['Inter']">
+      <div className="relative w-full h-14 rounded-full glass-panel bg-[#121215]/90 border border-white/15 backdrop-blur-2xl shadow-2xl p-1.5 flex items-center justify-between overflow-hidden">
+        
+        {/* Sliding Active Pill Highlight (Stays 100% strictly within the bar container) */}
         <div
-          className="transition-transform duration-500 ease-out flex items-center justify-center"
-          style={{ transform: `rotate(${rotationAngle}deg)` }}
-        >
-          {React.createElement(tabs[currentIndex]?.icon || Home, {
-            size: 24,
-            className: 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]',
-          })}
-        </div>
-      </div>
+          className="absolute top-1.5 bottom-1.5 rounded-full bg-white/15 border border-white/20 backdrop-blur-md shadow-[0_0_15px_rgba(255,255,255,0.15)] transition-all duration-300 ease-out z-0 pointer-events-none"
+          style={{
+            width: 'calc(33.333% - 4px)',
+            left: `calc(${currentIndex * 33.333}% + 2px)`,
+          }}
+        />
 
-      {/* ── Bottom Icons Row ── */}
-      <div className="relative z-10 w-full h-full flex items-center justify-around">
+        {/* Navigation Tabs */}
         {tabs.map((tab, idx) => {
           const Icon = tab.icon;
           const isSelected = idx === currentIndex;
@@ -75,11 +35,23 @@ export const BottomNav = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className="w-20 h-full flex items-center justify-center transition-all focus:outline-none"
+              className="relative z-10 flex-1 h-full flex items-center justify-center gap-2 rounded-full transition-all duration-300 focus:outline-none"
             >
-              <div className={`transition-opacity duration-250 ${isSelected ? 'opacity-0 scale-75' : 'opacity-60 hover:opacity-100'}`}>
-                <Icon size={22} className="text-white" />
-              </div>
+              <Icon
+                size={20}
+                className={`transition-all duration-300 ${
+                  isSelected
+                    ? 'text-white scale-110 drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]'
+                    : 'text-white/50 hover:text-white/80'
+                }`}
+              />
+              <span
+                className={`text-xs font-bold transition-all duration-300 ${
+                  isSelected ? 'text-white opacity-100 font-extrabold' : 'text-white/50 opacity-60'
+                }`}
+              >
+                {tab.label}
+              </span>
             </button>
           );
         })}
@@ -87,3 +59,4 @@ export const BottomNav = () => {
     </nav>
   );
 };
+
