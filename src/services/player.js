@@ -83,6 +83,7 @@ class AudioEngine {
         if (this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
           this.ytPlayer.playVideo();
         }
+        this.initWebAudioKeepAlive();
       } catch (_) {}
       document.removeEventListener('click', unlockAudio);
       document.removeEventListener('touchstart', unlockAudio);
@@ -98,6 +99,7 @@ class AudioEngine {
       document.addEventListener('visibilitychange', () => {
         if (document.hidden && this.isCurrentlyPlaying) {
           console.log('🛸 [AudioEngine] App minimized while playing. Overriding WebView iframe pause...');
+          this.initWebAudioKeepAlive();
           if (this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
             setTimeout(() => {
               try {
@@ -117,6 +119,26 @@ class AudioEngine {
         }
       });
     }
+  }
+
+  initWebAudioKeepAlive() {
+    try {
+      if (!this.audioCtx && typeof window !== 'undefined') {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          this.audioCtx = new AudioCtx();
+          const osc = this.audioCtx.createOscillator();
+          const gain = this.audioCtx.createGain();
+          gain.gain.value = 0.0001; // Inaudible silent gain to maintain Android WebAudio hardware lock
+          osc.connect(gain);
+          gain.connect(this.audioCtx.destination);
+          osc.start();
+        }
+      }
+      if (this.audioCtx && this.audioCtx.state === 'suspended') {
+        this.audioCtx.resume().catch(() => {});
+      }
+    } catch (_) {}
   }
 
   secureIframeElement() {

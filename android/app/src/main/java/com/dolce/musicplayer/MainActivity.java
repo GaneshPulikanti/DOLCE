@@ -41,6 +41,7 @@ public class MainActivity extends BridgeActivity {
                     WebView webView = bridge.getWebView();
                     webView.onResume();
                     webView.resumeTimers();
+                    webView.evaluateJavascript("if (window.audioEngine && window.audioEngine.isCurrentlyPlaying) { window.audioEngine.resume(); }", null);
                 }
                 keepAliveHandler.postDelayed(this, 1000);
             }
@@ -95,31 +96,35 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onPause() {
-        super.onPause();
-        // Keep WebView audio stream and JS timers active when app is minimized or screen is locked
+        // Prevent default Capacitor/Chromium webView.onPause() which kills iframe media decoders!
         if (bridge != null && bridge.getWebView() != null) {
             WebView webView = bridge.getWebView();
             webView.onResume();
             webView.resumeTimers();
-            webView.evaluateJavascript("if (window.audioEngine) { window.audioEngine.resume(); }", null);
+            webView.evaluateJavascript("if (window.audioEngine && window.audioEngine.isCurrentlyPlaying) { window.audioEngine.resume(); }", null);
         }
         keepAliveHandler.post(keepAliveRunnable);
     }
 
     @Override
     public void onStop() {
-        super.onStop();
+        // Prevent default Capacitor/Chromium webView.onStop() which halts DOM timers!
         if (bridge != null && bridge.getWebView() != null) {
             WebView webView = bridge.getWebView();
             webView.onResume();
             webView.resumeTimers();
-            webView.evaluateJavascript("if (window.audioEngine) { window.audioEngine.resume(); }", null);
+            webView.evaluateJavascript("if (window.audioEngine && window.audioEngine.isCurrentlyPlaying) { window.audioEngine.resume(); }", null);
         }
     }
 
     @Override
     public void onResume() {
         super.onResume();
+        if (bridge != null && bridge.getWebView() != null) {
+            WebView webView = bridge.getWebView();
+            webView.onResume();
+            webView.resumeTimers();
+        }
         keepAliveHandler.removeCallbacks(keepAliveRunnable);
     }
 
@@ -130,7 +135,7 @@ public class MainActivity extends BridgeActivity {
             WebView webView = bridge.getWebView();
             webView.onResume();
             webView.resumeTimers();
-            webView.evaluateJavascript("if (window.audioEngine) { window.audioEngine.resume(); }", null);
+            webView.evaluateJavascript("if (window.audioEngine && window.audioEngine.isCurrentlyPlaying) { window.audioEngine.resume(); }", null);
         }
     }
 }
