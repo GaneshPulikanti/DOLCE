@@ -40,6 +40,9 @@ export const PlayerBar = ({ themePalette }) => {
   const userScrollTimeoutRef = useRef(null);
   const miniTouchRef = useRef(null);
 
+  const [dragUpOffset, setDragUpOffset] = useState(0);
+  const [isPullingUp, setIsPullingUp] = useState(false);
+
   const handleMiniTouchStart = (e) => {
     if (e.touches && e.touches.length > 0) {
       miniTouchRef.current = {
@@ -47,17 +50,34 @@ export const PlayerBar = ({ themePalette }) => {
         y: e.touches[0].clientY,
         time: Date.now(),
       };
+      setIsPullingUp(true);
+    }
+  };
+
+  const handleMiniTouchMove = (e) => {
+    if (!miniTouchRef.current || !e.touches || e.touches.length === 0) return;
+
+    const deltaY = e.touches[0].clientY - miniTouchRef.current.y;
+    if (deltaY < 0) {
+      setDragUpOffset(deltaY);
     }
   };
 
   const handleMiniTouchEnd = (e) => {
-    if (!miniTouchRef.current || !e.changedTouches || e.changedTouches.length === 0) return;
+    if (!miniTouchRef.current || !e.changedTouches || e.changedTouches.length === 0) {
+      setIsPullingUp(false);
+      setDragUpOffset(0);
+      return;
+    }
 
     const deltaX = e.changedTouches[0].clientX - miniTouchRef.current.x;
     const deltaY = e.changedTouches[0].clientY - miniTouchRef.current.y;
     const duration = Date.now() - miniTouchRef.current.time;
 
-    if (deltaY < -20 && Math.abs(deltaY) > Math.abs(deltaX) && duration < 500) {
+    setIsPullingUp(false);
+    setDragUpOffset(0);
+
+    if ((deltaY < -35 || (deltaY < -15 && duration < 300)) && Math.abs(deltaY) > Math.abs(deltaX)) {
       setExpanded(true);
     }
 
@@ -230,10 +250,11 @@ export const PlayerBar = ({ themePalette }) => {
 
   return (
     <>
-      {/* ─── Persistent Mini Player Bar (Interactive Swipe/Click Up to Expand) ─── */}
+      {/* ─── Persistent Mini Player Bar (Interactive Real-time Drag Up to Expand) ─── */}
       <motion.div 
         onClick={() => setExpanded(true)}
         onTouchStart={handleMiniTouchStart}
+        onTouchMove={handleMiniTouchMove}
         onTouchEnd={handleMiniTouchEnd}
         whileTap={{ scale: 0.98 }}
         className="fixed bottom-[84px] left-3 right-3 max-w-2xl mx-auto z-[45] glass-panel border border-white/14 p-2.5 lg:p-3 flex items-center justify-between shadow-2xl cursor-pointer bg-[#0d0d0d]/95 backdrop-blur-2xl transition-all duration-300 hover:scale-[1.005] select-none"
@@ -312,22 +333,29 @@ export const PlayerBar = ({ themePalette }) => {
         </div>
       </motion.div>
 
-      {/* ─── Full-Screen Expanded Player Modal (Interactive Drag Down to Minimize) ─── */}
+      {/* ─── Full-Screen Expanded Player Modal (Interactive Real-time Drag Control) ─── */}
       <AnimatePresence>
-        {isExpanded && (
+        {(isExpanded || isPullingUp) && (
           <motion.div
             initial={{ opacity: 0, y: '100%' }}
-            animate={{ opacity: 1, y: 0 }}
+            animate={{ 
+              opacity: 1, 
+              y: isExpanded 
+                ? 0 
+                : isPullingUp 
+                  ? `calc(100% + ${dragUpOffset}px)` 
+                  : '100%' 
+            }}
             exit={{ opacity: 0, y: '100%' }}
-            drag="y"
-            dragConstraints={{ top: 0, bottom: 300 }}
+            drag={isExpanded ? "y" : false}
+            dragConstraints={{ top: 0, bottom: 400 }}
             dragElastic={{ top: 0, bottom: 0.5 }}
             onDragEnd={(e, { offset, velocity }) => {
               if (offset.y > 90 || velocity.y > 350) {
                 setExpanded(false);
               }
             }}
-            transition={{ type: 'spring', damping: 28, stiffness: 220, mass: 0.8 }}
+            transition={isPullingUp ? { duration: 0 } : { type: 'spring', damping: 26, stiffness: 210, mass: 0.8 }}
             className="fixed inset-0 z-50 flex flex-col overflow-y-auto select-none font-['Inter'] touch-pan-y"
             style={{ background: dominantBg }}
           >
