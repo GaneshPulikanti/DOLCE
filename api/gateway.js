@@ -1,4 +1,4 @@
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -14,8 +14,11 @@ module.exports = async function handler(req, res) {
 
   try {
     const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    const queryIndex = req.url.indexOf('?');
-    const queryString = queryIndex !== -1 ? req.url.substring(queryIndex) : '';
+    
+    // Remove Vercel's internal 'path' rewrite parameter from search query
+    const searchParams = new URLSearchParams(urlObj.search);
+    searchParams.delete('path');
+    const queryString = searchParams.toString() ? `?${searchParams.toString()}` : '';
 
     let targetPath = '';
     if (req.query && req.query.path) {
@@ -50,4 +53,4 @@ module.exports = async function handler(req, res) {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-};
+}

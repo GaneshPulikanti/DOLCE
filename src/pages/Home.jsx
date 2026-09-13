@@ -70,7 +70,6 @@ export const Home = () => {
           {getGreeting()},
         </span>
         <h2 className="text-2xl lg:text-3xl font-black text-white tracking-tight">
-          Google User
         </h2>
       </div>
 
