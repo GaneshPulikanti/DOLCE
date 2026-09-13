@@ -22,29 +22,17 @@ class AudioEngine {
     if (!container) {
       container = document.createElement('div');
       container.id = 'yt-player-container';
-      container.style.position = 'fixed';
-      container.style.left = '-9999px';
-      container.style.top = '-9999px';
-      container.style.width = '1px';
-      container.style.height = '1px';
-      container.style.maxWidth = '1px';
-      container.style.maxHeight = '1px';
-      container.style.overflow = 'hidden';
-      container.style.opacity = '0.001';
-      container.style.pointerEvents = 'none';
-      container.style.zIndex = '-9999';
-      container.style.clip = 'rect(0, 0, 0, 0)';
+      container.style.cssText = 'position: absolute !important; top: 0 !important; left: 0 !important; width: 1px !important; height: 1px !important; overflow: hidden !important; opacity: 0.001 !important; pointer-events: none !important; z-index: -9999 !important; clip: rect(0, 0, 0, 0) !important;';
       document.body.appendChild(container);
     }
 
-    const playerDiv = document.createElement('div');
-    playerDiv.id = 'yt-player-iframe';
-    playerDiv.style.width = '1px';
-    playerDiv.style.height = '1px';
-    playerDiv.style.maxWidth = '1px';
-    playerDiv.style.maxHeight = '1px';
-    playerDiv.style.overflow = 'hidden';
-    container.appendChild(playerDiv);
+    let playerDiv = document.getElementById('yt-player-iframe');
+    if (!playerDiv) {
+      playerDiv = document.createElement('div');
+      playerDiv.id = 'yt-player-iframe';
+      playerDiv.style.cssText = 'width: 1px !important; height: 1px !important; overflow: hidden !important;';
+      container.appendChild(playerDiv);
+    }
 
     if (!window.YT) {
       const tag = document.createElement('script');
@@ -73,6 +61,7 @@ class AudioEngine {
           onReady: () => {
             this.isYtReady = true;
             console.log('🛸 [AudioEngine] YouTube IFrame API Ready.');
+            this.secureIframeElement();
             if (this.pendingVideoId) {
               this.playTrack(this.pendingVideoId);
               this.pendingVideoId = null;
@@ -100,6 +89,28 @@ class AudioEngine {
     document.addEventListener('touchstart', unlockAudio, { once: true });
   }
 
+  secureIframeElement() {
+    try {
+      const iframe = document.getElementById('yt-player-iframe');
+      if (iframe) {
+        iframe.setAttribute('tabindex', '-1');
+        iframe.setAttribute('playsinline', '1');
+        iframe.setAttribute('webkit-playsinline', 'true');
+        iframe.setAttribute('allow', 'autoplay');
+        iframe.style.cssText = 'width: 1px !important; height: 1px !important; position: absolute !important; top: 0 !important; left: 0 !important; opacity: 0.001 !important; pointer-events: none !important; z-index: -9999 !important; border: none !important;';
+        
+        // Prevent YouTube player script from shifting focus or scrolling viewport
+        try {
+          Object.defineProperty(iframe, 'focus', {
+            value: () => {},
+            writable: false,
+            configurable: true
+          });
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
   handleYtStateChange(event) {
     if (!window.YT) return;
 
@@ -117,6 +128,7 @@ class AudioEngine {
 
     if (stateStr === 'playing') {
       this.startProgressUpdates();
+      this.secureIframeElement();
     } else {
       this.stopProgressUpdates();
     }
@@ -151,6 +163,8 @@ class AudioEngine {
 
     this.currentVideoId = videoId;
     console.log(`▶️ [AudioEngine] playTrack: ${videoId} at ${startSeconds}s`);
+
+    this.secureIframeElement();
 
     if (this.isYtReady && this.ytPlayer && typeof this.ytPlayer.loadVideoById === 'function') {
       this.ytPlayer.loadVideoById({
