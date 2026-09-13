@@ -8,6 +8,13 @@ function isUnwantedVideoItem(title, artist) {
   const lowerTitle = title.toLowerCase();
   const lowerArtist = (artist || '').toLowerCase();
 
+  if (lowerArtist === 'video' || lowerArtist.startsWith('video') || lowerArtist.includes('video •')) {
+    return true;
+  }
+  if (lowerTitle === 'video' || lowerTitle.startsWith('video') || lowerTitle.includes('video •')) {
+    return true;
+  }
+
   const junkKeywords = [
     'reaction',
     'whatsapp status',
@@ -28,7 +35,11 @@ function isUnwantedVideoItem(title, artist) {
     'bloopers',
     'funny moments',
     'tiktok',
-    'instagram status'
+    'instagram status',
+    'full video song',
+    'official video song',
+    'lyric video',
+    'video song'
   ];
 
   for (const kw of junkKeywords) {
@@ -54,6 +65,10 @@ export function isValidAudioSong(track) {
   if (!track || !track.id || !track.title) return false;
   if (!track.artworkUrl || typeof track.artworkUrl !== 'string' || track.artworkUrl.trim() === '') return false;
   if (track.artworkUrl.includes('null') || track.artworkUrl.includes('undefined')) return false;
+
+  const lowerArtist = (track.artistName || '').toLowerCase();
+  if (lowerArtist === 'video' || lowerArtist.startsWith('video') || lowerArtist.includes('video •')) return false;
+
   if (isUnwantedVideoItem(track.title, track.artistName)) return false;
   return true;
 }
@@ -100,15 +115,24 @@ export async function searchCatalog(query) {
         const rawTitle = r.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
         const runs = r.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || [];
         const subtitle = runs.map(x => x.text).join('').trim();
-        const artist = runs[0]?.text || 'Artist';
+        let artist = runs[0]?.text || 'Artist';
+
+        const lowerSub = subtitle.toLowerCase();
+
+        // 🚫 STRICTLY REJECT VIDEO FILES & "Video" TAGGED ITEMS
+        if (runs[0]?.text?.toLowerCase() === 'video' || lowerSub === 'video' || lowerSub.startsWith('video') || lowerSub.includes('video •')) {
+          return;
+        }
+
+        if (artist.toLowerCase() === 'song') {
+          artist = runs[2]?.text || runs[1]?.text || 'Artist';
+        }
 
         const thumbs = r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails;
         const rawUrl = thumbs?.[thumbs.length - 1]?.url;
         const hdArtwork = getHDArtworkUrl(rawUrl, videoId);
 
         if (rawTitle && isUnwantedVideoItem(rawTitle, artist)) return;
-
-        const lowerSub = subtitle.toLowerCase();
 
         // 1. Artist
         if (lowerSub.includes('artist') && browseId && !artistsMap.has(browseId)) {
@@ -291,7 +315,19 @@ export async function fetchCollectionTracks(browseId) {
                         r.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.navigationEndpoint?.watchEndpoint?.videoId ||
                         r.navigationEndpoint?.watchEndpoint?.videoId;
         const rawTitle = r.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
-        const artist = r.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || 'Artist';
+        const runs = r.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || [];
+        const subtitle = runs.map(x => x.text).join('').trim();
+        let artist = runs[0]?.text || 'Artist';
+
+        const lowerSub = subtitle.toLowerCase();
+        if (runs[0]?.text?.toLowerCase() === 'video' || lowerSub === 'video' || lowerSub.startsWith('video') || lowerSub.includes('video •')) {
+          return;
+        }
+
+        if (artist.toLowerCase() === 'song') {
+          artist = runs[2]?.text || runs[1]?.text || 'Artist';
+        }
+
         const thumbs = r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails;
         const rawUrl = thumbs?.[thumbs.length - 1]?.url;
 
@@ -329,9 +365,9 @@ export async function fetchCollectionTracks(browseId) {
  */
 export async function getHomeFeed() {
   const defaultCategories = [
-    { title: '🔥 Trending Music Hits', query: 'top audio hits 2026' },
-    { title: '🌧️ Rain Therapy & Chill', query: 'chill lofi songs' },
-    { title: '⚡ Workout & Energy', query: 'workout motivation songs' },
+    { title: '🔥 Trending Music Hits', query: 'top audio hits' },
+    { title: '🌧️ Rain Therapy & Chill', query: 'chill lofi songs audio' },
+    { title: '⚡ Workout & Energy', query: 'workout motivation songs audio' },
     { title: '❤️ Romantic Melodies', query: 'romantic love songs hindi english' },
   ];
 
