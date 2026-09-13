@@ -644,39 +644,37 @@ export const PlayerBar = ({ themePalette }) => {
                         <p className="text-xs font-bold font-['Plus_Jakarta_Sans']">Loading lyrics...</p>
                       </div>
                     ) : lyricsData.synced.length > 0 ? (
-                      <motion.div
+                      <div
                         ref={inlineListRef}
-                        animate={{ y: inlineLyricY }}
-                        transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
-                        style={{ willChange: 'transform' }}
+                        style={{
+                          transform: `translate3d(0px, ${inlineLyricY}px, 0px)`,
+                          transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                          willChange: 'transform',
+                        }}
                         className="w-full flex flex-col gap-6 text-center px-2 pointer-events-auto"
                       >
                         {lyricsData.synced.map((line, idx) => {
                           const isActive = idx === activeLyricIdx;
                           const dist = Math.abs(idx - activeLyricIdx);
+                          const activeClass = isActive 
+                            ? 'text-white font-black text-xl sm:text-2xl drop-shadow-md scale-105 opacity-100' 
+                            : dist === 1 
+                            ? 'text-white/70 font-bold text-base sm:text-lg scale-95 opacity-45' 
+                            : 'text-white/40 font-semibold text-sm sm:text-base scale-90 opacity-20';
 
                           return (
-                            <motion.p
+                            <p
                               key={idx}
                               data-lyric-index={idx}
                               onClick={() => seek(line.time)}
-                              animate={{
-                                scale: isActive ? 1.05 : dist === 1 ? 0.95 : 0.88,
-                                opacity: isActive ? 1 : dist === 1 ? 0.45 : 0.18,
-                              }}
-                              transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
                               style={isActive ? { textShadow: activeLyricGlow } : {}}
-                              className={`cursor-pointer leading-relaxed font-lyrics transition-colors ${
-                                isActive
-                                  ? 'text-white font-black text-xl sm:text-2xl drop-shadow-md'
-                                  : 'text-white/60 font-bold text-base sm:text-lg'
-                              }`}
+                              className={`cursor-pointer leading-relaxed font-lyrics transition-all duration-300 transform ${activeClass}`}
                             >
                               {line.text}
-                            </motion.p>
+                            </p>
                           );
                         })}
-                      </motion.div>
+                      </div>
                     ) : (
                       <div className="py-6 text-white/70 whitespace-pre-line text-base font-bold font-lyrics leading-relaxed text-center pointer-events-auto">
                         {lyricsData.plain || 'No lyrics available for this track.'}
