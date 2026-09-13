@@ -2,7 +2,7 @@ import Dexie from 'dexie';
 
 export const db = new Dexie('DolceMusicDB');
 
-db.version(2).stores({
+db.version(3).stores({
   favorites: 'id, title, artistName, artworkUrl, addedAt',
   downloads: 'id, title, artistName, artworkUrl, downloadedAt',
   history: '++id, trackId, title, artistName, playedAt',
@@ -65,7 +65,53 @@ export async function getDownloadedTracks() {
   return await db.downloads.orderBy('downloadedAt').reverse().toArray();
 }
 
-// ─── History & Playlists ───
+// ─── Custom Playlists ───
+export async function getUserPlaylists() {
+  const list = await db.playlists.orderBy('createdAt').reverse().toArray();
+  return list.map(p => ({
+    ...p,
+    tracks: p.tracks || []
+  }));
+}
+
+export async function createPlaylist(name, initialTrack = null) {
+  if (!name || !name.trim()) return null;
+  const id = `pl_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+  const tracks = initialTrack ? [initialTrack] : [];
+  const newPl = {
+    id,
+    name: name.trim(),
+    tracks,
+    createdAt: Date.now(),
+  };
+  await db.playlists.put(newPl);
+  return newPl;
+}
+
+export async function addTrackToPlaylist(playlistId, track) {
+  if (!playlistId || !track || !track.id) return false;
+  const playlist = await db.playlists.get(playlistId);
+  if (!playlist) return false;
+
+  const tracks = playlist.tracks || [];
+  if (!tracks.some(t => t.id === track.id)) {
+    tracks.push(track);
+    await db.playlists.update(playlistId, { tracks });
+  }
+  return true;
+}
+
+export async function removeTrackFromPlaylist(playlistId, trackId) {
+  if (!playlistId || !trackId) return false;
+  const playlist = await db.playlists.get(playlistId);
+  if (!playlist) return false;
+
+  const tracks = (playlist.tracks || []).filter(t => t.id !== trackId);
+  await db.playlists.update(playlistId, { tracks });
+  return true;
+}
+
+// ─── History ───
 export async function recordHistory(track) {
   if (!track || !track.id) return;
   try {
@@ -80,3 +126,4 @@ export async function recordHistory(track) {
     console.error('Failed to record history:', e);
   }
 }
+

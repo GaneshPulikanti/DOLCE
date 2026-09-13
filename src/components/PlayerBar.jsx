@@ -2,11 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, 
   Heart, ChevronDown, ChevronUp, Download, MessageSquareQuote, ListMusic,
-  Maximize2, Minimize2, X, Radio
+  Maximize2, Minimize2, X, Radio, FolderPlus, Plus, Check, ListPlus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from '../store/usePlayerStore';
-import { toggleFavorite, isFavorite, downloadTrackLocally, isDownloadedLocally } from '../services/db';
+import { 
+  toggleFavorite, isFavorite, downloadTrackLocally, isDownloadedLocally,
+  getUserPlaylists, createPlaylist, addTrackToPlaylist 
+} from '../services/db';
 import { fetchLyrics } from '../services/lyrics';
 
 export const PlayerBar = ({ themePalette }) => {
@@ -23,6 +26,10 @@ export const PlayerBar = ({ themePalette }) => {
   const [lyricsData, setLyricsData] = useState({ synced: [], plain: '' });
   const [loadingLyrics, setLoadingLyrics] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [userPlaylists, setUserPlaylists] = useState([]);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [addedSuccessMsg, setAddedSuccessMsg] = useState('');
   const [isFullScreenLyrics, setIsFullScreenLyrics] = useState(false);
   const [inlineLyricY, setInlineLyricY] = useState(0);
   const [userScrolledFullLyrics, setUserScrolledFullLyrics] = useState(false);
@@ -31,6 +38,37 @@ export const PlayerBar = ({ themePalette }) => {
   const inlineListRef = useRef(null);
   const fullLyricsContainerRef = useRef(null);
   const userScrollTimeoutRef = useRef(null);
+
+  const loadPlaylists = async () => {
+    const list = await getUserPlaylists();
+    setUserPlaylists(list);
+  };
+
+  useEffect(() => {
+    if (showPlaylistModal) {
+      loadPlaylists();
+    }
+  }, [showPlaylistModal]);
+
+  const handleAddToPlaylist = async (playlistId, playlistName) => {
+    if (!currentTrack) return;
+    await addTrackToPlaylist(playlistId, currentTrack);
+    setAddedSuccessMsg(`Added to "${playlistName}"`);
+    loadPlaylists();
+    setTimeout(() => setAddedSuccessMsg(''), 2500);
+  };
+
+  const handleCreateAndAddPlaylist = async (e) => {
+    e.preventDefault();
+    if (!newPlaylistName || !newPlaylistName.trim() || !currentTrack) return;
+    const created = await createPlaylist(newPlaylistName.trim(), currentTrack);
+    if (created) {
+      setNewPlaylistName('');
+      setAddedSuccessMsg(`Created & Added to "${created.name}"`);
+      loadPlaylists();
+      setTimeout(() => setAddedSuccessMsg(''), 2500);
+    }
+  };
 
   const handleFullLyricsScroll = () => {
     setUserScrolledFullLyrics(true);
@@ -280,11 +318,11 @@ export const PlayerBar = ({ themePalette }) => {
                 </button>
 
                 <button
-                  onClick={() => setShowQueue(!showQueue)}
-                  title="Toggle Queue"
+                  onClick={() => setShowPlaylistModal(true)}
+                  title="Add to Playlist"
                   className="p-2 text-white/70 hover:text-white transition-colors"
                 >
-                  <ListMusic size={20} color={showQueue ? '#ffffff' : 'currentColor'} />
+                  <FolderPlus size={20} className="text-white/80 hover:text-white" />
                 </button>
               </div>
             </div>
@@ -685,6 +723,116 @@ export const PlayerBar = ({ themePalette }) => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ─── ADD TO PLAYLIST MODAL ─── */}
+      <AnimatePresence>
+        {showPlaylistModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowPlaylistModal(false)}
+            className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-md flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-3xl glass-panel p-6 bg-[#121216]/95 border border-white/20 shadow-2xl flex flex-col gap-5 text-left font-['Inter']"
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl overflow-hidden bg-black/40 border border-white/10 flex-shrink-0">
+                    <img src={artworkUrl} alt={currentTrack.title} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <h3 className="text-base font-bold text-white truncate">Add to Playlist</h3>
+                    <p className="text-xs text-white/50 truncate">{currentTrack.title}</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowPlaylistModal(false)}
+                  className="p-2 rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Success Alert Toast */}
+              {addedSuccessMsg && (
+                <div className="px-4 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-2">
+                  <Check size={16} />
+                  <span>{addedSuccessMsg}</span>
+                </div>
+              )}
+
+              {/* Create New Playlist Form */}
+              <form onSubmit={handleCreateAndAddPlaylist} className="flex gap-2">
+                <input
+                  type="text"
+                  value={newPlaylistName}
+                  onChange={(e) => setNewPlaylistName(e.target.value)}
+                  placeholder="Create new playlist..."
+                  className="flex-1 h-11 px-4 rounded-xl bg-white/5 border border-white/14 text-xs text-white placeholder-white/40 focus:outline-none focus:border-white/40 font-medium"
+                />
+                <button
+                  type="submit"
+                  disabled={!newPlaylistName.trim()}
+                  className="h-11 px-4 rounded-xl bg-white text-black text-xs font-bold flex items-center gap-1.5 hover:bg-white/90 disabled:opacity-50 transition-all shadow-md"
+                >
+                  <Plus size={16} />
+                  <span>Create</span>
+                </button>
+              </form>
+
+              {/* Playlists List */}
+              <div className="flex flex-col gap-2">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-white/50">Your Playlists</span>
+                <div className="max-h-60 overflow-y-auto pr-1 flex flex-col gap-2 no-scrollbar">
+                  {userPlaylists.length > 0 ? (
+                    userPlaylists.map((pl) => {
+                      const isInPlaylist = pl.tracks?.some((t) => t.id === currentTrack.id);
+                      return (
+                        <button
+                          key={pl.id}
+                          onClick={() => handleAddToPlaylist(pl.id, pl.name)}
+                          className="w-full p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-between text-left transition-all group"
+                        >
+                          <div className="flex flex-col">
+                            <span className="text-sm font-bold text-white group-hover:text-pink-300 transition-colors">
+                              {pl.name}
+                            </span>
+                            <span className="text-[11px] text-white/50">
+                              {pl.tracks?.length || 0} songs
+                            </span>
+                          </div>
+                          {isInPlaylist ? (
+                            <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
+                              <Check size={14} />
+                              <span>Added</span>
+                            </span>
+                          ) : (
+                            <Plus size={18} className="text-white/40 group-hover:text-white transition-colors" />
+                          )}
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div className="py-6 text-center text-xs text-white/40 font-medium">
+                      No custom playlists yet. Type a name above to create your first playlist!
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };
+
