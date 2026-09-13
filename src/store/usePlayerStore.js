@@ -164,7 +164,7 @@ export const usePlayerStore = create(
             if (audioEngine.currentVideoId !== currentTrack.id) {
               audioEngine.playTrack(currentTrack.id, currentTime || 0);
             } else {
-              audioEngine.resume();
+              audioEngine.resume(true);
             }
             set({ isPlaying: true });
           }

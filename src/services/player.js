@@ -11,6 +11,7 @@ class AudioEngine {
     this.onStateChange = null;
     this.onProgress = null;
     this.progressTimer = null;
+    this.isCurrentlyPlaying = false;
 
     this.initYtIframe();
   }
@@ -92,20 +93,24 @@ class AudioEngine {
     // Expose engine globally for native Android WebView background hooks
     window.audioEngine = this;
 
-    // Sustain playback when app goes to background / Home screen on Mobile & Web
+    // Sustain playback ONLY IF currently playing when app goes to background / Home screen
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-          console.log('🛸 [AudioEngine] App minimized/hidden. Overriding WebView iframe pause...');
+        if (document.hidden && this.isCurrentlyPlaying) {
+          console.log('🛸 [AudioEngine] App minimized while playing. Overriding WebView iframe pause...');
           if (this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
             setTimeout(() => {
               try {
-                this.ytPlayer.playVideo();
+                if (this.isCurrentlyPlaying) {
+                  this.ytPlayer.playVideo();
+                }
               } catch (_) {}
             }, 50);
             setTimeout(() => {
               try {
-                this.ytPlayer.playVideo();
+                if (this.isCurrentlyPlaying) {
+                  this.ytPlayer.playVideo();
+                }
               } catch (_) {}
             }, 300);
           }
@@ -152,8 +157,12 @@ class AudioEngine {
     console.log(`🛸 [AudioEngine] State changed: ${stateStr}`);
 
     if (stateStr === 'playing') {
+      this.isCurrentlyPlaying = true;
       this.startProgressUpdates();
       this.secureIframeElement();
+    } else if (stateStr === 'paused' || stateStr === 'ended' || stateStr === 'idle') {
+      this.isCurrentlyPlaying = false;
+      this.stopProgressUpdates();
     } else {
       this.stopProgressUpdates();
     }
@@ -187,6 +196,7 @@ class AudioEngine {
     if (!videoId) return;
 
     this.currentVideoId = videoId;
+    this.isCurrentlyPlaying = true;
     console.log(`▶️ [AudioEngine] playTrack: ${videoId} at ${startSeconds}s`);
 
     this.secureIframeElement();
@@ -206,13 +216,19 @@ class AudioEngine {
   }
 
   pause() {
+    this.isCurrentlyPlaying = false;
     if (this.ytPlayer && typeof this.ytPlayer.pauseVideo === 'function') {
       this.ytPlayer.pauseVideo();
     }
   }
 
-  resume() {
-    if (this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
+  resume(userInitiated = false) {
+    if (userInitiated) {
+      this.isCurrentlyPlaying = true;
+    }
+    
+    // Only resume playback if the track was actively playing or user explicitly triggered resume
+    if (this.isCurrentlyPlaying && this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
       this.ytPlayer.playVideo();
     }
   }
