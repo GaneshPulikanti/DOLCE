@@ -296,26 +296,29 @@ export const PlayerBar = ({ themePalette }) => {
         </div>
 
         {/* Playback Controls & Expand Indicator */}
-        <div className="flex items-center gap-2 lg:gap-3" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-1.5 sm:gap-3" onClick={(e) => e.stopPropagation()}>
           <button 
             onClick={skipPrev} 
-            className="hidden sm:block p-1.5 text-white/70 hover:text-white transition-colors"
+            className="p-1.5 text-white/80 hover:text-white transition-colors active:scale-90 transform"
+            title="Previous Song"
           >
-            <SkipBack size={18} />
+            <SkipBack size={19} />
           </button>
 
           <button
             onClick={togglePlayPause}
-            className="w-10 h-10 rounded-full bg-white hover:bg-white/90 text-black flex items-center justify-center shadow-lg transition-all transform active:scale-95"
+            className="w-10 h-10 rounded-full bg-white hover:bg-white/90 text-black flex items-center justify-center shadow-lg transition-all transform active:scale-95 flex-shrink-0"
+            title={isPlaying ? "Pause" : "Play"}
           >
             {isPlaying ? <Pause size={18} fill="black" /> : <Play size={18} fill="black" className="ml-0.5" />}
           </button>
 
           <button 
             onClick={skipNext} 
-            className="p-1.5 text-white/70 hover:text-white transition-colors"
+            className="p-1.5 text-white/80 hover:text-white transition-colors active:scale-90 transform"
+            title="Next Song"
           >
-            <SkipForward size={18} />
+            <SkipForward size={19} />
           </button>
 
           <button
