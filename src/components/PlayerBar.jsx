@@ -38,6 +38,31 @@ export const PlayerBar = ({ themePalette }) => {
   const inlineListRef = useRef(null);
   const fullLyricsContainerRef = useRef(null);
   const userScrollTimeoutRef = useRef(null);
+  const miniTouchRef = useRef(null);
+
+  const handleMiniTouchStart = (e) => {
+    if (e.touches && e.touches.length > 0) {
+      miniTouchRef.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+        time: Date.now(),
+      };
+    }
+  };
+
+  const handleMiniTouchEnd = (e) => {
+    if (!miniTouchRef.current || !e.changedTouches || e.changedTouches.length === 0) return;
+
+    const deltaX = e.changedTouches[0].clientX - miniTouchRef.current.x;
+    const deltaY = e.changedTouches[0].clientY - miniTouchRef.current.y;
+    const duration = Date.now() - miniTouchRef.current.time;
+
+    if (deltaY < -20 && Math.abs(deltaY) > Math.abs(deltaX) && duration < 500) {
+      setExpanded(true);
+    }
+
+    miniTouchRef.current = null;
+  };
 
   const loadPlaylists = async () => {
     const list = await getUserPlaylists();
@@ -205,19 +230,13 @@ export const PlayerBar = ({ themePalette }) => {
 
   return (
     <>
-      {/* ─── Persistent Mini Player Bar (Interactive Drag Up to Expand) ─── */}
+      {/* ─── Persistent Mini Player Bar (Interactive Swipe/Click Up to Expand) ─── */}
       <motion.div 
         onClick={() => setExpanded(true)}
-        drag="y"
-        dragConstraints={{ top: -150, bottom: 0 }}
-        dragElastic={0.25}
-        onDragEnd={(e, { offset, velocity }) => {
-          if (offset.y < -35 || velocity.y < -250) {
-            setExpanded(true);
-          }
-        }}
+        onTouchStart={handleMiniTouchStart}
+        onTouchEnd={handleMiniTouchEnd}
         whileTap={{ scale: 0.98 }}
-        className="fixed bottom-[84px] left-3 right-3 max-w-2xl mx-auto z-[45] glass-panel border border-white/14 p-2.5 lg:p-3 flex items-center justify-between shadow-2xl cursor-pointer bg-[#0d0d0d]/95 backdrop-blur-2xl transition-all duration-300 hover:scale-[1.005] touch-none select-none"
+        className="fixed bottom-[84px] left-3 right-3 max-w-2xl mx-auto z-[45] glass-panel border border-white/14 p-2.5 lg:p-3 flex items-center justify-between shadow-2xl cursor-pointer bg-[#0d0d0d]/95 backdrop-blur-2xl transition-all duration-300 hover:scale-[1.005] select-none"
       >
         {/* Track Thumbnail & Titles */}
         <div className="flex items-center gap-3.5 min-w-0 flex-1">
