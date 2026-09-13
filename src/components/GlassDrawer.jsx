@@ -45,8 +45,8 @@ export const GlassDrawer = ({ isOpen, onClose }) => {
             {/* Header */}
             <div className="p-6 flex items-center justify-between border-b border-white/10">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center">
-                  <Music size={18} className="text-white" />
+                <div className="w-9 h-9 rounded-xl overflow-hidden border border-white/20 shadow-md">
+                  <img src="/favicon.png" alt="DOLCE Logo" className="w-full h-full object-cover" />
                 </div>
                 <span className="text-lg font-black tracking-widest text-white">DOLCE</span>
               </div>
