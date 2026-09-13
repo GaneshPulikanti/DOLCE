@@ -647,7 +647,8 @@ export const PlayerBar = ({ themePalette }) => {
                       <motion.div
                         ref={inlineListRef}
                         animate={{ y: inlineLyricY }}
-                        transition={{ type: "spring", stiffness: 90, damping: 18, mass: 0.75 }}
+                        transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+                        style={{ willChange: 'transform' }}
                         className="w-full flex flex-col gap-6 text-center px-2 pointer-events-auto"
                       >
                         {lyricsData.synced.map((line, idx) => {
@@ -660,13 +661,12 @@ export const PlayerBar = ({ themePalette }) => {
                               data-lyric-index={idx}
                               onClick={() => seek(line.time)}
                               animate={{
-                                scale: isActive ? 1.06 : dist === 1 ? 0.94 : 0.86,
-                                opacity: isActive ? 1 : dist === 1 ? 0.45 : 0.15,
-                                filter: isActive ? 'blur(0px)' : dist >= 2 ? 'blur(1px)' : 'blur(0px)',
+                                scale: isActive ? 1.05 : dist === 1 ? 0.95 : 0.88,
+                                opacity: isActive ? 1 : dist === 1 ? 0.45 : 0.18,
                               }}
-                              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                              transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
                               style={isActive ? { textShadow: activeLyricGlow } : {}}
-                              className={`cursor-pointer transition-colors leading-relaxed font-lyrics ${
+                              className={`cursor-pointer leading-relaxed font-lyrics transition-colors ${
                                 isActive
                                   ? 'text-white font-black text-xl sm:text-2xl drop-shadow-md'
                                   : 'text-white/60 font-bold text-base sm:text-lg'
@@ -705,8 +705,8 @@ export const PlayerBar = ({ themePalette }) => {
             {/* Ambient Background Blur */}
             <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
               <div 
-                className="absolute inset-0 scale-150 bg-cover bg-center opacity-65 filter blur-[80px] transition-all duration-1000"
-                style={{ backgroundImage: `url(${artworkUrl})` }}
+                className="absolute inset-0 scale-125 bg-cover bg-center opacity-60 filter blur-[50px] transition-all duration-1000"
+                style={{ backgroundImage: `url(${artworkUrl})`, transform: 'translate3d(0,0,0)', willChange: 'transform, opacity' }}
               />
               <div 
                 className="absolute inset-0 transition-all duration-1000"

@@ -1,6 +1,6 @@
 # 🎵 DOLCE Music Player
 
-**DOLCE** is a modern, high-performance music streaming application built with **React 18**, **Vite**, **Tailwind CSS**, **Zustand**, **Dexie (IndexedDB)**, and **Capacitor 6** for Native Android. Designed with a dark glassmorphism aesthetic, Plus Jakarta Sans typography, and instant 0ms playback transitions, DOLCE brings a sweet, seamless listening experience across Web, Desktop, and Android devices.
+**DOLCE** is a modern, high-performance music streaming application built with **React 18**, **Vite**, **Tailwind CSS**, **Zustand**, **Dexie (IndexedDB)** for Native Android. Designed with a dark glassmorphism aesthetic, Plus Jakarta Sans typography, and instant 0ms playback transitions, DOLCE brings a sweet, seamless listening experience across Web, Desktop, and Android devices.
 
 ---
 
@@ -27,15 +27,6 @@
 - **Storage**: Dexie.js (IndexedDB wrapper) for offline tracks, history, and playlists
 - **Animations & Icons**: Framer Motion 11, Lucide React Icons
 - **Native Android Wrapper**: Capacitor 6 (`@capacitor/android`, `@capacitor/core`, `@capacitor/cli`)
-
----
-
-## 📡 Data Services & API Architecture
-
-- **Catalog & Search Service**: Multi-pass resolution for songs, albums, playlists, and verified artists via YouTube Music (`WEB_REMIX`) InnerTube endpoints with smart Indian & Telugu music priority scoring.
-- **Audio Stream Engine**: High-performance official YouTube IFrame Embed API (`https://www.youtube-nocookie.com`) for 100% uptime and stream reliability.
-- **Synchronized Lyrics API**: Integration with LRCLib (`https://lrclib.net`) for fetching real-time line-by-line synced lyrics.
-- **Dynamic Palette Extractor**: Canvas-based RGB color extraction algorithm for real-time ambient glow matching song artwork.
 
 ---
 
