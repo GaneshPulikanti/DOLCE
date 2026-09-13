@@ -1,4 +1,5 @@
 import Dexie from 'dexie';
+import { fetchLyrics } from './lyrics';
 
 export const db = new Dexie('DolceMusicDB');
 
@@ -43,12 +44,15 @@ export async function downloadTrackLocally(track) {
     await db.downloads.delete(track.id);
     return false;
   } else {
+    // Pre-fetch lyrics to save completely offline
+    const lyricsData = await fetchLyrics(track.title, track.artistName);
     await db.downloads.put({
       id: track.id,
       title: track.title,
       artistName: track.artistName,
       artworkUrl: track.artworkUrl,
       duration: track.duration || '3:45',
+      lyrics: lyricsData,
       downloadedAt: Date.now(),
     });
     return true;

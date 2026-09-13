@@ -90,13 +90,25 @@ export const PlayerBar = ({ themePalette }) => {
     }
   }, [currentTrack?.id]);
 
-  // Fetch lyrics when track changes
+  // Fetch lyrics when track changes (checks offline DB first)
   useEffect(() => {
     if (currentTrack?.id) {
       setLoadingLyrics(true);
-      fetchLyrics(currentTrack.title, currentTrack.artistName).then((data) => {
-        setLyricsData(data);
-        setLoadingLyrics(false);
+      db.downloads.get(currentTrack.id).then((dl) => {
+        if (dl && dl.lyrics && (dl.lyrics.synced?.length > 0 || dl.lyrics.plain)) {
+          setLyricsData(dl.lyrics);
+          setLoadingLyrics(false);
+        } else {
+          fetchLyrics(currentTrack.title, currentTrack.artistName).then((data) => {
+            setLyricsData(data);
+            setLoadingLyrics(false);
+          });
+        }
+      }).catch(() => {
+        fetchLyrics(currentTrack.title, currentTrack.artistName).then((data) => {
+          setLyricsData(data);
+          setLoadingLyrics(false);
+        });
       });
     }
   }, [currentTrack?.id, currentTrack?.title, currentTrack?.artistName]);
