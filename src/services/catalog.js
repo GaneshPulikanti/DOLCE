@@ -1,3 +1,41 @@
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
+
+async function customFetch(url, options = {}) {
+  const method = options.method || 'GET';
+  const headers = options.headers || {};
+  let body = options.body;
+
+  if (Capacitor.isNativePlatform()) {
+    try {
+      let data = body;
+      if (typeof body === 'string') {
+        const contentType = headers['Content-Type'] || headers['content-type'] || '';
+        if (contentType.includes('application/json')) {
+          try { data = JSON.parse(body); } catch (_) {}
+        }
+      }
+
+      const response = await CapacitorHttp.request({
+        url,
+        method,
+        headers,
+        data,
+      });
+
+      return {
+        ok: response.status >= 200 && response.status < 300,
+        status: response.status,
+        json: async () => (typeof response.data === 'string' ? JSON.parse(response.data) : response.data),
+        text: async () => (typeof response.data === 'string' ? response.data : JSON.stringify(response.data)),
+      };
+    } catch (e) {
+      console.warn('⚡ [CapacitorHttp] Native fetch error, falling back to fetch:', e);
+    }
+  }
+
+  return fetch(url, options);
+}
+
 /**
  * DOLCE Audio Catalog & Search Service.
  * Eliminates video junk files, validates HD covers, and supports multi-category search (Songs, Albums, Playlists, Artists).
@@ -94,6 +132,92 @@ export async function searchSongs(query) {
   return result.songs || [];
 }
 
+async function fetchYtMusicSearch(query) {
+  const apiKey = import.meta.env.VITE_DOLCE_SERVICE_KEY || 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
+  const body = JSON.stringify({
+    context: {
+      client: {
+        clientName: 'WEB_REMIX',
+        clientVersion: '1.20260526.04.00',
+        gl: 'IN',
+        hl: 'en'
+      }
+    },
+    query: query
+  });
+  const headers = { 'Content-Type': 'application/json' };
+
+  // 1. Direct YouTube Music API (Instant 200 OK for Android Capacitor APK via native CapacitorHttp)
+  try {
+    const res1 = await customFetch(`https://music.youtube.com/youtubei/v1/search?key=${apiKey}&alt=json`, {
+      method: 'POST',
+      headers,
+      body
+    });
+    if (res1.ok) {
+      const json = await res1.json();
+      if (json) return json;
+    }
+  } catch (_) {}
+
+  // 2. Relative gateway proxy (Vite dev server)
+  try {
+    const res2 = await customFetch(`/api/gateway/youtubei/v1/search?key=${apiKey}&alt=json`, {
+      method: 'POST',
+      headers,
+      body
+    });
+    if (res2.ok) {
+      const json = await res2.json();
+      if (json) return json;
+    }
+  } catch (_) {}
+
+  return null;
+}
+
+async function fetchYtMusicBrowse(browseId) {
+  const apiKey = import.meta.env.VITE_DOLCE_SERVICE_KEY || 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
+  const body = JSON.stringify({
+    context: {
+      client: {
+        clientName: 'WEB_REMIX',
+        clientVersion: '1.20260526.04.00',
+        gl: 'IN',
+        hl: 'en'
+      }
+    },
+    browseId: browseId
+  });
+  const headers = { 'Content-Type': 'application/json' };
+
+  try {
+    const res1 = await customFetch(`https://music.youtube.com/youtubei/v1/browse?key=${apiKey}&alt=json`, {
+      method: 'POST',
+      headers,
+      body
+    });
+    if (res1.ok) {
+      const json = await res1.json();
+      if (json) return json;
+    }
+  } catch (_) {}
+
+  try {
+    const res2 = await customFetch(`/api/gateway/youtubei/v1/browse?key=${apiKey}&alt=json`, {
+      method: 'POST',
+      headers,
+      body
+    });
+    if (res2.ok) {
+      const json = await res2.json();
+      if (json) return json;
+    }
+  } catch (_) {}
+
+  return null;
+}
+
 /**
  * Multi-Category Search Engine (Songs, Albums, Playlists, Artists).
  */
@@ -103,7 +227,6 @@ export async function searchCatalog(query) {
   }
 
   const cleanQuery = query.trim();
-  const apiKey = import.meta.env.VITE_DOLCE_SERVICE_KEY || 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
 
   const tracksMap = new Map();
   const albumsMap = new Map();
@@ -206,53 +329,21 @@ export async function searchCatalog(query) {
     findItems(contents);
   };
 
-  // Concurrent Fetch: YouTube Music Search + LrcLib Lyric Match Search
-  const [ytResult, lrcResult] = await Promise.allSettled([
-    fetch(`/api/gateway/youtubei/v1/search?key=${apiKey}&alt=json`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        context: {
-          client: {
-            clientName: 'WEB_REMIX',
-            clientVersion: '1.20260526.04.00',
-            gl: 'IN',
-            hl: 'en'
-          }
-        },
-        query: cleanQuery
-      })
-    }).then(r => r.ok ? r.json() : null),
-
-    fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(cleanQuery)}`).then(r => r.ok ? r.json() : null)
+  // Concurrent Fetch: Multi-Pass YouTube Music Search + LrcLib Lyric Match Search
+  const [ytData, lrcResult] = await Promise.allSettled([
+    fetchYtMusicSearch(cleanQuery),
+    customFetch(`https://lrclib.net/api/search?q=${encodeURIComponent(cleanQuery)}`).then(r => r.ok ? r.json() : null)
   ]);
 
-  if (ytResult.status === 'fulfilled' && ytResult.value) {
-    parseInnerTubeContents(ytResult.value);
+  if (ytData.status === 'fulfilled' && ytData.value) {
+    parseInnerTubeContents(ytData.value);
   }
 
-  // Backup direct YouTube Music call if sparse
+  // Backup search if initial pass returned few songs
   if (tracksMap.size < 5) {
     try {
-      const res = await fetch(`https://music.youtube.com/youtubei/v1/search?key=${apiKey}&alt=json`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          context: {
-            client: {
-              clientName: 'WEB_REMIX',
-              clientVersion: '1.20260526.04.00',
-              gl: 'IN',
-              hl: 'en'
-            }
-          },
-          query: cleanQuery
-        })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        parseInnerTubeContents(data);
-      }
+      const backupData = await fetchYtMusicSearch(`${cleanQuery} songs`);
+      if (backupData) parseInnerTubeContents(backupData);
     } catch (_) {}
   }
 
@@ -263,25 +354,8 @@ export async function searchCatalog(query) {
       if (match.trackName && match.artistName) {
         const q = `${match.trackName} ${match.artistName}`;
         try {
-          const res = await fetch(`/api/gateway/youtubei/v1/search?key=${apiKey}&alt=json`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              context: {
-                client: {
-                  clientName: 'WEB_REMIX',
-                  clientVersion: '1.20260526.04.00',
-                  gl: 'IN',
-                  hl: 'en'
-                }
-              },
-              query: q
-            })
-          });
-          if (res.ok) {
-            const data = await res.json();
-            parseInnerTubeContents(data);
-          }
+          const matchData = await fetchYtMusicSearch(q);
+          if (matchData) parseInnerTubeContents(matchData);
         } catch (_) {}
       }
     }
@@ -301,26 +375,10 @@ export async function searchCatalog(query) {
 export async function fetchCollectionTracks(browseId) {
   if (!browseId) return [];
 
-  const apiKey = import.meta.env.VITE_DOLCE_SERVICE_KEY || 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
   try {
-    const res = await fetch(`https://music.youtube.com/youtubei/v1/browse?key=${apiKey}&alt=json`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        context: {
-          client: {
-            clientName: 'WEB_REMIX',
-            clientVersion: '1.20260526.04.00',
-            gl: 'IN',
-            hl: 'en'
-          }
-        },
-        browseId: browseId
-      })
-    });
+    const data = await fetchYtMusicBrowse(browseId);
+    if (!data) return [];
 
-    if (!res.ok) return [];
-    const data = await res.json();
     const tracks = [];
 
     function findTracks(obj) {

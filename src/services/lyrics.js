@@ -1,6 +1,17 @@
-/**
- * Lyrics Service fetching LRC synchronized and plain text lyrics from LRCLIB.
- */
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
+
+async function safeFetch(url) {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const res = await CapacitorHttp.get({ url });
+      return {
+        ok: res.status >= 200 && res.status < 300,
+        json: async () => (typeof res.data === 'string' ? JSON.parse(res.data) : res.data),
+      };
+    } catch (_) {}
+  }
+  return fetch(url);
+}
 
 export async function fetchLyrics(title, artist) {
   if (!title) return { synced: [], plain: 'No lyrics available.' };
@@ -11,7 +22,7 @@ export async function fetchLyrics(title, artist) {
   try {
     // 1. Exact match attempt
     const url = `https://lrclib.net/api/get?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(cleanArtist)}`;
-    const res = await fetch(url);
+    const res = await safeFetch(url);
     if (res.ok) {
       const data = await res.json();
       return parseLyricsData(data);
@@ -19,7 +30,7 @@ export async function fetchLyrics(title, artist) {
 
     // 2. Search fallback attempt
     const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(cleanTitle + ' ' + cleanArtist)}`;
-    const searchRes = await fetch(searchUrl);
+    const searchRes = await safeFetch(searchUrl);
     if (searchRes.ok) {
       const results = await searchRes.json();
       if (results && results.length > 0) {
