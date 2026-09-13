@@ -75,15 +75,6 @@ export const AboutModal = ({ isOpen, onClose }) => {
                   Ganesh Pulikanti
                 </h3>
               </div>
-
-              <a
-                href="https://github.com/GaneshPulikanti"
-                target="_blank"
-                rel="noreferrer"
-                className="mt-0.5 px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-all transform active:scale-95 shadow-md flex items-center gap-1.5"
-              >
-                <span>GitHub: @GaneshPulikanti</span>
-              </a>
             </div>
 
             {/* 4. Footer */}
