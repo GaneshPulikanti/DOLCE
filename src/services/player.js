@@ -23,18 +23,27 @@ class AudioEngine {
       container = document.createElement('div');
       container.id = 'yt-player-container';
       container.style.position = 'fixed';
-      container.style.bottom = '0px';
-      container.style.right = '0px';
+      container.style.left = '-9999px';
+      container.style.top = '-9999px';
       container.style.width = '1px';
       container.style.height = '1px';
+      container.style.maxWidth = '1px';
+      container.style.maxHeight = '1px';
+      container.style.overflow = 'hidden';
       container.style.opacity = '0.001';
       container.style.pointerEvents = 'none';
-      container.style.zIndex = '-999';
+      container.style.zIndex = '-9999';
+      container.style.clip = 'rect(0, 0, 0, 0)';
       document.body.appendChild(container);
     }
 
     const playerDiv = document.createElement('div');
     playerDiv.id = 'yt-player-iframe';
+    playerDiv.style.width = '1px';
+    playerDiv.style.height = '1px';
+    playerDiv.style.maxWidth = '1px';
+    playerDiv.style.maxHeight = '1px';
+    playerDiv.style.overflow = 'hidden';
     container.appendChild(playerDiv);
 
     if (!window.YT) {
