@@ -406,6 +406,7 @@ export async function searchCatalog(query) {
   const queryWords = lowerQuery.split(/\s+/).filter(w => w.length > 2);
   const normWords = normalizedQuery.split(/\s+/).filter(w => w.length > 2);
   const mainWords = [...new Set([...queryWords, ...normWords])];
+  const isLanguageSpecific = lowerQuery.includes('english') || lowerQuery.includes('korean') || lowerQuery.includes('spanish') || lowerQuery.includes('punjabi') || lowerQuery.includes('tamil') || lowerQuery.includes('hindi');
 
   const searchPromises = [
     fetchYtMusicSearch(cleanQuery),
