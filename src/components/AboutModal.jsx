@@ -55,100 +55,39 @@ export const AboutModal = ({ isOpen, onClose }) => {
               </p>
             </div>
 
-            {/* Features List */}
-            <div className="flex flex-col gap-3">
-              <h4 className="text-xs font-black uppercase tracking-wider text-white/50 px-1">
-                Key Features & Capabilities
-              </h4>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.04] border border-white/10">
-                  <div className="p-2 rounded-lg bg-purple-500/20 text-purple-300">
-                    <Music size={16} />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-white">HD Audio Catalog</span>
-                    <span className="text-[10px] text-white/50">Millions of songs & remixes</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.04] border border-white/10">
-                  <div className="p-2 rounded-lg bg-pink-500/20 text-pink-300">
-                    <Mic2 size={16} />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-white">Synced Lyrics</span>
-                    <span className="text-[10px] text-white/50">LRCLIB real-time karaoke</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.04] border border-white/10">
-                  <div className="p-2 rounded-lg bg-cyan-500/20 text-cyan-300">
-                    <Palette size={16} />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-white">Dynamic Palette</span>
-                    <span className="text-[10px] text-white/50">Adaptive artwork glow</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.04] border border-white/10">
-                  <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-300">
-                    <HardDrive size={16} />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-white">Offline Downloads</span>
-                    <span className="text-[10px] text-white/50">IndexedDB local storage</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.04] border border-white/10 sm:col-span-2">
-                  <div className="p-2 rounded-lg bg-amber-500/20 text-amber-300">
-                    <Zap size={16} />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-white">60+ FPS Native Engine</span>
-                    <span className="text-[10px] text-white/50">GPU-accelerated native animations for Android & Web</span>
-                  </div>
-                </div>
+            {/* Developer Card with Photo */}
+            <div className="glass-panel p-5 rounded-3xl bg-gradient-to-br from-purple-900/40 via-pink-950/30 to-black/80 border border-purple-500/30 flex flex-col items-center text-center gap-4 shadow-2xl relative overflow-hidden">
+              <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 border-white/30 shadow-2xl p-1 bg-gradient-to-tr from-purple-500 via-pink-500 to-amber-400">
+                <img 
+                  src="/developer.jpg" 
+                  alt="Ganesh Pulikanti" 
+                  className="w-full h-full object-cover rounded-full shadow-inner" 
+                />
               </div>
-            </div>
 
-            {/* Developer Showcase Card */}
-            <div className="glass-panel p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-purple-900/40 via-pink-900/25 to-black/60 border border-purple-500/30 flex items-center justify-between shadow-xl">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center text-white font-black text-base shadow-lg shadow-purple-600/30 border border-white/20">
-                  GP
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-pink-400">
-                    Lead Developer & Architect
-                  </span>
-                  <h3 className="text-base sm:text-lg font-black text-white tracking-tight flex items-center gap-1.5 font-['Plus_Jakarta_Sans']">
-                    <span>Ganesh Pulikanti</span>
-                    <Sparkles size={14} className="text-amber-400 fill-amber-400 animate-pulse" />
-                  </h3>
-                </div>
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-pink-400">
+                  Lead Developer & Creator
+                </span>
+                <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight font-['Plus_Jakarta_Sans']">
+                  Ganesh Pulikanti
+                </h3>
               </div>
 
               <a
                 href="https://github.com/GaneshPulikanti"
                 target="_blank"
                 rel="noreferrer"
-                className="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-all transform active:scale-95 flex items-center gap-1.5"
+                className="mt-1 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-all transform active:scale-95 flex items-center gap-2 shadow-lg"
               >
-                <span>@GaneshPulikanti</span>
+                <span>GitHub: @GaneshPulikanti</span>
               </a>
             </div>
 
             {/* Footer / Copyright */}
-            <div className="pt-2 border-t border-white/10 flex flex-col items-center text-center gap-1.5 text-[11px] text-white/50 font-medium">
-              <div className="flex items-center gap-1.5">
-                <span>Designed & Developed by</span>
-                <span className="text-white font-black tracking-wide">Ganesh Pulikanti</span>
-                <Heart size={12} className="text-pink-500 fill-pink-500 ml-0.5" />
-              </div>
-              <p>© 2026 DOLCE Audio · Created by Ganesh Pulikanti</p>
+            <div className="pt-2 border-t border-white/10 flex flex-col items-center text-center gap-1 text-[11px] text-white/50 font-medium">
+              <p>Designed & Developed by <strong className="text-white font-bold">Ganesh Pulikanti</strong></p>
+              <p>© 2026 DOLCE Audio</p>
             </div>
           </motion.div>
         </div>
