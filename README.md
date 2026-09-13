@@ -114,10 +114,16 @@ cd android
 The output APK will be located at:
 `android/app/build/outputs/apk/release/app-release.apk`
 
+## 👨‍💻 Developer & Author
+
+Designed, Engineered & Maintained by **Ganesh Pulikanti**.
+- **GitHub**: [@GaneshPulikanti](https://github.com/GaneshPulikanti)
+- **Repository**: [GaneshPulikanti/DOLCE](https://github.com/GaneshPulikanti/DOLCE)
+
 ---
 
 ## 📄 License
 
 This project is licensed under the MIT License.
 
-> **Disclaimer:** DOLCE is an independent educational and portfolio project. It is inspired by modern music streaming user experiences and is not affiliated with, endorsed by, or associated with Google, YouTube, or YouTube Music.
+> **Disclaimer:** DOLCE is created & developed by Ganesh Pulikanti. It is an independent educational and portfolio project inspired by modern music streaming user experiences and is not affiliated with, endorsed by, or associated with Google, YouTube, or YouTube Music.

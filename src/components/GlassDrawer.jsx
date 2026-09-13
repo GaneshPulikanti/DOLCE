@@ -76,8 +76,8 @@ export const GlassDrawer = ({ isOpen, onClose, onOpenAbout }) => {
               })}
             </div>
 
-            {/* Drawer Footer: About DOLCE */}
-            <div className="p-3 border-t border-white/10">
+            {/* Drawer Footer: About DOLCE & Developer Credits */}
+            <div className="p-3 border-t border-white/10 flex flex-col gap-2">
               <button
                 onClick={() => {
                   onClose();
@@ -93,6 +93,12 @@ export const GlassDrawer = ({ isOpen, onClose, onOpenAbout }) => {
                 </div>
                 <span className="text-[10px] text-white/40 font-mono">v1.0</span>
               </button>
+
+              <div className="px-2 pt-1 pb-2 flex flex-col items-center text-center">
+                <span className="text-[10px] text-white/40 font-medium uppercase tracking-wider">
+                  Developed by <strong className="text-white font-bold">Ganesh Pulikanti</strong>
+                </span>
+              </div>
             </div>
           </motion.div>
         </div>

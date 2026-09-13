@@ -114,14 +114,41 @@ export const AboutModal = ({ isOpen, onClose }) => {
               </div>
             </div>
 
-            {/* Footer / Copyright */}
-            <div className="pt-2 border-t border-white/10 flex flex-col items-center text-center gap-1.5 text-[11px] text-white/40 font-medium">
-              <div className="flex items-center gap-1">
-                <span>Crafted with</span>
-                <Heart size={12} className="text-pink-500 fill-pink-500" />
-                <span>for Music Lovers</span>
+            {/* Developer Showcase Card */}
+            <div className="glass-panel p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-purple-900/40 via-pink-900/25 to-black/60 border border-purple-500/30 flex items-center justify-between shadow-xl">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center text-white font-black text-base shadow-lg shadow-purple-600/30 border border-white/20">
+                  GP
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-pink-400">
+                    Lead Developer & Architect
+                  </span>
+                  <h3 className="text-base sm:text-lg font-black text-white tracking-tight flex items-center gap-1.5 font-['Plus_Jakarta_Sans']">
+                    <span>Ganesh Pulikanti</span>
+                    <Sparkles size={14} className="text-amber-400 fill-amber-400 animate-pulse" />
+                  </h3>
+                </div>
               </div>
-              <p>© 2026 DOLCE Audio. All rights reserved.</p>
+
+              <a
+                href="https://github.com/GaneshPulikanti"
+                target="_blank"
+                rel="noreferrer"
+                className="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-all transform active:scale-95 flex items-center gap-1.5"
+              >
+                <span>@GaneshPulikanti</span>
+              </a>
+            </div>
+
+            {/* Footer / Copyright */}
+            <div className="pt-2 border-t border-white/10 flex flex-col items-center text-center gap-1.5 text-[11px] text-white/50 font-medium">
+              <div className="flex items-center gap-1.5">
+                <span>Designed & Developed by</span>
+                <span className="text-white font-black tracking-wide">Ganesh Pulikanti</span>
+                <Heart size={12} className="text-pink-500 fill-pink-500 ml-0.5" />
+              </div>
+              <p>© 2026 DOLCE Audio · Created by Ganesh Pulikanti</p>
             </div>
           </motion.div>
         </div>
