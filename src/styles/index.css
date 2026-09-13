@@ -1,5 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..900;1,300..900&family=Sora:wght@300..800&family=Syne:wght@400..800&family=Space+Grotesk:wght@400..700&family=Outfit:wght@300..900&family=Inter:wght@300..900&display=swap');
 
+@import "tailwindcss";
+
 /* Aesthetic Lyric Font Presets */
 .font-jakarta {
   font-family: 'Plus Jakarta Sans', sans-serif;
@@ -74,39 +76,33 @@ html, body {
   flex-direction: column;
 }
 
-/* Custom Glassmorphism Containers (GPU Hardware Accelerated for Chrome) */
+/* Custom Glassmorphism Containers (Lightweight GPU rendering) */
 .glass-panel {
   background: var(--glass-fill);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--glass-border);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
   border-radius: 20px;
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-  will-change: transform;
 }
 
 .glass-card {
   background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-  will-change: transform;
 }
 
 .glass-card:hover {
   background: rgba(255, 255, 255, 0.12);
   border-color: rgba(255, 255, 255, 0.25);
-  transform: translateY(-2px) translateZ(0);
+  transform: translateY(-2px);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
 }
 
-/* Custom Glowing Background Animation */
+/* Custom Glowing Background Animation (Optimized for 60FPS in Chrome) */
 .bg-glow-container {
   position: fixed;
   top: 0;
@@ -127,11 +123,10 @@ html, body {
   max-width: 600px;
   max-height: 600px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, rgba(0, 0, 0, 0) 70%);
-  filter: blur(60px);
-  will-change: transform;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.18) 0%, rgba(0, 0, 0, 0) 70%);
+  filter: blur(40px);
   transform: translate3d(0, 0, 0);
-  animation: floatOrb 18s ease-in-out infinite alternate;
+  animation: floatOrb 24s ease-in-out infinite alternate;
 }
 
 .bg-glow-orb-2 {
@@ -143,11 +138,10 @@ html, body {
   max-width: 650px;
   max-height: 650px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(236, 72, 153, 0.2) 0%, rgba(0, 0, 0, 0) 70%);
-  filter: blur(70px);
-  will-change: transform;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
+  filter: blur(45px);
   transform: translate3d(0, 0, 0);
-  animation: floatOrb 22s ease-in-out infinite alternate-reverse;
+  animation: floatOrb 28s ease-in-out infinite alternate-reverse;
 }
 
 @keyframes floatOrb {
