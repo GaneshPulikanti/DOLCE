@@ -65,21 +65,12 @@ export const App = () => {
       <main 
         className="relative z-10 flex-1 w-full max-w-7xl mx-auto overflow-y-auto overflow-x-hidden no-scrollbar"
       >
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
-            className="w-full min-h-full"
-          >
-            {activeTab === 'home' && <Home />}
-            {activeTab === 'search' && <Search />}
-            {activeTab === 'library' && <Library />}
-            {activeTab === 'profile' && <TasteProfile />}
-          </motion.div>
-        </AnimatePresence>
+        <div className="w-full min-h-full">
+          {activeTab === 'home' && <Home />}
+          {activeTab === 'search' && <Search />}
+          {activeTab === 'library' && <Library />}
+          {activeTab === 'profile' && <TasteProfile />}
+        </div>
       </main>
 
       {/* Persistent Mini Player & Expanded Player Modal */}

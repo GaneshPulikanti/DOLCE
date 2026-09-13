@@ -702,7 +702,7 @@ export function getHDArtworkUrl(url, videoId) {
 
   if (hdUrl.includes('googleusercontent.com') || hdUrl.includes('ggpht.com')) {
     const baseUrl = hdUrl.split('=')[0];
-    return `${baseUrl}=s540-c`;
+    return `${baseUrl}=w500-h500-l90-rj`;
   }
 
   if (hdUrl.includes('ytimg.com') || hdUrl.includes('youtube.com')) {

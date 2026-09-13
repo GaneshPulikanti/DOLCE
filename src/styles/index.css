@@ -85,33 +85,29 @@ html, body {
   flex-direction: column;
 }
 
-/* Custom Glassmorphism Containers (Lightweight GPU rendering) */
+/* Custom Glassmorphism Containers (Ultra-lightweight GPU rendering) */
 .glass-panel {
   background: var(--glass-fill);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--glass-border);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   border-radius: 20px;
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .glass-panel {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
 }
 
 .glass-card {
   background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-.glass-card:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.25);
-  transform: translateY(-2px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
-}
-
-/* Custom Glowing Background Animation (Optimized for 60FPS in Chrome) */
+/* Lightweight Background Orbs */
 .bg-glow-container {
   position: fixed;
   top: 0;
@@ -132,10 +128,9 @@ html, body {
   max-width: 600px;
   max-height: 600px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.18) 0%, rgba(0, 0, 0, 0) 70%);
-  filter: blur(40px);
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
   transform: translate3d(0, 0, 0);
-  animation: floatOrb 24s ease-in-out infinite alternate;
+  will-change: transform;
 }
 
 .bg-glow-orb-2 {
@@ -147,10 +142,9 @@ html, body {
   max-width: 650px;
   max-height: 650px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(236, 72, 153, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
-  filter: blur(45px);
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.12) 0%, rgba(0, 0, 0, 0) 70%);
   transform: translate3d(0, 0, 0);
-  animation: floatOrb 28s ease-in-out infinite alternate-reverse;
+  will-change: transform;
 }
 
 @keyframes floatOrb {
