@@ -205,10 +205,19 @@ export const PlayerBar = ({ themePalette }) => {
 
   return (
     <>
-      {/* ─── Persistent Mini Player Bar (Original Dart Monochromatic Glass) ─── */}
-      <div 
+      {/* ─── Persistent Mini Player Bar (Interactive Drag Up to Expand) ─── */}
+      <motion.div 
         onClick={() => setExpanded(true)}
-        className="fixed bottom-[84px] left-3 right-3 max-w-2xl mx-auto z-[45] glass-panel border border-white/14 p-2.5 lg:p-3 flex items-center justify-between shadow-2xl cursor-pointer bg-[#0d0d0d]/95 backdrop-blur-2xl transition-all duration-300 hover:scale-[1.005]"
+        drag="y"
+        dragConstraints={{ top: -150, bottom: 0 }}
+        dragElastic={0.25}
+        onDragEnd={(e, { offset, velocity }) => {
+          if (offset.y < -35 || velocity.y < -250) {
+            setExpanded(true);
+          }
+        }}
+        whileTap={{ scale: 0.98 }}
+        className="fixed bottom-[84px] left-3 right-3 max-w-2xl mx-auto z-[45] glass-panel border border-white/14 p-2.5 lg:p-3 flex items-center justify-between shadow-2xl cursor-pointer bg-[#0d0d0d]/95 backdrop-blur-2xl transition-all duration-300 hover:scale-[1.005] touch-none select-none"
       >
         {/* Track Thumbnail & Titles */}
         <div className="flex items-center gap-3.5 min-w-0 flex-1">
@@ -282,19 +291,32 @@ export const PlayerBar = ({ themePalette }) => {
             style={{ width: `${progressPct}%` }}
           />
         </div>
-      </div>
+      </motion.div>
 
-      {/* ─── Full-Screen Expanded Player Modal (Exact Apple Music & Spotify Glassmorphism) ─── */}
+      {/* ─── Full-Screen Expanded Player Modal (Interactive Drag Down to Minimize) ─── */}
       <AnimatePresence>
         {isExpanded && (
           <motion.div
             initial={{ opacity: 0, y: '100%' }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: '100%' }}
-            transition={{ type: 'spring', damping: 26, stiffness: 220 }}
-            className="fixed inset-0 z-50 flex flex-col overflow-y-auto select-none font-['Inter']"
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 300 }}
+            dragElastic={{ top: 0, bottom: 0.5 }}
+            onDragEnd={(e, { offset, velocity }) => {
+              if (offset.y > 90 || velocity.y > 350) {
+                setExpanded(false);
+              }
+            }}
+            transition={{ type: 'spring', damping: 28, stiffness: 220, mass: 0.8 }}
+            className="fixed inset-0 z-50 flex flex-col overflow-y-auto select-none font-['Inter'] touch-pan-y"
             style={{ background: dominantBg }}
           >
+            {/* Top Pull Down Pill Handle */}
+            <div className="w-full pt-3 pb-1 flex justify-center pointer-events-none z-20">
+              <div className="w-12 h-1.5 rounded-full bg-white/30 backdrop-blur-md" />
+            </div>
+
             {/* 1. Dynamic Glassmorphic Ambient Artwork Background */}
             <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
               <div 
@@ -308,7 +330,7 @@ export const PlayerBar = ({ themePalette }) => {
             </div>
 
             {/* 2. Top Header Row (Chevron, NOW PLAYING, Actions) */}
-            <div className="relative z-10 flex items-center justify-between px-6 pt-6 pb-2 max-w-xl w-full mx-auto">
+            <div className="relative z-10 flex items-center justify-between px-6 pt-2 pb-2 max-w-xl w-full mx-auto">
               <button 
                 onClick={() => setExpanded(false)}
                 className="p-2 text-white/80 hover:text-white transition-colors"
