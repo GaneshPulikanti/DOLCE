@@ -14,6 +14,8 @@ import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.PowerManager;
+import android.support.v4.media.session.MediaSessionCompat;
+import android.support.v4.media.session.PlaybackStateCompat;
 import androidx.core.app.NotificationCompat;
 
 public class BackgroundAudioService extends Service {
@@ -24,17 +26,34 @@ public class BackgroundAudioService extends Service {
     private WifiManager.WifiLock wifiLock;
     private AudioManager audioManager;
     private AudioFocusRequest audioFocusRequest;
+    private MediaSessionCompat mediaSession;
 
     @Override
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
+        initMediaSession();
         acquireLocksAndFocus();
+    }
+
+    private void initMediaSession() {
+        try {
+            mediaSession = new MediaSessionCompat(this, "DOLCE_MEDIA_SESSION");
+            mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
+            
+            PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
+                    .setActions(PlaybackStateCompat.ACTION_PLAY | PlaybackStateCompat.ACTION_PAUSE |
+                            PlaybackStateCompat.ACTION_SKIP_TO_NEXT | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS)
+                    .setState(PlaybackStateCompat.STATE_PLAYING, 0, 1.0f);
+            mediaSession.setPlaybackState(stateBuilder.build());
+            mediaSession.setActive(true);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void acquireLocksAndFocus() {
         try {
-            // 1. Acquire CPU WakeLock so CPU never sleeps during screen-off
             PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
             if (powerManager != null) {
                 wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "DOLCE::CPUWakeLock");
@@ -43,7 +62,6 @@ public class BackgroundAudioService extends Service {
                 }
             }
 
-            // 2. Acquire High-Performance Wi-Fi Lock so network data never throttles during screen-off
             WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
             if (wifiManager != null) {
                 wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "DOLCE::WifiLock");
@@ -52,7 +70,6 @@ public class BackgroundAudioService extends Service {
                 }
             }
 
-            // 3. Request Continuous Audio Focus from Android OS
             audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
             if (audioManager != null) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -86,16 +103,23 @@ public class BackgroundAudioService extends Service {
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
         );
 
-        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(title)
                 .setContentText(artist)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setCategory(NotificationCompat.CATEGORY_SERVICE)
-                .build();
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_SERVICE);
 
+        if (mediaSession != null) {
+            builder.setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
+                    .setMediaSession(mediaSession.getSessionToken())
+                    .setShowActionsInCompactView());
+        }
+
+        Notification notification = builder.build();
         startForeground(NOTIFICATION_ID, notification);
         return START_STICKY;
     }
@@ -104,6 +128,10 @@ public class BackgroundAudioService extends Service {
     public void onDestroy() {
         super.onDestroy();
         try {
+            if (mediaSession != null) {
+                mediaSession.setActive(false);
+                mediaSession.release();
+            }
             if (wakeLock != null && wakeLock.isHeld()) {
                 wakeLock.release();
             }
