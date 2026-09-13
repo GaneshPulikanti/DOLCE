@@ -36,6 +36,7 @@ public class MainActivity extends BridgeActivity {
             WebView webView = bridge.getWebView();
             webView.onResume();
             webView.resumeTimers();
+            webView.evaluateJavascript("if (window.audioEngine) { window.audioEngine.resume(); }", null);
         }
     }
 
@@ -46,6 +47,18 @@ public class MainActivity extends BridgeActivity {
             WebView webView = bridge.getWebView();
             webView.onResume();
             webView.resumeTimers();
+            webView.evaluateJavascript("if (window.audioEngine) { window.audioEngine.resume(); }", null);
+        }
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (!hasFocus && bridge != null && bridge.getWebView() != null) {
+            WebView webView = bridge.getWebView();
+            webView.onResume();
+            webView.resumeTimers();
+            webView.evaluateJavascript("if (window.audioEngine) { window.audioEngine.resume(); }", null);
         }
     }
 }

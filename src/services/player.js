@@ -88,6 +88,30 @@ class AudioEngine {
     };
     document.addEventListener('click', unlockAudio, { once: true });
     document.addEventListener('touchstart', unlockAudio, { once: true });
+
+    // Expose engine globally for native Android WebView background hooks
+    window.audioEngine = this;
+
+    // Sustain playback when app goes to background / Home screen on Mobile & Web
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          console.log('🛸 [AudioEngine] App minimized/hidden. Overriding WebView iframe pause...');
+          if (this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
+            setTimeout(() => {
+              try {
+                this.ytPlayer.playVideo();
+              } catch (_) {}
+            }, 50);
+            setTimeout(() => {
+              try {
+                this.ytPlayer.playVideo();
+              } catch (_) {}
+            }, 300);
+          }
+        }
+      });
+    }
   }
 
   secureIframeElement() {
