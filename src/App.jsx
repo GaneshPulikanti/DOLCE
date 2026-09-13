@@ -4,6 +4,7 @@ import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
 import { PlayerBar } from './components/PlayerBar';
 import { GlassDrawer } from './components/GlassDrawer';
+import { AboutModal } from './components/AboutModal';
 import { Home } from './pages/Home';
 import { Search } from './pages/Search';
 import { Library } from './pages/Library';
@@ -17,6 +18,7 @@ export const App = () => {
   const { currentTrack } = usePlayerStore();
   const [themePalette, setThemePalette] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
 
   useEffect(() => {
     if (currentTrack?.artworkUrl) {
@@ -41,10 +43,23 @@ export const App = () => {
       </div>
 
       {/* Slide-over Side Glass Drawer */}
-      <GlassDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
+      <GlassDrawer 
+        isOpen={isDrawerOpen} 
+        onClose={() => setIsDrawerOpen(false)} 
+        onOpenAbout={() => setIsAboutOpen(true)}
+      />
+
+      {/* About DOLCE Information Modal */}
+      <AboutModal 
+        isOpen={isAboutOpen} 
+        onClose={() => setIsAboutOpen(false)} 
+      />
 
       {/* Top App Bar Header */}
-      <Navbar onOpenDrawer={() => setIsDrawerOpen(true)} />
+      <Navbar 
+        onOpenDrawer={() => setIsDrawerOpen(true)} 
+        onOpenAbout={() => setIsAboutOpen(true)}
+      />
 
       {/* Main Page Area */}
       <main 

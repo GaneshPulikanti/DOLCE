@@ -1,6 +1,19 @@
 # 🎵 DOLCE Music Player
 
-**DOLCE** is a modern, high-performance music streaming application built with **React 18**, **Vite**, **Tailwind CSS**, **Zustand**, **Dexie (IndexedDB)** for Native Android. Designed with a dark glassmorphism aesthetic, Plus Jakarta Sans typography, and instant 0ms playback transitions, DOLCE brings a sweet, seamless listening experience across Web, Desktop, and Android devices.
+**DOLCE** is a modern, high-performance music streaming application built with **React 18**, **Vite**, **Tailwind CSS**, **Zustand**, and **Dexie (IndexedDB)** for Native Android and Web. Designed with a dark glassmorphism aesthetic, Plus Jakarta Sans typography, and instant playback transitions, DOLCE brings a sweet, seamless listening experience across Web, Desktop, and Mobile.
+
+---
+
+## 📖 About DOLCE
+
+**DOLCE** (Italian for *"Sweet"*) is designed for music enthusiasts who desire a clean, ad-free, and hyper-responsive audio player. 
+
+Key architectural & design highlights:
+- **Instant Search & High-Fidelity Streaming**: Fetches high-definition audio and 540x540 album covers from global music catalogs with zero latency.
+- **Synchronized Real-Time Lyrics**: Powered by LRCLIB, featuring butter-smooth 60+ FPS GPU-accelerated scrolling and full-screen immersive view.
+- **Offline & Local Storage**: Full offline playback capabilities, track downloads, custom playlists, and listening history backed by IndexedDB.
+- **Adaptive Ambient Design**: Dynamic real-time color extraction adapts the background ambient glow to match the dominant colors of the currently playing album cover.
+- **Native Android Background Playback**: Continuous background playback when the device screen is locked or when switching apps, integrated with native Android `MediaSession` lock screen controls.
 
 ---
 

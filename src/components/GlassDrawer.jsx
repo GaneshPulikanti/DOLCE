@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Home, Search, Library, Heart, Download, History, Music } from 'lucide-react';
 import { useSearchStore } from '../store/useSearchStore';
 
-export const GlassDrawer = ({ isOpen, onClose }) => {
+export const GlassDrawer = ({ isOpen, onClose, onOpenAbout }) => {
   const { setActiveTab } = useSearchStore();
 
   const menuItems = [
@@ -74,6 +74,25 @@ export const GlassDrawer = ({ isOpen, onClose }) => {
                   </button>
                 );
               })}
+            </div>
+
+            {/* Drawer Footer: About DOLCE */}
+            <div className="p-3 border-t border-white/10">
+              <button
+                onClick={() => {
+                  onClose();
+                  if (onOpenAbout) onOpenAbout();
+                }}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-white/[0.05] border border-white/10 text-white hover:bg-white/10 transition-all font-bold text-xs transform active:scale-98 shadow-md"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300">
+                    <img src="/favicon.png" alt="DOLCE" className="w-4 h-4 rounded" />
+                  </div>
+                  <span>About DOLCE</span>
+                </div>
+                <span className="text-[10px] text-white/40 font-mono">v1.0</span>
+              </button>
             </div>
           </motion.div>
         </div>
