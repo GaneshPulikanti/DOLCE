@@ -41,6 +41,17 @@ export function syncMediaSession({ track, isPlaying, onPlay, onPause, onSkipNext
       console.warn('MediaMetadata creation warning:', e);
     }
 
+    if (typeof window !== 'undefined' && window.AndroidNativePlayer) {
+      try {
+        window.AndroidNativePlayer.updateNotification(
+          track.title || 'DOLCE Music',
+          track.artistName || 'DOLCE Stream',
+          track.artworkUrl || '',
+          !!isPlaying
+        );
+      } catch (_) {}
+    }
+
     if (Capacitor.isNativePlatform()) {
       try {
         BackgroundAudio.updateNotification({

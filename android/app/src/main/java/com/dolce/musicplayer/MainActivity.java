@@ -89,6 +89,12 @@ public class MainActivity extends BridgeActivity {
             settings.setJavaScriptEnabled(true);
             settings.setDomStorageEnabled(true);
             
+            // Add native bridge for dynamic notification and playback state sync
+            webView.addJavascriptInterface(new WebAppInterface(this), "AndroidNativePlayer");
+
+            // Override document visibility getters so YouTube iframe NEVER auto-pauses when hidden
+            webView.evaluateJavascript("try { Object.defineProperty(document, 'hidden', { get: () => false, configurable: true }); Object.defineProperty(document, 'visibilityState', { get: () => 'visible', configurable: true }); } catch(_) {}", null);
+
             // Strictly disable all WebView overscroll and horizontal drag gestures
             webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
             webView.setHorizontalScrollBarEnabled(false);
