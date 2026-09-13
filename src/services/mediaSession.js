@@ -1,3 +1,6 @@
+import { Capacitor, registerPlugin } from '@capacitor/core';
+const BackgroundAudio = registerPlugin('BackgroundAudio');
+
 // Silent WAV Data URI (1-second silent audio loop) to hold Android OS Audio Focus lock in WebViews
 const SILENT_AUDIO_URI = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
 
@@ -36,6 +39,17 @@ export function syncMediaSession({ track, isPlaying, onPlay, onPause, onSkipNext
       });
     } catch (e) {
       console.warn('MediaMetadata creation warning:', e);
+    }
+
+    if (Capacitor.isNativePlatform()) {
+      try {
+        BackgroundAudio.updateNotification({
+          title: track.title || 'DOLCE Music',
+          artist: track.artistName || 'DOLCE Stream',
+          artworkUrl: track.artworkUrl || '',
+          isPlaying: !!isPlaying,
+        }).catch(() => {});
+      } catch (_) {}
     }
   }
 

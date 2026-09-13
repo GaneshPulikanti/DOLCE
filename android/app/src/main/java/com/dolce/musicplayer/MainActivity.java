@@ -20,6 +20,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        registerPlugin(BackgroundAudioPlugin.class);
         super.onCreate(savedInstanceState);
         
         // 1. Request Notification Permission on launch (required for Android 13+ & Oppo ColorOS)
