@@ -3,11 +3,12 @@ import { fetchLyrics } from './lyrics';
 
 export const db = new Dexie('DolceMusicDB');
 
-db.version(3).stores({
+db.version(4).stores({
   favorites: 'id, title, artistName, artworkUrl, addedAt',
   downloads: 'id, title, artistName, artworkUrl, downloadedAt',
   history: '++id, trackId, title, artistName, playedAt',
   playlists: 'id, name, createdAt',
+  recent_searches: 'query, searchedAt',
 });
 
 // ─── Favorites ───
@@ -127,7 +128,78 @@ export async function recordHistory(track) {
       playedAt: Date.now(),
     });
   } catch (e) {
-    console.error('Failed to record history:', e);
   }
 }
 
+export async function getRecentHistory(limit = 20) {
+  try {
+    const list = await db.history.orderBy('playedAt').reverse().limit(limit).toArray();
+    // Unique by trackId
+    const seen = new Set();
+    const unique = [];
+    for (const item of list) {
+      if (!seen.has(item.trackId)) {
+        seen.add(item.trackId);
+        unique.push({
+          id: item.trackId,
+          title: item.title,
+          artistName: item.artistName,
+          artworkUrl: item.artworkUrl,
+          duration: item.duration || '3:45',
+        });
+      }
+    }
+    return unique;
+  } catch (e) {
+    console.error('Failed to get recent history:', e);
+    return [];
+  }
+}
+
+export async function getTopArtistsFromHistory(limit = 5) {
+  try {
+    const history = await db.history.orderBy('playedAt').reverse().limit(50).toArray();
+    const counts = {};
+    for (const item of history) {
+      if (!item.artistName || item.artistName.toLowerCase() === 'artist') continue;
+      // Clean artist name (e.g. split multi-artists)
+      const primaryArtist = item.artistName.split(',')[0].split('&')[0].trim();
+      counts[primaryArtist] = (counts[primaryArtist] || 0) + 1;
+    }
+    const sorted = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([artist]) => artist);
+    return sorted.slice(0, limit);
+  } catch (e) {
+    return [];
+  }
+}
+
+// ─── Recent Searches ───
+export async function addRecentSearch(query) {
+  if (!query || !query.trim()) return;
+  const clean = query.trim();
+  try {
+    await db.recent_searches.put({
+      query: clean,
+      searchedAt: Date.now(),
+    });
+  } catch (e) {
+    console.error('Failed to record search:', e);
+  }
+}
+
+export async function getRecentSearches(limit = 6) {
+  try {
+    const list = await db.recent_searches.orderBy('searchedAt').reverse().limit(limit).toArray();
+    return list.map(item => item.query);
+  } catch (e) {
+    return [];
+  }
+}
+
+export async function clearRecentSearches() {
+  try {
+    await db.recent_searches.clear();
+  } catch (e) {}
+}

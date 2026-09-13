@@ -462,15 +462,26 @@ export async function fetchCollectionTracks(browseId) {
   }
 }
 
+import { getPersonalizedHomeFeed } from './recommendations';
+
 /**
- * Fetches Home Feed curated sections with 100% validated HD audio songs.
+ * Fetches Home Feed curated sections powered by YouTube-style personalization & user listening history.
  */
 export async function getHomeFeed() {
+  try {
+    const personalized = await getPersonalizedHomeFeed();
+    if (personalized && personalized.length > 0) {
+      return personalized;
+    }
+  } catch (e) {
+    console.error('Personalized home feed error, falling back:', e);
+  }
+
   const defaultCategories = [
-    { title: '🔥 Trending Music Hits', query: 'top audio hits' },
-    { title: '🌧️ Rain Therapy & Chill', query: 'chill lofi songs audio' },
-    { title: '⚡ Workout & Energy', query: 'workout motivation songs audio' },
-    { title: '❤️ Romantic Melodies', query: 'romantic love songs hindi english' },
+    { title: '🔥 Trending Music Hits', query: 'top hits music songs' },
+    { title: '🌧️ Rain Therapy & Chill', query: 'chill lofi beats songs' },
+    { title: '⚡ Workout & Energy', query: 'workout motivation songs' },
+    { title: '❤️ Romantic Melodies', query: 'romantic love songs' },
   ];
 
   try {

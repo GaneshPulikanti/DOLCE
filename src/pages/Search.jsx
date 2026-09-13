@@ -5,6 +5,8 @@ import { TrackCard } from '../components/TrackCard';
 import { useSearchStore } from '../store/useSearchStore';
 import { usePlayerStore } from '../store/usePlayerStore';
 
+import { addRecentSearch } from '../services/db';
+
 export const Search = () => {
   const { searchQuery, setSearchQuery, filterCategory, setFilterCategory } = useSearchStore();
   const { playTrack } = usePlayerStore();
@@ -20,6 +22,7 @@ export const Search = () => {
 
     const timer = setTimeout(async () => {
       setLoading(true);
+      addRecentSearch(searchQuery);
       const res = await searchCatalog(searchQuery);
       setCatalogResults(res);
       setLoading(false);

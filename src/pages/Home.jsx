@@ -10,6 +10,7 @@ export const Home = () => {
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const favorites = useLiveQuery(() => db.favorites.toArray()) || [];
+  const historyCount = useLiveQuery(() => db.history.count()) || 0;
   const { setActiveTab } = useSearchStore();
 
   useEffect(() => {
@@ -21,7 +22,7 @@ export const Home = () => {
       }
     });
     return () => { isMounted = false; };
-  }, []);
+  }, [historyCount]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
