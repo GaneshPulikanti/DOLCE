@@ -41,10 +41,30 @@ async function customFetch(url, options = {}) {
  * Eliminates video junk files, validates HD covers, and supports multi-category search (Songs, Albums, Playlists, Artists).
  */
 
-function isUnwantedVideoItem(title, artist) {
+function isDevotionalTerm(text) {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  const devTerms = [
+    'bhajan', 'bhajans', 'aarti', 'chalisa', 'stotram', 'stotra', 
+    'mantra', 'suprabhatam', 'devotional', 'kirtan', 'amritwani', 
+    'sloka', 'shlokam', 'bhakti', 'stuti', 'jaap'
+  ];
+  return devTerms.some(t => lower.includes(t));
+}
+
+function isUnwantedVideoItem(title, artist, queryContext = '') {
   if (!title) return true;
   const lowerTitle = title.toLowerCase();
   const lowerArtist = (artist || '').toLowerCase();
+  const lowerQuery = (queryContext || '').toLowerCase();
+
+  // 🚫 STRICT GENRE ISOLATION: Reject devotional/god songs from secular/love song queues
+  const isDevotionalContext = isDevotionalTerm(lowerQuery) || lowerQuery.includes('god') || lowerQuery.includes('bhakti');
+  if (!isDevotionalContext) {
+    if (isDevotionalTerm(lowerTitle) || isDevotionalTerm(lowerArtist)) {
+      return true;
+    }
+  }
 
   // 🚫 REJECT Unofficial DJ / Fan Channel uploads (e.g., "DJ Kawal", "Shubhadip Dey")
   if (lowerArtist.startsWith('dj ') || lowerArtist.includes(' dj') || lowerArtist.includes('dj ') || lowerArtist === 'dj') {
@@ -295,7 +315,7 @@ export async function searchCatalog(query) {
         const rawUrl = thumbs?.[thumbs.length - 1]?.url;
         const hdArtwork = getHDArtworkUrl(rawUrl, videoId);
 
-        if (rawTitle && isUnwantedVideoItem(rawTitle, artist)) return;
+        if (rawTitle && isUnwantedVideoItem(rawTitle, artist, cleanQuery)) return;
 
         // 1. Artist
         if (lowerSub.includes('artist') && browseId && !artistsMap.has(browseId)) {

@@ -39,7 +39,7 @@ export const usePlayerStore = create((set, get) => {
     lyricFont: 'jakarta', // 'jakarta' | 'sora' | 'syne' | 'space' | 'outfit'
     setLyricFont: (lyricFont) => set({ lyricFont }),
 
-    playTrack: (track, newQueue = null) => {
+    playTrack: async (track, newQueue = null) => {
       if (!track || !track.id) return;
 
       let queue = get().queue;
@@ -70,6 +70,30 @@ export const usePlayerStore = create((set, get) => {
 
       audioEngine.playTrack(track.id);
       recordHistory(track);
+
+      // ♾️ Infinite Auto-Queue: Expand radio recommendations in background if queue is near end
+      if (queue.length - currentIndex <= 3) {
+        get().expandInfiniteQueue(track);
+      }
+    },
+
+    expandInfiniteQueue: async (seedTrack) => {
+      if (!seedTrack || !seedTrack.title) return;
+      try {
+        const { searchSongs, isValidAudioSong } = await import('../services/catalog');
+        const query = `${seedTrack.artistName || ''} ${seedTrack.title} songs radio`;
+        const related = await searchSongs(query);
+
+        const currentQueue = get().queue;
+        const existingIds = new Set(currentQueue.map(q => q.id));
+
+        const newTracks = related.filter(r => r && r.id && !existingIds.has(r.id) && isValidAudioSong(r));
+        if (newTracks.length > 0) {
+          set({ queue: [...currentQueue, ...newTracks] });
+        }
+      } catch (e) {
+        console.error('Failed to expand infinite queue:', e);
+      }
     },
 
     togglePlayPause: () => {
@@ -107,7 +131,7 @@ export const usePlayerStore = create((set, get) => {
     },
 
     skipNext: async () => {
-      const { queue, currentIndex, isShuffle, repeatMode, playTrack } = get();
+      const { queue, currentIndex, isShuffle, repeatMode, playTrack, currentTrack } = get();
       if (queue.length === 0) return;
 
       if (repeatMode === 'one') {
@@ -126,20 +150,14 @@ export const usePlayerStore = create((set, get) => {
       } else if (repeatMode === 'all') {
         playTrack(queue[0]);
       } else {
-        // Auto Queue: Automatically generate related tracks so music never stops
-        const currentTrack = get().currentTrack;
-        if (currentTrack?.artistName) {
-          try {
-            const { searchSongs } = await import('../services/catalog');
-            const related = await searchSongs(`${currentTrack.artistName} songs`);
-            const newTracks = related.filter(r => !queue.some(q => q.id === r.id));
-            if (newTracks.length > 0) {
-              const updatedQueue = [...queue, ...newTracks];
-              set({ queue: updatedQueue });
-              playTrack(updatedQueue[nextIndex]);
-              return;
-            }
-          } catch (_) {}
+        // ♾️ Infinite Queue Trigger: Fetch similar radio tracks when reaching end of queue
+        if (currentTrack) {
+          await get().expandInfiniteQueue(currentTrack);
+          const updatedQueue = get().queue;
+          if (nextIndex < updatedQueue.length) {
+            playTrack(updatedQueue[nextIndex]);
+            return;
+          }
         }
         set({ isPlaying: false, currentTime: 0 });
       }
