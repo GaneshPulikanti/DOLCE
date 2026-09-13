@@ -15,6 +15,14 @@ function isUnwantedVideoItem(title, artist) {
     return true;
   }
 
+  // 🚫 REJECT Podcast / Episode items
+  if (lowerArtist === 'episode' || lowerArtist.startsWith('episode') || lowerArtist.includes('episode •') || lowerArtist.includes('podcast')) {
+    return true;
+  }
+  if (lowerTitle === 'episode' || lowerTitle.startsWith('episode') || lowerTitle.includes('episode •') || lowerTitle.includes('podcast')) {
+    return true;
+  }
+
   const junkKeywords = [
     'reaction',
     'whatsapp status',
@@ -39,7 +47,10 @@ function isUnwantedVideoItem(title, artist) {
     'full video song',
     'official video song',
     'lyric video',
-    'video song'
+    'video song',
+    'full episode',
+    'podcast episode',
+    'episode'
   ];
 
   for (const kw of junkKeywords) {
@@ -68,6 +79,7 @@ export function isValidAudioSong(track) {
 
   const lowerArtist = (track.artistName || '').toLowerCase();
   if (lowerArtist === 'video' || lowerArtist.startsWith('video') || lowerArtist.includes('video •')) return false;
+  if (lowerArtist === 'episode' || lowerArtist.startsWith('episode') || lowerArtist.includes('episode •') || lowerArtist.includes('podcast')) return false;
 
   if (isUnwantedVideoItem(track.title, track.artistName)) return false;
   return true;
@@ -118,9 +130,13 @@ export async function searchCatalog(query) {
         let artist = runs[0]?.text || 'Artist';
 
         const lowerSub = subtitle.toLowerCase();
+        const lowerArtist0 = (runs[0]?.text || '').toLowerCase();
 
-        // 🚫 STRICTLY REJECT VIDEO FILES & "Video" TAGGED ITEMS
-        if (runs[0]?.text?.toLowerCase() === 'video' || lowerSub === 'video' || lowerSub.startsWith('video') || lowerSub.includes('video •')) {
+        // 🚫 STRICTLY REJECT VIDEO & EPISODE / PODCAST ITEMS
+        if (
+          lowerArtist0 === 'video' || lowerSub === 'video' || lowerSub.startsWith('video') || lowerSub.includes('video •') ||
+          lowerArtist0 === 'episode' || lowerSub === 'episode' || lowerSub.startsWith('episode') || lowerSub.includes('episode •') || lowerSub.includes('podcast')
+        ) {
           return;
         }
 
@@ -320,7 +336,11 @@ export async function fetchCollectionTracks(browseId) {
         let artist = runs[0]?.text || 'Artist';
 
         const lowerSub = subtitle.toLowerCase();
-        if (runs[0]?.text?.toLowerCase() === 'video' || lowerSub === 'video' || lowerSub.startsWith('video') || lowerSub.includes('video •')) {
+        const lowerArtist0 = (runs[0]?.text || '').toLowerCase();
+        if (
+          lowerArtist0 === 'video' || lowerSub === 'video' || lowerSub.startsWith('video') || lowerSub.includes('video •') ||
+          lowerArtist0 === 'episode' || lowerSub === 'episode' || lowerSub.startsWith('episode') || lowerSub.includes('episode •') || lowerSub.includes('podcast')
+        ) {
           return;
         }
 

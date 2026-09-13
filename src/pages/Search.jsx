@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search as SearchIcon, Music, Disc, ListMusic, User, Play, Loader2 } from 'lucide-react';
+import { Search as SearchIcon, Music, Disc, ListMusic, User, Play, Loader2, Sparkles, Flame, Radio, Heart, Dumbbell, PartyPopper } from 'lucide-react';
 import { searchCatalog, fetchCollectionTracks } from '../services/catalog';
 import { TrackCard } from '../components/TrackCard';
 import { useSearchStore } from '../store/useSearchStore';
@@ -38,6 +38,19 @@ export const Search = () => {
     }
   };
 
+  const popularGenres = [
+    { name: 'Telugu Top Hits', query: 'Telugu Top Hits', bg: 'from-amber-600 to-orange-700', icon: '🇮🇳' },
+    { name: 'Hindi Melodies', query: 'Hindi Melodies Hits', bg: 'from-pink-600 to-rose-700', icon: '🎵' },
+    { name: 'English Pop', query: 'English Pop Songs', bg: 'from-blue-600 to-indigo-800', icon: '🎸' },
+    { name: 'Tamil Beats', query: 'Tamil Hits', bg: 'from-purple-600 to-violet-900', icon: '🎺' },
+    { name: 'Punjabi Energy', query: 'Punjabi Hits', bg: 'from-yellow-500 to-amber-700', icon: '🕺' },
+    { name: 'Romantic Love', query: 'Romantic Love Songs', bg: 'from-rose-500 to-red-700', icon: '❤️' },
+    { name: 'Lofi & Chill', query: 'Chill Lofi Songs', bg: 'from-emerald-600 to-teal-800', icon: '🌧️' },
+    { name: 'Workout & Gym', query: 'Workout Motivation Songs', bg: 'from-orange-500 to-red-600', icon: '⚡' },
+    { name: 'Devotional', query: 'Devotional Songs', bg: 'from-cyan-600 to-blue-800', icon: '🕉️' },
+    { name: 'Party & EDM', query: 'Party Dance Hits', bg: 'from-fuchsia-600 to-pink-800', icon: '🎉' },
+  ];
+
   const categories = [
     { id: 'all', label: 'All Results' },
     { id: 'songs', label: 'Tracks' },
@@ -57,36 +70,76 @@ export const Search = () => {
       <div className="flex flex-col gap-4">
         <h1 className="text-2xl lg:text-3xl font-black text-white tracking-tight">Search Catalog & Lyrics</h1>
 
-        {/* Search Input Bar */}
+        {/* Search Input Bar (No autoFocus so mobile keyboard does not pop up automatically) */}
         <div className="relative w-full flex items-center max-w-2xl">
           <SearchIcon size={20} className="absolute left-4 text-white/40 pointer-events-none" />
           <input
             type="text"
-            autoFocus
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search tracks, albums, playlists, artists, or lyrics..."
+            placeholder="Search songs, albums, artists, or genres..."
             className="w-full h-12 pl-11 pr-5 rounded-2xl bg-white/5 border border-white/15 text-sm text-white placeholder-white/40 focus:outline-none focus:border-white/40 focus:bg-white/10 transition-all font-medium shadow-inner"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-4 text-xs font-bold text-white/50 hover:text-white transition-colors"
+            >
+              Clear
+            </button>
+          )}
         </div>
 
-        {/* Category Filter Chips */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setFilterCategory(cat.id)}
-              className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 ${
-                filterCategory === cat.id
-                  ? 'bg-white text-black font-bold shadow-lg shadow-white/10 scale-105'
-                  : 'bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
-        </div>
+        {/* Category Filter Chips (Shown when searching) */}
+        {searchQuery && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setFilterCategory(cat.id)}
+                className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 ${
+                  filterCategory === cat.id
+                    ? 'bg-white text-black font-bold shadow-lg shadow-white/10 scale-105'
+                    : 'bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* ── 1. SPOTIFY-STYLE POPULAR GENRES GRID (Shown when search is empty) ── */}
+      {!searchQuery && (
+        <div className="flex flex-col gap-4 mt-2">
+          <h2 className="text-lg lg:text-xl font-extrabold text-white flex items-center gap-2">
+            <Sparkles size={20} className="text-amber-400" />
+            <span>Browse Popular Genres & Languages</span>
+          </h2>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5 sm:gap-5">
+            {popularGenres.map((genre, idx) => (
+              <div
+                key={idx}
+                onClick={() => setSearchQuery(genre.query)}
+                className={`group relative h-28 sm:h-32 rounded-2xl bg-gradient-to-br ${genre.bg} p-4 flex flex-col justify-between overflow-hidden cursor-pointer shadow-xl transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl border border-white/10`}
+              >
+                <span className="text-base sm:text-lg font-black text-white leading-tight font-['Inter'] drop-shadow-md z-10">
+                  {genre.name}
+                </span>
+                
+                <span className="text-3xl sm:text-4xl self-end z-10 group-hover:scale-125 transition-transform duration-300">
+                  {genre.icon}
+                </span>
+
+                {/* Ambient glow decoration */}
+                <div className="absolute -bottom-4 -right-4 w-20 h-20 rounded-full bg-white/15 blur-xl pointer-events-none group-hover:scale-150 transition-transform" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Loading Skeletons */}
       {loading ? (
@@ -98,7 +151,7 @@ export const Search = () => {
       ) : hasAnyResults ? (
         <div className="flex flex-col gap-10 mt-2">
 
-          {/* ── 1. SONGS SECTION ── */}
+          {/* ── SONGS SECTION ── */}
           {(filterCategory === 'all' || filterCategory === 'songs') && catalogResults.songs.length > 0 && (
             <section className="flex flex-col gap-4">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -113,7 +166,7 @@ export const Search = () => {
             </section>
           )}
 
-          {/* ── 2. ALBUMS SECTION ── */}
+          {/* ── ALBUMS SECTION ── */}
           {(filterCategory === 'all' || filterCategory === 'albums') && catalogResults.albums.length > 0 && (
             <section className="flex flex-col gap-4">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -157,7 +210,7 @@ export const Search = () => {
             </section>
           )}
 
-          {/* ── 3. PLAYLISTS SECTION ── */}
+          {/* ── PLAYLISTS SECTION ── */}
           {(filterCategory === 'all' || filterCategory === 'playlists') && catalogResults.playlists.length > 0 && (
             <section className="flex flex-col gap-4">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -201,7 +254,7 @@ export const Search = () => {
             </section>
           )}
 
-          {/* ── 4. ARTISTS SECTION ── */}
+          {/* ── ARTISTS SECTION ── */}
           {(filterCategory === 'all' || filterCategory === 'artists') && catalogResults.artists.length > 0 && (
             <section className="flex flex-col gap-4">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -252,4 +305,3 @@ export const Search = () => {
     </div>
   );
 };
-
