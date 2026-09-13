@@ -1,10 +1,24 @@
-/**
- * MediaSession Service for Android Lock Screen Controls & Background Audio Keepalive.
- * Enables Android OS Media Notification Controls (Title, Artist, Artwork, Play, Pause, Next, Prev, Seek).
- */
+// Silent WAV Data URI (1-second silent audio loop) to hold Android OS Audio Focus lock in WebViews
+const SILENT_AUDIO_URI = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+
+let silentAudioEl = null;
+
+function getSilentAudioElement() {
+  if (typeof window === 'undefined') return null;
+  if (!silentAudioEl) {
+    try {
+      silentAudioEl = new Audio(SILENT_AUDIO_URI);
+      silentAudioEl.loop = true;
+      silentAudioEl.volume = 0.001; // Silent / minimal volume to hold audio focus
+    } catch (_) {}
+  }
+  return silentAudioEl;
+}
 
 export function syncMediaSession({ track, isPlaying, onPlay, onPause, onSkipNext, onSkipPrev, onSeek }) {
   if (typeof window === 'undefined' || !('mediaSession' in navigator)) return;
+
+  const silentAudio = getSilentAudioElement();
 
   if (track) {
     try {
@@ -26,6 +40,15 @@ export function syncMediaSession({ track, isPlaying, onPlay, onPause, onSkipNext
   }
 
   navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+
+  // Sustain Android OS Audio Focus and keep WebView CPU awake during background playback
+  if (silentAudio) {
+    if (isPlaying) {
+      silentAudio.play().catch(() => {});
+    } else {
+      silentAudio.pause();
+    }
+  }
 
   const setHandler = (action, handler) => {
     try {
@@ -58,3 +81,4 @@ export function updateMediaPosition(currentTime, duration) {
     } catch (_) {}
   }
 }
+

@@ -31,9 +31,21 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onPause() {
         super.onPause();
-        // Keep WebView audio stream and JS engine active when app is minimized or screen is locked
+        // Keep WebView audio stream and JS timers active when app is minimized or screen is locked
         if (bridge != null && bridge.getWebView() != null) {
-            bridge.getWebView().onResume();
+            WebView webView = bridge.getWebView();
+            webView.onResume();
+            webView.resumeTimers();
+        }
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        if (bridge != null && bridge.getWebView() != null) {
+            WebView webView = bridge.getWebView();
+            webView.onResume();
+            webView.resumeTimers();
         }
     }
 }
