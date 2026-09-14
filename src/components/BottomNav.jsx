@@ -14,15 +14,16 @@ export const BottomNav = () => {
   const currentIndex = Math.max(0, tabs.findIndex((t) => t.id === activeTab));
 
   return (
-    <nav className="fixed bottom-3 left-4 right-4 z-40 max-w-md mx-auto pointer-events-auto font-['Plus_Jakarta_Sans']">
-      <div className="relative w-full h-14 rounded-full glass-panel bg-[#121215]/90 border border-white/15 backdrop-blur-2xl shadow-2xl p-1.5 flex items-center justify-between overflow-hidden">
+    <nav className="fixed bottom-4 left-4 right-4 z-40 max-w-md mx-auto pointer-events-auto font-['Plus_Jakarta_Sans']">
+      {/* iOS Camera Mode Switcher Glossy Glass Container */}
+      <div className="relative w-full h-14 rounded-full bg-[#0c0c0e]/85 border border-white/20 backdrop-blur-3xl shadow-[0_12px_40px_rgba(0,0,0,0.7)] p-1 flex items-center justify-between overflow-hidden">
         
-        {/* Sliding Active Pill Highlight (Stays 100% strictly within the bar container) */}
+        {/* iOS Camera Mode Glossy Active Pill Indicator (Strictly container-bound) */}
         <div
-          className="absolute top-1.5 bottom-1.5 rounded-full bg-white/15 border border-white/20 backdrop-blur-md shadow-[0_0_15px_rgba(255,255,255,0.15)] transition-all duration-300 ease-out z-0 pointer-events-none"
+          className="absolute top-1 bottom-1 rounded-full bg-gradient-to-b from-white/30 via-white/15 to-white/5 border border-white/40 backdrop-blur-3xl shadow-[0_4px_16px_rgba(0,0,0,0.5),_inset_0_1px_1px_rgba(255,255,255,0.6)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] z-0 pointer-events-none"
           style={{
-            width: 'calc(33.333% - 4px)',
-            left: `calc(${currentIndex * 33.333}% + 2px)`,
+            width: 'calc(33.333% - 2px)',
+            left: `calc(${currentIndex * 33.333}% + 1px)`,
           }}
         />
 
@@ -35,19 +36,21 @@ export const BottomNav = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className="relative z-10 flex-1 h-full flex items-center justify-center gap-2 rounded-full transition-all duration-300 focus:outline-none"
+              className="relative z-10 flex-1 h-full flex items-center justify-center gap-2 rounded-full transition-all duration-300 focus:outline-none active:scale-95"
             >
               <Icon
-                size={20}
+                size={19}
                 className={`transition-all duration-300 ${
                   isSelected
-                    ? 'text-white scale-110 drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]'
-                    : 'text-white/50 hover:text-white/80'
+                    ? 'text-white scale-110 drop-shadow-[0_2px_10px_rgba(255,255,255,0.95)]'
+                    : 'text-white/45 hover:text-white/80'
                 }`}
               />
               <span
-                className={`text-xs font-bold transition-all duration-300 ${
-                  isSelected ? 'text-white opacity-100 font-extrabold' : 'text-white/50 opacity-60'
+                className={`text-xs tracking-wide transition-all duration-300 ${
+                  isSelected 
+                    ? 'text-white font-extrabold drop-shadow-[0_1px_4px_rgba(255,255,255,0.6)]' 
+                    : 'text-white/45 font-medium hover:text-white/80'
                 }`}
               >
                 {tab.label}
@@ -59,4 +62,3 @@ export const BottomNav = () => {
     </nav>
   );
 };
-
