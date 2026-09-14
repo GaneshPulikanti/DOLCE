@@ -1,8 +1,10 @@
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, 
   Heart, ChevronDown, ChevronUp, Download, MessageSquareQuote, ListMusic,
   Maximize2, Minimize2, X, Radio, FolderPlus, Plus, Check, ListPlus, Trash2
 } from 'lucide-react';
+
 import { Music } from 'lucide-react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { usePlayerStore } from '../store/usePlayerStore';
