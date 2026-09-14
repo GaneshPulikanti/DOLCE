@@ -76,14 +76,14 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 font-['Plus_Jakarta_Sans'] select-none">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 pt-10 pb-28 sm:py-6 font-['Plus_Jakarta_Sans'] select-none">
           {/* Backdrop Blur */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/75 backdrop-blur-xl"
+            className="fixed inset-0 bg-black/80 backdrop-blur-xl"
           />
 
           {/* Modal Container */}
@@ -92,11 +92,16 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-            className="relative w-full max-w-2xl max-h-[78vh] sm:max-h-[88vh] bg-[#0c0c0e]/95 border border-white/15 rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 my-auto mb-24 sm:mb-auto"
+            className="relative w-full max-w-2xl max-h-[75vh] sm:max-h-[85vh] bg-[#0c0c0e]/95 border border-white/15 rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 my-auto"
           >
-            {/* Top Navigation & Close Bar */}
-            <div className="p-3 sm:p-4 px-4 sm:px-6 flex items-center justify-between border-b border-white/10 bg-white/[0.02] flex-shrink-0">
-              <div className="flex items-center gap-2 text-[10px] sm:text-xs uppercase font-extrabold tracking-widest text-white/60">
+            {/* Mobile Pull Handle Indicator */}
+            <div className="w-full pt-2 flex justify-center sm:hidden bg-[#0c0c0e] flex-shrink-0">
+              <div className="w-10 h-1 rounded-full bg-white/30" />
+            </div>
+
+            {/* Top Navigation & Close Bar (Sticky at Top) */}
+            <div className="p-3 sm:p-4 px-4 sm:px-6 flex items-center justify-between border-b border-white/10 bg-[#0c0c0e] sticky top-0 z-20 flex-shrink-0">
+              <div className="flex items-center gap-2 text-[10px] sm:text-xs uppercase font-extrabold tracking-widest text-white/70">
                 {collection.type === 'artist' ? (
                   <User size={15} className="text-emerald-400" />
                 ) : collection.type === 'album' ? (
@@ -108,12 +113,13 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 sm:p-2 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-all shadow-md active:scale-95 flex items-center justify-center"
                 title="Close"
               >
-                <X size={18} />
+                <X size={18} className="text-white" />
               </button>
             </div>
+
 
             {/* Collection Header Banner */}
             <div className="p-3.5 sm:p-6 flex flex-row items-center sm:items-end gap-3.5 sm:gap-6 bg-gradient-to-b from-white/10 to-transparent border-b border-white/10 flex-shrink-0">
