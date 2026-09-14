@@ -64,6 +64,69 @@ export const usePlayerStore = create(
         lyricFont: 'jakarta', // 'jakarta' | 'sora' | 'syne' | 'space' | 'outfit'
         setLyricFont: (lyricFont) => set({ lyricFont }),
 
+        addToQueue: (track) => {
+          if (!track || !track.id) return;
+          const currentQueue = get().queue;
+          const currentTrack = get().currentTrack;
+
+          if (!currentTrack) {
+            get().playTrack(track, [track]);
+            return;
+          }
+
+          if (currentQueue.some(t => t.id === track.id)) {
+            return;
+          }
+
+          const updatedQueue = [...currentQueue, track];
+          set({ queue: updatedQueue });
+        },
+
+        removeFromQueue: (index) => {
+          const { queue, currentIndex } = get();
+          if (index < 0 || index >= queue.length) return;
+
+          const updatedQueue = queue.filter((_, idx) => idx !== index);
+          let newCurrentIndex = currentIndex;
+
+          if (index < currentIndex) {
+            newCurrentIndex = currentIndex - 1;
+          } else if (index === currentIndex) {
+            if (updatedQueue.length > 0) {
+              const nextIndex = index < updatedQueue.length ? index : 0;
+              get().playTrack(updatedQueue[nextIndex], updatedQueue);
+              return;
+            } else {
+              set({ queue: [], currentTrack: null, currentIndex: -1, isPlaying: false });
+              return;
+            }
+          }
+
+          set({ queue: updatedQueue, currentIndex: newCurrentIndex });
+        },
+
+        moveQueueItem: (fromIndex, toIndex) => {
+          const { queue, currentIndex } = get();
+          if (fromIndex < 0 || fromIndex >= queue.length || toIndex < 0 || toIndex >= queue.length) return;
+          if (fromIndex === toIndex) return;
+
+          const updatedQueue = [...queue];
+          const [movedTrack] = updatedQueue.splice(fromIndex, 1);
+          updatedQueue.splice(toIndex, 0, movedTrack);
+
+          let newCurrentIndex = currentIndex;
+          if (currentIndex === fromIndex) {
+            newCurrentIndex = toIndex;
+          } else if (fromIndex < currentIndex && toIndex >= currentIndex) {
+            newCurrentIndex = currentIndex - 1;
+          } else if (fromIndex > currentIndex && toIndex <= currentIndex) {
+            newCurrentIndex = currentIndex + 1;
+          }
+
+          set({ queue: updatedQueue, currentIndex: newCurrentIndex });
+        },
+
+
         playTrack: async (track, newQueue = null, startSeconds = 0) => {
           if (!track || !track.id) return;
 

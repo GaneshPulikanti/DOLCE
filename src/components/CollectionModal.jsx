@@ -1,18 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Play, Shuffle, Music, Heart, Loader2, Disc, User, ListMusic, Plus, Check } from 'lucide-react';
+import { X, Play, Shuffle, Music, Heart, Loader2, Disc, User, ListMusic, Plus, Check, ListPlus } from 'lucide-react';
 import { fetchCollectionTracks, searchSongs } from '../services/catalog';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { db, toggleFavorite, isFavorite, saveFullPlaylistToLibrary, isPlaylistSaved } from '../services/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 
 export const CollectionModal = ({ collection, isOpen, onClose }) => {
-  const { playTrack, currentTrack, isPlaying } = usePlayerStore();
+  const { playTrack, currentTrack, isPlaying, addToQueue } = usePlayerStore();
   const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
   const favorites = useLiveQuery(() => db.favorites.toArray()) || [];
   const favIds = new Set(favorites.map(f => f.id));
+
 
   useEffect(() => {
     if (!isOpen || !collection) return;
@@ -250,20 +251,32 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className="flex items-center gap-2.5 flex-shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addToQueue(track);
+                          }}
+                          className="p-2 text-white/40 hover:text-blue-400 transition-colors"
+                          title="Add to Queue"
+                        >
+                          <ListPlus size={16} />
+                        </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             toggleFavorite(track);
                           }}
                           className="p-2 text-white/40 hover:text-pink-400 transition-colors"
+                          title={isFav ? "Remove from Favorites" : "Add to Favorites"}
                         >
                           <Heart size={16} fill={isFav ? '#f43f5e' : 'none'} className={isFav ? 'text-pink-500' : ''} />
                         </button>
-                        <span className="text-xs font-semibold text-white/40">
+                        <span className="text-xs font-semibold text-white/40 hidden sm:inline">
                           {track.duration || '3:45'}
                         </span>
                       </div>
+
                     </div>
                   );
                 })

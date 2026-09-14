@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, 
   Heart, ChevronDown, ChevronUp, Download, MessageSquareQuote, ListMusic,
-  Maximize2, Minimize2, X, Radio, FolderPlus, Plus, Check, ListPlus
+  Maximize2, Minimize2, X, Radio, FolderPlus, Plus, Check, ListPlus, Trash2
 } from 'lucide-react';
 import { Music } from 'lucide-react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
@@ -19,8 +18,10 @@ export const PlayerBar = ({ themePalette }) => {
     playTrack, skipNext, skipPrev, currentTime, duration, seek, 
     isShuffle, repeatMode, cyclePlaybackMode,
     lyricFont, setLyricFont,
-    isExpanded, setExpanded 
+    isExpanded, setExpanded,
+    removeFromQueue, moveQueueItem
   } = usePlayerStore();
+
 
   const dragControls = useDragControls();
 
@@ -630,14 +631,50 @@ export const PlayerBar = ({ themePalette }) => {
                               </div>
                             </div>
 
-                            {isTrackActive && (
-                              <span className="text-xs font-bold text-white px-3 py-1 rounded-full bg-white/20 border border-white/30 font-['Plus_Jakarta_Sans'] flex-shrink-0">
-                                Playing
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1.5 flex-shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                              {isTrackActive && (
+                                <span className="text-[11px] font-bold text-white px-2.5 py-0.5 rounded-full bg-white/20 border border-white/30 font-['Plus_Jakarta_Sans'] hidden sm:inline-block">
+                                  Playing
+                                </span>
+                              )}
+
+                              {/* Move Up */}
+                              <button
+                                disabled={qIdx === 0}
+                                onClick={() => moveQueueItem(qIdx, qIdx - 1)}
+                                className={`p-1.5 rounded-lg transition-colors ${
+                                  qIdx === 0 ? 'text-white/15 cursor-not-allowed' : 'text-white/60 hover:text-white hover:bg-white/10'
+                                }`}
+                                title="Move Up"
+                              >
+                                <ChevronUp size={16} />
+                              </button>
+
+                              {/* Move Down */}
+                              <button
+                                disabled={qIdx === queue.length - 1}
+                                onClick={() => moveQueueItem(qIdx, qIdx + 1)}
+                                className={`p-1.5 rounded-lg transition-colors ${
+                                  qIdx === queue.length - 1 ? 'text-white/15 cursor-not-allowed' : 'text-white/60 hover:text-white hover:bg-white/10'
+                                }`}
+                                title="Move Down"
+                              >
+                                <ChevronDown size={16} />
+                              </button>
+
+                              {/* Remove From Queue */}
+                              <button
+                                onClick={() => removeFromQueue(qIdx)}
+                                className="p-1.5 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                title="Remove from Queue"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
                           </div>
                         );
                       })
+
                     ) : (
                       <div className="py-10 text-center text-white/50 font-bold font-['Plus_Jakarta_Sans'] text-sm">
                         No songs in queue
