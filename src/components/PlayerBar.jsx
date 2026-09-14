@@ -2,9 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, 
   Heart, ChevronDown, ChevronUp, Download, MessageSquareQuote, ListMusic,
-  Maximize2, Minimize2, X, Radio, FolderPlus, Plus, Check, ListPlus, Trash2
+  Maximize2, Minimize2, X, Radio, FolderPlus, Plus, Check, ListPlus, Trash2, GripVertical
 } from 'lucide-react';
-
 import { Music } from 'lucide-react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { usePlayerStore } from '../store/usePlayerStore';
@@ -23,7 +22,6 @@ export const PlayerBar = ({ themePalette }) => {
     isExpanded, setExpanded,
     removeFromQueue, moveQueueItem
   } = usePlayerStore();
-
 
   const dragControls = useDragControls();
 
@@ -52,6 +50,75 @@ export const PlayerBar = ({ themePalette }) => {
 
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekingTime, setSeekingTime] = useState(0);
+
+  // ── Drag & Drop Queue Reorder State & Handlers ──
+  const [draggedQueueIdx, setDraggedQueueIdx] = useState(null);
+  const [dragOverQueueIdx, setDragOverQueueIdx] = useState(null);
+  const queueContainerRef = useRef(null);
+  const touchQueueDragRef = useRef(null);
+
+  const handleQueueDragStart = (e, index) => {
+    setDraggedQueueIdx(index);
+    e.dataTransfer.effectAllowed = 'move';
+    try {
+      e.dataTransfer.setData('text/plain', index.toString());
+    } catch (_) {}
+  };
+
+  const handleQueueDragOver = (e, index) => {
+    e.preventDefault();
+    if (dragOverQueueIdx !== index) {
+      setDragOverQueueIdx(index);
+    }
+  };
+
+  const handleQueueDrop = (e, targetIndex) => {
+    e.preventDefault();
+    if (draggedQueueIdx !== null && draggedQueueIdx !== targetIndex) {
+      moveQueueItem(draggedQueueIdx, targetIndex);
+    }
+    setDraggedQueueIdx(null);
+    setDragOverQueueIdx(null);
+  };
+
+  const handleQueueDragEnd = () => {
+    setDraggedQueueIdx(null);
+    setDragOverQueueIdx(null);
+  };
+
+  const handleTouchQueueStart = (e, index) => {
+    const touch = e.touches[0];
+    touchQueueDragRef.current = {
+      startIndex: index,
+      startY: touch.clientY,
+    };
+    setDraggedQueueIdx(index);
+  };
+
+  const handleTouchQueueMove = (e) => {
+    if (!touchQueueDragRef.current || !queueContainerRef.current) return;
+    const touch = e.touches[0];
+    const elements = queueContainerRef.current.querySelectorAll('[data-queue-index]');
+    for (let el of elements) {
+      const rect = el.getBoundingClientRect();
+      if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+        const targetIdx = parseInt(el.getAttribute('data-queue-index'), 10);
+        if (!isNaN(targetIdx) && targetIdx !== touchQueueDragRef.current.startIndex) {
+          moveQueueItem(touchQueueDragRef.current.startIndex, targetIdx);
+          touchQueueDragRef.current.startIndex = targetIdx;
+          setDraggedQueueIdx(targetIdx);
+        }
+        break;
+      }
+    }
+  };
+
+  const handleTouchQueueEnd = () => {
+    touchQueueDragRef.current = null;
+    setDraggedQueueIdx(null);
+    setDragOverQueueIdx(null);
+  };
+
 
   const handleSeekStart = () => {
     setIsSeeking(true);
@@ -597,21 +664,45 @@ export const PlayerBar = ({ themePalette }) => {
                     </button>
                   </div>
 
-                  <div className="w-full max-h-72 overflow-y-auto scroll-smooth pr-1 flex flex-col gap-2">
+                  <div 
+                    ref={queueContainerRef} 
+                    className="w-full max-h-72 overflow-y-auto scroll-smooth pr-1 flex flex-col gap-2 select-none"
+                  >
                     {queue.length > 0 ? (
                       queue.map((track, qIdx) => {
                         const isTrackActive = currentTrack.id === track.id;
                         return (
                           <div
                             key={`${track.id}-${qIdx}`}
+                            data-queue-index={qIdx}
+                            draggable
+                            onDragStart={(e) => handleQueueDragStart(e, qIdx)}
+                            onDragOver={(e) => handleQueueDragOver(e, qIdx)}
+                            onDrop={(e) => handleQueueDrop(e, qIdx)}
+                            onDragEnd={handleQueueDragEnd}
                             onClick={() => playTrack(track, queue)}
                             className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all ${
                               isTrackActive
                                 ? 'bg-white/20 border border-white/30 text-white font-bold'
+                                : dragOverQueueIdx === qIdx
+                                ? 'bg-white/20 border-2 border-dashed border-white/60'
+                                : draggedQueueIdx === qIdx
+                                ? 'opacity-40 bg-white/5 border border-white/10'
                                 : 'hover:bg-white/10 text-white/70'
                             }`}
                           >
-                            <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              {/* Spotify-style Two Line Drag Handle */}
+                              <div
+                                onTouchStart={(e) => handleTouchQueueStart(e, qIdx)}
+                                onTouchMove={handleTouchQueueMove}
+                                onTouchEnd={handleTouchQueueEnd}
+                                className="p-1 text-white/40 hover:text-white cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
+                                title="Drag up or down to reorder queue"
+                              >
+                                <GripVertical size={18} />
+                              </div>
+
                               <img
                                 src={track.artworkUrl || (track.id ? `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg` : '')}
                                 alt={track.title}
@@ -633,36 +724,12 @@ export const PlayerBar = ({ themePalette }) => {
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-1.5 flex-shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-2 flex-shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
                               {isTrackActive && (
                                 <span className="text-[11px] font-bold text-white px-2.5 py-0.5 rounded-full bg-white/20 border border-white/30 font-['Plus_Jakarta_Sans'] hidden sm:inline-block">
                                   Playing
                                 </span>
                               )}
-
-                              {/* Move Up */}
-                              <button
-                                disabled={qIdx === 0}
-                                onClick={() => moveQueueItem(qIdx, qIdx - 1)}
-                                className={`p-1.5 rounded-lg transition-colors ${
-                                  qIdx === 0 ? 'text-white/15 cursor-not-allowed' : 'text-white/60 hover:text-white hover:bg-white/10'
-                                }`}
-                                title="Move Up"
-                              >
-                                <ChevronUp size={16} />
-                              </button>
-
-                              {/* Move Down */}
-                              <button
-                                disabled={qIdx === queue.length - 1}
-                                onClick={() => moveQueueItem(qIdx, qIdx + 1)}
-                                className={`p-1.5 rounded-lg transition-colors ${
-                                  qIdx === queue.length - 1 ? 'text-white/15 cursor-not-allowed' : 'text-white/60 hover:text-white hover:bg-white/10'
-                                }`}
-                                title="Move Down"
-                              >
-                                <ChevronDown size={16} />
-                              </button>
 
                               {/* Remove From Queue */}
                               <button
@@ -676,6 +743,7 @@ export const PlayerBar = ({ themePalette }) => {
                           </div>
                         );
                       })
+
 
                     ) : (
                       <div className="py-10 text-center text-white/50 font-bold font-['Plus_Jakarta_Sans'] text-sm">
