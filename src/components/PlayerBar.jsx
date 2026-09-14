@@ -51,9 +51,8 @@ export const PlayerBar = ({ themePalette }) => {
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekingTime, setSeekingTime] = useState(0);
 
-  // ── Drag & Drop Queue Reorder State & Handlers ──
+  // ── Smooth Live Drag & Drop Queue Reorder ──
   const [draggedQueueIdx, setDraggedQueueIdx] = useState(null);
-  const [dragOverQueueIdx, setDragOverQueueIdx] = useState(null);
   const queueContainerRef = useRef(null);
   const touchQueueDragRef = useRef(null);
 
@@ -65,11 +64,17 @@ export const PlayerBar = ({ themePalette }) => {
     } catch (_) {}
   };
 
-  const handleQueueDragOver = (e, index) => {
+  const handleQueueDragEnter = (e, targetIndex) => {
     e.preventDefault();
-    if (dragOverQueueIdx !== index) {
-      setDragOverQueueIdx(index);
+    if (draggedQueueIdx !== null && draggedQueueIdx !== targetIndex) {
+      moveQueueItem(draggedQueueIdx, targetIndex);
+      setDraggedQueueIdx(targetIndex);
     }
+  };
+
+  const handleQueueDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
 
     if (queueContainerRef.current) {
       const container = queueContainerRef.current;
@@ -77,32 +82,21 @@ export const PlayerBar = ({ themePalette }) => {
       const edgeThreshold = 45;
 
       if (e.clientY < rect.top + edgeThreshold) {
-        container.scrollTop -= 14;
+        container.scrollTop -= 16;
       } else if (e.clientY > rect.bottom - edgeThreshold) {
-        container.scrollTop += 14;
+        container.scrollTop += 16;
       }
     }
   };
 
-  const handleQueueDrop = (e, targetIndex) => {
-    e.preventDefault();
-    if (draggedQueueIdx !== null && draggedQueueIdx !== targetIndex) {
-      moveQueueItem(draggedQueueIdx, targetIndex);
-    }
-    setDraggedQueueIdx(null);
-    setDragOverQueueIdx(null);
-  };
-
   const handleQueueDragEnd = () => {
     setDraggedQueueIdx(null);
-    setDragOverQueueIdx(null);
   };
 
   const handleTouchQueueStart = (e, index) => {
     const touch = e.touches[0];
     touchQueueDragRef.current = {
-      startIndex: index,
-      startY: touch.clientY,
+      currentIndex: index,
     };
     setDraggedQueueIdx(index);
   };
@@ -115,9 +109,9 @@ export const PlayerBar = ({ themePalette }) => {
     const edgeThreshold = 45;
 
     if (touch.clientY < rect.top + edgeThreshold) {
-      container.scrollTop -= 14;
+      container.scrollTop -= 16;
     } else if (touch.clientY > rect.bottom - edgeThreshold) {
-      container.scrollTop += 14;
+      container.scrollTop += 16;
     }
 
     const elements = container.querySelectorAll('[data-queue-index]');
@@ -125,9 +119,9 @@ export const PlayerBar = ({ themePalette }) => {
       const elRect = el.getBoundingClientRect();
       if (touch.clientY >= elRect.top && touch.clientY <= elRect.bottom) {
         const targetIdx = parseInt(el.getAttribute('data-queue-index'), 10);
-        if (!isNaN(targetIdx) && targetIdx !== touchQueueDragRef.current.startIndex) {
-          moveQueueItem(touchQueueDragRef.current.startIndex, targetIdx);
-          touchQueueDragRef.current.startIndex = targetIdx;
+        if (!isNaN(targetIdx) && targetIdx !== touchQueueDragRef.current.currentIndex) {
+          moveQueueItem(touchQueueDragRef.current.currentIndex, targetIdx);
+          touchQueueDragRef.current.currentIndex = targetIdx;
           setDraggedQueueIdx(targetIdx);
         }
         break;
@@ -135,12 +129,11 @@ export const PlayerBar = ({ themePalette }) => {
     }
   };
 
-
   const handleTouchQueueEnd = () => {
     touchQueueDragRef.current = null;
     setDraggedQueueIdx(null);
-    setDragOverQueueIdx(null);
   };
+
 
 
   const handleSeekStart = () => {
@@ -700,20 +693,19 @@ export const PlayerBar = ({ themePalette }) => {
                             data-queue-index={qIdx}
                             draggable
                             onDragStart={(e) => handleQueueDragStart(e, qIdx)}
-                            onDragOver={(e) => handleQueueDragOver(e, qIdx)}
-                            onDrop={(e) => handleQueueDrop(e, qIdx)}
+                            onDragEnter={(e) => handleQueueDragEnter(e, qIdx)}
+                            onDragOver={handleQueueDragOver}
                             onDragEnd={handleQueueDragEnd}
                             onClick={() => playTrack(track, queue)}
                             className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all ${
                               isTrackActive
                                 ? 'bg-white/20 border border-white/30 text-white font-bold'
-                                : dragOverQueueIdx === qIdx
-                                ? 'bg-white/20 border-2 border-dashed border-white/60'
                                 : draggedQueueIdx === qIdx
-                                ? 'opacity-40 bg-white/5 border border-white/10'
+                                ? 'bg-white/25 border-2 border-white/60 scale-[1.01] shadow-2xl'
                                 : 'hover:bg-white/10 text-white/70'
                             }`}
                           >
+
                             <div className="flex items-center gap-3 min-w-0 flex-1">
                               {/* Spotify-style Two Line Drag Handle */}
                               <div
