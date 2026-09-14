@@ -76,7 +76,7 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 pt-10 pb-28 sm:py-6 font-['Plus_Jakarta_Sans'] select-none">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-6 pt-10 sm:pt-6 font-['Plus_Jakarta_Sans'] select-none">
           {/* Backdrop Blur */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -86,13 +86,13 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
             className="fixed inset-0 bg-black/80 backdrop-blur-xl"
           />
 
-          {/* Modal Container */}
+          {/* Modal Container (Strict height budget h-[calc(100vh-235px)] so bottom sits cleanly above mini player) */}
           <motion.div
             initial={{ opacity: 0, scale: 0.94, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-            className="relative w-full max-w-2xl max-h-[75vh] sm:max-h-[85vh] bg-[#0c0c0e]/95 border border-white/15 rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 my-auto"
+            className="relative w-full max-w-2xl h-[calc(100vh-235px)] sm:h-[82vh] max-h-[620px] sm:max-h-[85vh] bg-[#0c0c0e]/95 border border-white/15 rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10"
           >
             {/* Mobile Pull Handle Indicator */}
             <div className="w-full pt-2 flex justify-center sm:hidden bg-[#0c0c0e] flex-shrink-0">
@@ -119,7 +119,6 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
                 <X size={18} className="text-white" />
               </button>
             </div>
-
 
             {/* Collection Header Banner */}
             <div className="p-3.5 sm:p-6 flex flex-row items-center sm:items-end gap-3.5 sm:gap-6 bg-gradient-to-b from-white/10 to-transparent border-b border-white/10 flex-shrink-0">
@@ -193,8 +192,9 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
               </div>
             </div>
 
-            {/* Tracklist Container (pb-36 ensures last song is 100% visible above mini player) */}
-            <div className="flex-1 overflow-y-auto p-3 sm:p-6 pb-36 sm:pb-16 flex flex-col gap-2 min-h-0">
+            {/* Tracklist Container (Fits completely above mini player) */}
+            <div className="flex-1 overflow-y-auto p-3 sm:p-6 pb-6 sm:pb-8 flex flex-col gap-2 min-h-0">
+
 
 
               {loading ? (
