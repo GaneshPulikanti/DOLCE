@@ -193,8 +193,9 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
               </div>
             </div>
 
-            {/* Tracklist Container */}
-            <div className="flex-1 overflow-y-auto p-3 sm:p-6 flex flex-col gap-2 min-h-0">
+            {/* Tracklist Container (pb-36 ensures last song is 100% visible above mini player) */}
+            <div className="flex-1 overflow-y-auto p-3 sm:p-6 pb-36 sm:pb-16 flex flex-col gap-2 min-h-0">
+
 
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-16 text-white/50 gap-3">
