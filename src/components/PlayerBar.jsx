@@ -70,6 +70,18 @@ export const PlayerBar = ({ themePalette }) => {
     if (dragOverQueueIdx !== index) {
       setDragOverQueueIdx(index);
     }
+
+    if (queueContainerRef.current) {
+      const container = queueContainerRef.current;
+      const rect = container.getBoundingClientRect();
+      const edgeThreshold = 45;
+
+      if (e.clientY < rect.top + edgeThreshold) {
+        container.scrollTop -= 14;
+      } else if (e.clientY > rect.bottom - edgeThreshold) {
+        container.scrollTop += 14;
+      }
+    }
   };
 
   const handleQueueDrop = (e, targetIndex) => {
@@ -98,10 +110,20 @@ export const PlayerBar = ({ themePalette }) => {
   const handleTouchQueueMove = (e) => {
     if (!touchQueueDragRef.current || !queueContainerRef.current) return;
     const touch = e.touches[0];
-    const elements = queueContainerRef.current.querySelectorAll('[data-queue-index]');
+    const container = queueContainerRef.current;
+    const rect = container.getBoundingClientRect();
+    const edgeThreshold = 45;
+
+    if (touch.clientY < rect.top + edgeThreshold) {
+      container.scrollTop -= 14;
+    } else if (touch.clientY > rect.bottom - edgeThreshold) {
+      container.scrollTop += 14;
+    }
+
+    const elements = container.querySelectorAll('[data-queue-index]');
     for (let el of elements) {
-      const rect = el.getBoundingClientRect();
-      if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+      const elRect = el.getBoundingClientRect();
+      if (touch.clientY >= elRect.top && touch.clientY <= elRect.bottom) {
         const targetIdx = parseInt(el.getAttribute('data-queue-index'), 10);
         if (!isNaN(targetIdx) && targetIdx !== touchQueueDragRef.current.startIndex) {
           moveQueueItem(touchQueueDragRef.current.startIndex, targetIdx);
@@ -112,6 +134,7 @@ export const PlayerBar = ({ themePalette }) => {
       }
     }
   };
+
 
   const handleTouchQueueEnd = () => {
     touchQueueDragRef.current = null;
