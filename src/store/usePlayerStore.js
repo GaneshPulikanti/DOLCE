@@ -301,3 +301,6 @@ export const usePlayerStore = create(
   )
 );
 
+if (typeof window !== 'undefined') {
+  window.usePlayerStore = usePlayerStore;
+}

@@ -19,29 +19,11 @@ function getSilentAudioElement() {
 }
 
 export function syncMediaSession({ track, isPlaying, onPlay, onPause, onSkipNext, onSkipPrev, onSeek }) {
-  if (typeof window === 'undefined' || !('mediaSession' in navigator)) return;
-
-  const silentAudio = getSilentAudioElement();
+  if (typeof window === 'undefined') return;
 
   if (track) {
-    try {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: track.title || 'DOLCE Music',
-        artist: track.artistName || 'DOLCE Stream',
-        album: 'DOLCE Music Player',
-        artwork: [
-          { src: track.artworkUrl || '/favicon.png', sizes: '96x96', type: 'image/png' },
-          { src: track.artworkUrl || '/favicon.png', sizes: '128x128', type: 'image/png' },
-          { src: track.artworkUrl || '/favicon.png', sizes: '192x192', type: 'image/png' },
-          { src: track.artworkUrl || '/favicon.png', sizes: '256x256', type: 'image/png' },
-          { src: track.artworkUrl || '/favicon.png', sizes: '512x512', type: 'image/png' },
-        ],
-      });
-    } catch (e) {
-      console.warn('MediaMetadata creation warning:', e);
-    }
-
-    if (typeof window !== 'undefined' && window.AndroidNativePlayer) {
+    // 1. Always update Android Native Foreground Notification
+    if (window.AndroidNativePlayer) {
       try {
         window.AndroidNativePlayer.updateNotification(
           track.title || 'DOLCE Music',
@@ -62,11 +44,31 @@ export function syncMediaSession({ track, isPlaying, onPlay, onPause, onSkipNext
         }).catch(() => {});
       } catch (_) {}
     }
+
+    // 2. Update Browser Standard MediaSession API
+    if ('mediaSession' in navigator) {
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: track.title || 'DOLCE Music',
+          artist: track.artistName || 'DOLCE Stream',
+          album: 'DOLCE Music Player',
+          artwork: [
+            { src: track.artworkUrl || '/favicon.png', sizes: '96x96', type: 'image/png' },
+            { src: track.artworkUrl || '/favicon.png', sizes: '128x128', type: 'image/png' },
+            { src: track.artworkUrl || '/favicon.png', sizes: '192x192', type: 'image/png' },
+            { src: track.artworkUrl || '/favicon.png', sizes: '256x256', type: 'image/png' },
+            { src: track.artworkUrl || '/favicon.png', sizes: '512x512', type: 'image/png' },
+          ],
+        });
+        navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+      } catch (e) {
+        console.warn('MediaMetadata creation warning:', e);
+      }
+    }
   }
 
-  navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
-
   // Sustain Android OS Audio Focus and keep WebView CPU awake during background playback
+  const silentAudio = getSilentAudioElement();
   if (silentAudio) {
     if (isPlaying) {
       silentAudio.play().catch(() => {});
@@ -75,21 +77,23 @@ export function syncMediaSession({ track, isPlaying, onPlay, onPause, onSkipNext
     }
   }
 
-  const setHandler = (action, handler) => {
-    try {
-      navigator.mediaSession.setActionHandler(action, handler);
-    } catch (_) {}
-  };
+  if ('mediaSession' in navigator) {
+    const setHandler = (action, handler) => {
+      try {
+        navigator.mediaSession.setActionHandler(action, handler);
+      } catch (_) {}
+    };
 
-  setHandler('play', () => onPlay && onPlay());
-  setHandler('pause', () => onPause && onPause());
-  setHandler('previoustrack', () => onSkipPrev && onSkipPrev());
-  setHandler('nexttrack', () => onSkipNext && onSkipNext());
-  setHandler('seekto', (details) => {
-    if (details.seekTime !== undefined && onSeek) {
-      onSeek(details.seekTime);
-    }
-  });
+    setHandler('play', () => onPlay && onPlay());
+    setHandler('pause', () => onPause && onPause());
+    setHandler('previoustrack', () => onSkipPrev && onSkipPrev());
+    setHandler('nexttrack', () => onSkipNext && onSkipNext());
+    setHandler('seekto', (details) => {
+      if (details.seekTime !== undefined && onSeek) {
+        onSeek(details.seekTime);
+      }
+    });
+  }
 }
 
 export function updateMediaPosition(currentTime, duration) {
@@ -106,4 +110,3 @@ export function updateMediaPosition(currentTime, duration) {
     } catch (_) {}
   }
 }
-

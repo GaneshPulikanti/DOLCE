@@ -15,11 +15,42 @@ import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+    private static MainActivity instance;
     private Handler keepAliveHandler = new Handler(Looper.getMainLooper());
     private Runnable keepAliveRunnable;
 
+    public static MainActivity getInstance() {
+        return instance;
+    }
+
+    public static void sendMediaControlToWeb(final String actionStr) {
+        if (instance != null && instance.bridge != null && instance.bridge.getWebView() != null) {
+            instance.runOnUiThread(() -> {
+                try {
+                    WebView webView = instance.bridge.getWebView();
+                    if (webView != null) {
+                        String js = "";
+                        if ("togglePlayPause".equals(actionStr)) {
+                            js = "if (window.usePlayerStore) { window.usePlayerStore.getState().togglePlayPause(); } else if (window.audioEngine) { if (window.audioEngine.isCurrentlyPlaying) { window.audioEngine.pause(); } else { window.audioEngine.resume(true); } }";
+                        } else if ("next".equals(actionStr)) {
+                            js = "if (window.usePlayerStore) { window.usePlayerStore.getState().skipNext(); }";
+                        } else if ("prev".equals(actionStr)) {
+                            js = "if (window.usePlayerStore) { window.usePlayerStore.getState().skipPrev(); }";
+                        }
+                        if (!js.isEmpty()) {
+                            webView.evaluateJavascript(js, null);
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        instance = this;
         registerPlugin(BackgroundAudioPlugin.class);
         super.onCreate(savedInstanceState);
         
