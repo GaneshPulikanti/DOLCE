@@ -1,6 +1,6 @@
 /**
- * High-Performance Official Audio Engine wrapping YouTube IFrame API.
- * Guarantees 100% background uptime and consistent streaming across Desktop, Mobile, Vercel & Android.
+ * High-Performance Official Audio Engine wrapping YouTube IFrame API & Native Service Player.
+ * Guarantees 100% background uptime and unified state synchronization across Desktop & Android.
  */
 class AudioEngine {
   constructor() {
@@ -19,6 +19,16 @@ class AudioEngine {
 
   initYtIframe() {
     if (typeof window === 'undefined') return;
+
+    // Expose engine globally for native Android WebView background hooks
+    window.audioEngine = this;
+
+    // On native Android app, BackgroundAudioService is the SINGLE MASTER AUDIO PLAYER!
+    // MainActivity WebView does NOT load a duplicate YouTube iframe to prevent dual-player stutter loops.
+    if (window.AndroidNativePlayer) {
+      console.log('🛸 [AudioEngine] AndroidNativePlayer present. Using BackgroundAudioService as Single Master Player.');
+      return;
+    }
 
     let container = document.getElementById('yt-player-container');
     if (!container) {
@@ -91,32 +101,6 @@ class AudioEngine {
     };
     document.addEventListener('click', unlockAudio, { once: true });
     document.addEventListener('touchstart', unlockAudio, { once: true });
-
-    // Expose engine globally for native Android WebView background hooks
-    window.audioEngine = this;
-
-    // Sustain playback ONLY IF currently playing when app goes to background / Home screen
-    if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden && this.isCurrentlyPlaying && !this.userIntentToPause) {
-          console.log('🛸 [AudioEngine] App minimized while playing. Overriding WebView iframe pause...');
-          this.initWebAudioKeepAlive();
-          if (this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
-            const tryResume = () => {
-              try {
-                if (this.isCurrentlyPlaying && !this.userIntentToPause && this.ytPlayer) {
-                  this.ytPlayer.playVideo();
-                }
-              } catch (_) {}
-            };
-            tryResume();
-            setTimeout(tryResume, 50);
-            setTimeout(tryResume, 150);
-            setTimeout(tryResume, 400);
-          }
-        }
-      });
-    }
   }
 
   initWebAudioKeepAlive() {
@@ -127,7 +111,7 @@ class AudioEngine {
           this.audioCtx = new AudioCtx();
           const osc = this.audioCtx.createOscillator();
           const gain = this.audioCtx.createGain();
-          gain.gain.value = 0.0001; // Inaudible silent gain to maintain Android WebAudio hardware lock
+          gain.gain.value = 0.0001;
           osc.connect(gain);
           gain.connect(this.audioCtx.destination);
           osc.start();
@@ -148,15 +132,6 @@ class AudioEngine {
         iframe.setAttribute('webkit-playsinline', 'true');
         iframe.setAttribute('allow', 'autoplay');
         iframe.style.cssText = 'width: 1px !important; height: 1px !important; position: absolute !important; top: 0 !important; left: 0 !important; opacity: 0.001 !important; pointer-events: none !important; z-index: -9999 !important; border: none !important;';
-        
-        // Prevent YouTube player script from shifting focus or scrolling viewport
-        try {
-          Object.defineProperty(iframe, 'focus', {
-            value: () => {},
-            writable: false,
-            configurable: true
-          });
-        } catch (_) {}
       }
     } catch (_) {}
   }
@@ -180,24 +155,9 @@ class AudioEngine {
       this.isCurrentlyPlaying = true;
       this.userIntentToPause = false;
       this.startProgressUpdates();
-      this.secureIframeElement();
     } else if (stateStr === 'paused') {
-      if (this.userIntentToPause) {
-        this.isCurrentlyPlaying = false;
-        this.stopProgressUpdates();
-      } else {
-        // Chromium auto-paused YouTube iframe because app was minimized/backgrounded!
-        console.log('🛸 [AudioEngine] Background auto-pause detected. Auto-resuming video playback...');
-        if (this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
-          this.ytPlayer.playVideo();
-          setTimeout(() => {
-            try {
-              if (!this.userIntentToPause && this.ytPlayer) this.ytPlayer.playVideo();
-            } catch (_) {}
-          }, 100);
-        }
-        return; // Do NOT emit paused state to store!
-      }
+      this.isCurrentlyPlaying = false;
+      this.stopProgressUpdates();
     } else if (stateStr === 'ended' || stateStr === 'idle') {
       this.isCurrentlyPlaying = false;
       this.stopProgressUpdates();
@@ -238,8 +198,25 @@ class AudioEngine {
     this.userIntentToPause = false;
     console.log(`▶️ [AudioEngine] playTrack: ${videoId} at ${startSeconds}s`);
 
-    this.secureIframeElement();
+    // On native Android app, delegate to AndroidNativePlayer BackgroundAudioService
+    if (typeof window !== 'undefined' && window.AndroidNativePlayer) {
+      try {
+        const track = window.usePlayerStore ? window.usePlayerStore.getState().currentTrack : null;
+        window.AndroidNativePlayer.updateNotification(
+          videoId,
+          track?.title || 'DOLCE Music',
+          track?.artistName || 'DOLCE Stream',
+          track?.artworkUrl || '',
+          true
+        );
+      } catch (e) {
+        console.warn('Native updateNotification error:', e);
+      }
+      return;
+    }
 
+    // Web Browser Mode
+    this.secureIframeElement();
     if (this.isYtReady && this.ytPlayer && typeof this.ytPlayer.loadVideoById === 'function') {
       this.ytPlayer.loadVideoById({
         videoId: videoId,
@@ -257,6 +234,20 @@ class AudioEngine {
   pause() {
     this.userIntentToPause = true;
     this.isCurrentlyPlaying = false;
+
+    if (typeof window !== 'undefined' && window.AndroidNativePlayer) {
+      try {
+        const track = window.usePlayerStore ? window.usePlayerStore.getState().currentTrack : null;
+        window.AndroidNativePlayer.updateNotification(
+          this.currentVideoId || '',
+          track?.title || 'DOLCE Music',
+          track?.artistName || 'DOLCE Stream',
+          track?.artworkUrl || '',
+          false
+        );
+      } catch (_) {}
+    }
+
     if (this.ytPlayer && typeof this.ytPlayer.pauseVideo === 'function') {
       this.ytPlayer.pauseVideo();
     }
@@ -269,7 +260,20 @@ class AudioEngine {
   resume(userInitiated = false) {
     this.userIntentToPause = false;
     this.isCurrentlyPlaying = true;
-    
+
+    if (typeof window !== 'undefined' && window.AndroidNativePlayer) {
+      try {
+        const track = window.usePlayerStore ? window.usePlayerStore.getState().currentTrack : null;
+        window.AndroidNativePlayer.updateNotification(
+          this.currentVideoId || '',
+          track?.title || 'DOLCE Music',
+          track?.artistName || 'DOLCE Stream',
+          track?.artworkUrl || '',
+          true
+        );
+      } catch (_) {}
+    }
+
     if (this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
       this.ytPlayer.playVideo();
     }
@@ -279,6 +283,13 @@ class AudioEngine {
   }
 
   seek(seconds) {
+    if (typeof window !== 'undefined' && window.AndroidNativePlayer) {
+      try {
+        if (typeof window.AndroidNativePlayer.seekTo === 'function') {
+          window.AndroidNativePlayer.seekTo(seconds);
+        }
+      } catch (_) {}
+    }
     if (this.ytPlayer && typeof this.ytPlayer.seekTo === 'function') {
       this.ytPlayer.seekTo(seconds, true);
     }

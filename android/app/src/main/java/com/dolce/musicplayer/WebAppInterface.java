@@ -32,4 +32,21 @@ public class WebAppInterface {
             e.printStackTrace();
         }
     }
+
+    @JavascriptInterface
+    public void seekTo(double seconds) {
+        try {
+            Intent intent = new Intent(mContext, BackgroundAudioService.class);
+            intent.setAction("UPDATE_NOTIFICATION");
+            intent.putExtra("seekToSeconds", seconds);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                mContext.startForegroundService(intent);
+            } else {
+                mContext.startService(intent);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 }

@@ -1,5 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useState } from 'react';
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
 import { PlayerBar } from './components/PlayerBar';
@@ -14,7 +13,7 @@ import { usePlayerStore } from './store/usePlayerStore';
 import { extractArtworkColor } from './services/colorExtractor';
 
 export const App = () => {
-  const { activeTab } = useSearchStore();
+  const { activeTab, setActiveTab } = useSearchStore();
   const { currentTrack } = usePlayerStore();
   const [themePalette, setThemePalette] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -26,7 +25,7 @@ export const App = () => {
     }
   }, [currentTrack?.artworkUrl, currentTrack?.id]);
 
-  // Strictly block horizontal touch swipe gestures outside horizontal scroll elements
+  // Touch Swipe Gesture Navigation between Discover <-> Search <-> Library
   useEffect(() => {
     let startX = 0;
     let startY = 0;
@@ -38,41 +37,45 @@ export const App = () => {
       }
     };
 
-    const handleTouchMove = (e) => {
-      if (!e.touches || e.touches.length === 0) return;
-      const deltaX = Math.abs(e.touches[0].clientX - startX);
-      const deltaY = Math.abs(e.touches[0].clientY - startY);
+    const handleTouchEnd = (e) => {
+      if (!e.changedTouches || e.changedTouches.length === 0) return;
 
-      if (deltaX > deltaY && deltaX > 15) {
-        let target = e.target;
-        let isInsideHorizontalScroll = false;
+      const endX = e.changedTouches[0].clientX;
+      const endY = e.changedTouches[0].clientY;
 
-        while (target && target !== document.body) {
-          if (
-            target.scrollWidth > target.clientWidth &&
-            (window.getComputedStyle(target).overflowX === 'auto' ||
-              window.getComputedStyle(target).overflowX === 'scroll')
-          ) {
-            isInsideHorizontalScroll = true;
-            break;
+      const deltaX = endX - startX;
+      const deltaY = endY - startY;
+
+      // Swipe trigger: horizontal distance > 50px and horizontal movement is dominant over vertical
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+        const tabs = ['home', 'search', 'library'];
+        const currentIdx = tabs.indexOf(activeTab);
+
+        if (currentIdx !== -1) {
+          if (deltaX < 0 && currentIdx < tabs.length - 1) {
+            // Swipe Left -> Move to Next Tab
+            setActiveTab(tabs[currentIdx + 1]);
+          } else if (deltaX > 0 && currentIdx > 0) {
+            // Swipe Right -> Move to Previous Tab
+            setActiveTab(tabs[currentIdx - 1]);
           }
-          target = target.parentElement;
-        }
-
-        if (!isInsideHorizontalScroll && e.cancelable) {
-          e.preventDefault();
         }
       }
     };
 
-    window.addEventListener('touchstart', handleTouchStart, { passive: true });
-    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    const mainEl = document.querySelector('main');
+    if (mainEl) {
+      mainEl.addEventListener('touchstart', handleTouchStart, { passive: true });
+      mainEl.addEventListener('touchend', handleTouchEnd, { passive: true });
+    }
 
     return () => {
-      window.removeEventListener('touchstart', handleTouchStart);
-      window.removeEventListener('touchmove', handleTouchMove);
+      if (mainEl) {
+        mainEl.removeEventListener('touchstart', handleTouchStart);
+        mainEl.removeEventListener('touchend', handleTouchEnd);
+      }
     };
-  }, []);
+  }, [activeTab, setActiveTab]);
 
   const orb1Style = themePalette ? {
     background: `radial-gradient(circle, ${themePalette.dominant} 0%, rgba(0, 0, 0, 0) 75%)`
