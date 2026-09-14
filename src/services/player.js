@@ -1,6 +1,6 @@
 /**
  * High-Performance Official Audio Engine wrapping YouTube IFrame API.
- * Guarantees 100% uptime and consistent streaming across Desktop, Mobile, Vercel & Android.
+ * Guarantees 100% background uptime and consistent streaming across Desktop, Mobile, Vercel & Android.
  */
 class AudioEngine {
   constructor() {
@@ -12,6 +12,7 @@ class AudioEngine {
     this.onProgress = null;
     this.progressTimer = null;
     this.isCurrentlyPlaying = false;
+    this.userIntentToPause = false;
 
     this.initYtIframe();
   }
@@ -97,24 +98,21 @@ class AudioEngine {
     // Sustain playback ONLY IF currently playing when app goes to background / Home screen
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', () => {
-        if (document.hidden && this.isCurrentlyPlaying) {
+        if (document.hidden && this.isCurrentlyPlaying && !this.userIntentToPause) {
           console.log('🛸 [AudioEngine] App minimized while playing. Overriding WebView iframe pause...');
           this.initWebAudioKeepAlive();
           if (this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
-            setTimeout(() => {
+            const tryResume = () => {
               try {
-                if (this.isCurrentlyPlaying) {
+                if (this.isCurrentlyPlaying && !this.userIntentToPause && this.ytPlayer) {
                   this.ytPlayer.playVideo();
                 }
               } catch (_) {}
-            }, 50);
-            setTimeout(() => {
-              try {
-                if (this.isCurrentlyPlaying) {
-                  this.ytPlayer.playVideo();
-                }
-              } catch (_) {}
-            }, 300);
+            };
+            tryResume();
+            setTimeout(tryResume, 50);
+            setTimeout(tryResume, 150);
+            setTimeout(tryResume, 400);
           }
         }
       });
@@ -180,9 +178,27 @@ class AudioEngine {
 
     if (stateStr === 'playing') {
       this.isCurrentlyPlaying = true;
+      this.userIntentToPause = false;
       this.startProgressUpdates();
       this.secureIframeElement();
-    } else if (stateStr === 'paused' || stateStr === 'ended' || stateStr === 'idle') {
+    } else if (stateStr === 'paused') {
+      if (this.userIntentToPause) {
+        this.isCurrentlyPlaying = false;
+        this.stopProgressUpdates();
+      } else {
+        // Chromium auto-paused YouTube iframe because app was minimized/backgrounded!
+        console.log('🛸 [AudioEngine] Background auto-pause detected. Auto-resuming video playback...');
+        if (this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
+          this.ytPlayer.playVideo();
+          setTimeout(() => {
+            try {
+              if (!this.userIntentToPause && this.ytPlayer) this.ytPlayer.playVideo();
+            } catch (_) {}
+          }, 100);
+        }
+        return; // Do NOT emit paused state to store!
+      }
+    } else if (stateStr === 'ended' || stateStr === 'idle') {
       this.isCurrentlyPlaying = false;
       this.stopProgressUpdates();
     } else {
@@ -219,6 +235,7 @@ class AudioEngine {
 
     this.currentVideoId = videoId;
     this.isCurrentlyPlaying = true;
+    this.userIntentToPause = false;
     console.log(`▶️ [AudioEngine] playTrack: ${videoId} at ${startSeconds}s`);
 
     this.secureIframeElement();
@@ -238,20 +255,26 @@ class AudioEngine {
   }
 
   pause() {
+    this.userIntentToPause = true;
     this.isCurrentlyPlaying = false;
     if (this.ytPlayer && typeof this.ytPlayer.pauseVideo === 'function') {
       this.ytPlayer.pauseVideo();
     }
+    this.stopProgressUpdates();
+    if (this.onStateChange) {
+      this.onStateChange('paused');
+    }
   }
 
   resume(userInitiated = false) {
-    if (userInitiated) {
-      this.isCurrentlyPlaying = true;
-    }
+    this.userIntentToPause = false;
+    this.isCurrentlyPlaying = true;
     
-    // Only resume playback if the track was actively playing or user explicitly triggered resume
-    if (this.isCurrentlyPlaying && this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
+    if (this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
       this.ytPlayer.playVideo();
+    }
+    if (this.onStateChange) {
+      this.onStateChange('playing');
     }
   }
 
@@ -270,5 +293,3 @@ class AudioEngine {
 }
 
 export const audioEngine = new AudioEngine();
-
-

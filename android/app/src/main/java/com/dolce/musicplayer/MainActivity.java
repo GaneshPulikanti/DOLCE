@@ -73,11 +73,12 @@ public class MainActivity extends BridgeActivity {
                     WebView webView = bridge.getWebView();
                     webView.onResume();
                     webView.resumeTimers();
-                    webView.evaluateJavascript("if (window.audioEngine && window.audioEngine.isCurrentlyPlaying) { window.audioEngine.resume(); }", null);
+                    webView.evaluateJavascript("if (window.audioEngine && window.audioEngine.isCurrentlyPlaying && !window.audioEngine.userIntentToPause && window.audioEngine.ytPlayer && typeof window.audioEngine.ytPlayer.playVideo === 'function') { window.audioEngine.ytPlayer.playVideo(); }", null);
                 }
                 keepAliveHandler.postDelayed(this, 1000);
             }
         };
+
     }
 
     private void requestBatteryOptimizationExemption() {
