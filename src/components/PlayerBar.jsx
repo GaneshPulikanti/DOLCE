@@ -47,6 +47,24 @@ export const PlayerBar = ({ themePalette }) => {
   const [dragUpOffset, setDragUpOffset] = useState(0);
   const [isPullingUp, setIsPullingUp] = useState(false);
 
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [seekingTime, setSeekingTime] = useState(0);
+
+  const handleSeekStart = () => {
+    setIsSeeking(true);
+  };
+
+  const handleSeekChange = (e) => {
+    setSeekingTime(parseFloat(e.target.value));
+  };
+
+  const handleSeekEnd = (e) => {
+    const targetVal = parseFloat(e.target.value);
+    seek(targetVal);
+    setIsSeeking(false);
+  };
+
+
   const handleMiniTouchStart = (e) => {
     if (e.touches && e.touches.length > 0) {
       miniTouchRef.current = {
@@ -226,7 +244,9 @@ export const PlayerBar = ({ themePalette }) => {
 
   if (!currentTrack) return null;
 
-  const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const displayTime = isSeeking ? seekingTime : currentTime;
+  const progressPct = duration > 0 ? (displayTime / duration) * 100 : 0;
+
 
   const formatTime = (secs) => {
     if (!secs || isNaN(secs)) return '0:00';
@@ -488,15 +508,21 @@ export const PlayerBar = ({ themePalette }) => {
                   type="range"
                   min={0}
                   max={duration || 100}
-                  value={currentTime}
-                  onChange={(e) => seek(parseFloat(e.target.value))}
+                  value={displayTime}
+                  onPointerDown={handleSeekStart}
+                  onTouchStart={handleSeekStart}
+                  onInput={handleSeekChange}
+                  onChange={handleSeekChange}
+                  onPointerUp={handleSeekEnd}
+                  onTouchEnd={handleSeekEnd}
                   className="w-full h-1.5 rounded-lg bg-white/20 appearance-none cursor-pointer accent-white"
                 />
                 <div className="flex justify-between text-xs text-white/60 font-bold mt-2 font-['Plus_Jakarta_Sans']">
-                  <span>{formatTime(currentTime)}</span>
+                  <span>{formatTime(displayTime)}</span>
                   <span>{formatTime(duration)}</span>
                 </div>
               </div>
+
 
               {/* Playback Controls Row */}
               <div className="w-full flex items-center justify-between py-2">

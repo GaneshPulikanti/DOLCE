@@ -280,10 +280,25 @@ public class BackgroundAudioService extends Service {
     private void seekToInService(double seconds) {
         mainHandler.post(() -> {
             if (serviceWebView != null) {
+                currentPositionSeconds = seconds;
                 serviceWebView.evaluateJavascript("seekTo(" + seconds + ");", null);
+
+                if (mediaSession != null) {
+                    long currentMs = (long) (seconds * 1000);
+                    PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
+                            .setActions(PlaybackStateCompat.ACTION_PLAY | PlaybackStateCompat.ACTION_PAUSE |
+                                    PlaybackStateCompat.ACTION_SKIP_TO_NEXT | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS |
+                                    PlaybackStateCompat.ACTION_SEEK_TO)
+                            .setState(currentIsPlaying ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED,
+                                      currentMs, currentIsPlaying ? 1.0f : 0.0f, SystemClock.elapsedRealtime());
+                    mediaSession.setPlaybackState(stateBuilder.build());
+                }
+
+                MainActivity.sendProgressToWeb(seconds, currentDurationSeconds);
             }
         });
     }
+
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {

@@ -92,32 +92,32 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-            className="relative w-full max-w-2xl max-h-[88vh] bg-[#0c0c0e]/95 border border-white/15 rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10"
+            className="relative w-full max-w-2xl max-h-[78vh] sm:max-h-[88vh] bg-[#0c0c0e]/95 border border-white/15 rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 my-auto mb-24 sm:mb-auto"
           >
             {/* Top Navigation & Close Bar */}
-            <div className="p-4 px-6 flex items-center justify-between border-b border-white/10 bg-white/[0.02]">
-              <div className="flex items-center gap-2 text-xs uppercase font-extrabold tracking-widest text-white/60">
+            <div className="p-3 sm:p-4 px-4 sm:px-6 flex items-center justify-between border-b border-white/10 bg-white/[0.02] flex-shrink-0">
+              <div className="flex items-center gap-2 text-[10px] sm:text-xs uppercase font-extrabold tracking-widest text-white/60">
                 {collection.type === 'artist' ? (
-                  <User size={16} className="text-emerald-400" />
+                  <User size={15} className="text-emerald-400" />
                 ) : collection.type === 'album' ? (
-                  <Disc size={16} className="text-purple-400" />
+                  <Disc size={15} className="text-purple-400" />
                 ) : (
-                  <ListMusic size={16} className="text-blue-400" />
+                  <ListMusic size={15} className="text-blue-400" />
                 )}
                 <span>{collection.type?.toUpperCase() || 'COLLECTION'}</span>
               </div>
               <button
                 onClick={onClose}
-                className="p-2 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                className="p-1.5 sm:p-2 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors"
                 title="Close"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
             {/* Collection Header Banner */}
-            <div className="p-6 flex flex-col sm:flex-row items-center sm:items-end gap-6 bg-gradient-to-b from-white/10 to-transparent border-b border-white/10">
-              <div className="relative w-36 h-36 sm:w-44 sm:h-44 rounded-2xl overflow-hidden border border-white/20 shadow-2xl flex-shrink-0 bg-black/40">
+            <div className="p-3.5 sm:p-6 flex flex-row items-center sm:items-end gap-3.5 sm:gap-6 bg-gradient-to-b from-white/10 to-transparent border-b border-white/10 flex-shrink-0">
+              <div className="relative w-20 h-20 sm:w-40 sm:h-40 rounded-2xl overflow-hidden border border-white/20 shadow-2xl flex-shrink-0 bg-black/40">
                 <img
                   src={artworkUrl}
                   alt={title}
@@ -126,44 +126,44 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
                 />
               </div>
 
-              <div className="flex flex-col items-center sm:items-start text-center sm:text-left min-w-0 flex-1 gap-2">
-                <span className="text-xs uppercase font-bold tracking-widest text-white/50">
+              <div className="flex flex-col items-start text-left min-w-0 flex-1 gap-1 sm:gap-2">
+                <span className="text-[10px] sm:text-xs uppercase font-bold tracking-widest text-white/50">
                   {collection.type === 'artist' ? 'Verified Artist' : 'Official Release'}
                 </span>
-                <h2 className="text-xl sm:text-3xl font-black text-white leading-tight truncate w-full">
+                <h2 className="text-base sm:text-2xl font-black text-white leading-tight truncate w-full">
                   {title}
                 </h2>
-                <p className="text-sm font-semibold text-white/70 truncate w-full">
+                <p className="text-xs sm:text-sm font-semibold text-white/70 truncate w-full">
                   {subtitle}
                 </p>
-                <span className="text-xs font-medium text-white/40">
+                <span className="text-[10px] sm:text-xs font-medium text-white/40">
                   {loading ? 'Fetching tracks...' : `${tracks.length} Songs`}
                 </span>
 
                 {/* Play, Shuffle & Add to Playlists Buttons */}
                 {!loading && (
-                  <div className="flex items-center flex-wrap gap-2.5 mt-2">
+                  <div className="flex items-center flex-wrap gap-2 mt-1 sm:mt-2">
                     {tracks.length > 0 && (
                       <>
                         <button
                           onClick={handlePlayAll}
-                          className="px-5 py-2.5 rounded-full bg-white text-black font-extrabold text-xs flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-xl"
+                          className="px-3.5 py-1.5 sm:px-5 sm:py-2.5 rounded-full bg-white text-black font-extrabold text-[11px] sm:text-xs flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-all shadow-xl"
                         >
-                          <Play size={16} fill="black" />
+                          <Play size={14} fill="black" />
                           <span>PLAY ALL</span>
                         </button>
                         <button
                           onClick={handleShufflePlay}
-                          className="p-2.5 rounded-full bg-white/10 border border-white/15 text-white hover:bg-white/20 active:scale-95 transition-all"
+                          className="p-1.5 sm:p-2.5 rounded-full bg-white/10 border border-white/15 text-white hover:bg-white/20 active:scale-95 transition-all"
                           title="Shuffle Play"
                         >
-                          <Shuffle size={18} />
+                          <Shuffle size={15} />
                         </button>
                       </>
                     )}
                     <button
                       onClick={handleToggleSavePlaylist}
-                      className={`px-4 py-2.5 rounded-full border text-xs font-bold flex items-center gap-2 transition-all active:scale-95 ${
+                      className={`px-3 py-1.5 sm:px-4 sm:py-2.5 rounded-full border text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 ${
                         isSaved
                           ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30'
                           : 'bg-white/10 border-white/15 text-white hover:bg-white/20'
@@ -172,13 +172,13 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
                     >
                       {isSaved ? (
                         <>
-                          <Check size={16} className="text-emerald-400" />
-                          <span>Saved in Playlists</span>
+                          <Check size={14} className="text-emerald-400" />
+                          <span>Saved</span>
                         </>
                       ) : (
                         <>
-                          <Plus size={16} />
-                          <span>Add to Playlists</span>
+                          <Plus size={14} />
+                          <span>Save</span>
                         </>
                       )}
                     </button>
@@ -188,7 +188,8 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
             </div>
 
             {/* Tracklist Container */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col gap-2 no-scrollbar">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-6 flex flex-col gap-2 min-h-0">
+
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-16 text-white/50 gap-3">
                   <Loader2 size={32} className="animate-spin text-white/70" />
