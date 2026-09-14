@@ -22,10 +22,11 @@ export function syncMediaSession({ track, isPlaying, onPlay, onPause, onSkipNext
   if (typeof window === 'undefined') return;
 
   if (track) {
-    // 1. Always update Android Native Foreground Notification
+    // 1. Always update Android Native Foreground Notification and Service Player
     if (window.AndroidNativePlayer) {
       try {
         window.AndroidNativePlayer.updateNotification(
+          track.id || '',
           track.title || 'DOLCE Music',
           track.artistName || 'DOLCE Stream',
           track.artworkUrl || '',
@@ -37,6 +38,7 @@ export function syncMediaSession({ track, isPlaying, onPlay, onPause, onSkipNext
     if (Capacitor.isNativePlatform()) {
       try {
         BackgroundAudio.updateNotification({
+          videoId: track.id || '',
           title: track.title || 'DOLCE Music',
           artist: track.artistName || 'DOLCE Stream',
           artworkUrl: track.artworkUrl || '',

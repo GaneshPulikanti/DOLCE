@@ -13,10 +13,11 @@ public class WebAppInterface {
     }
 
     @JavascriptInterface
-    public void updateNotification(String title, String artist, String artworkUrl, boolean isPlaying) {
+    public void updateNotification(String videoId, String title, String artist, String artworkUrl, boolean isPlaying) {
         try {
             Intent intent = new Intent(mContext, BackgroundAudioService.class);
             intent.setAction("UPDATE_NOTIFICATION");
+            intent.putExtra("videoId", videoId != null ? videoId : "");
             intent.putExtra("title", title != null ? title : "DOLCE Music");
             intent.putExtra("artist", artist != null ? artist : "Ambient Audio Streaming");
             intent.putExtra("artworkUrl", artworkUrl != null ? artworkUrl : "");

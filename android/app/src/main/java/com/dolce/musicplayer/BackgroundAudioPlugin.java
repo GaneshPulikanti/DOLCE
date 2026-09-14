@@ -11,6 +11,7 @@ public class BackgroundAudioPlugin extends Plugin {
 
     @PluginMethod
     public void updateNotification(PluginCall call) {
+        String videoId = call.getString("videoId", "");
         String title = call.getString("title", "DOLCE Music");
         String artist = call.getString("artist", "Ambient Audio Streaming");
         String artworkUrl = call.getString("artworkUrl", "");
@@ -18,6 +19,7 @@ public class BackgroundAudioPlugin extends Plugin {
 
         Intent intent = new Intent(getContext(), BackgroundAudioService.class);
         intent.setAction("UPDATE_NOTIFICATION");
+        intent.putExtra("videoId", videoId);
         intent.putExtra("title", title);
         intent.putExtra("artist", artist);
         intent.putExtra("artworkUrl", artworkUrl);

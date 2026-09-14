@@ -14,18 +14,24 @@ import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.net.wifi.WifiManager;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
+import android.webkit.JavascriptInterface;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import androidx.core.app.NotificationCompat;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
 public class BackgroundAudioService extends Service {
-    public static final String CHANNEL_ID = "DOLCE_AUDIO_BACKGROUND_CHANNEL_V2";
+    public static final String CHANNEL_ID = "DOLCE_AUDIO_BACKGROUND_CHANNEL_V3";
     public static final int NOTIFICATION_ID = 1001;
 
     public static final String ACTION_PREVIOUS = "com.dolce.musicplayer.ACTION_PREVIOUS";
@@ -37,12 +43,16 @@ public class BackgroundAudioService extends Service {
     private AudioManager audioManager;
     private AudioFocusRequest audioFocusRequest;
     private MediaSessionCompat mediaSession;
+    private WebView serviceWebView;
+    private Handler mainHandler = new Handler(Looper.getMainLooper());
 
+    private String currentVideoId = "";
     private String currentTitle = "DOLCE Music";
     private String currentArtist = "Ambient Music Streaming";
     private String currentArtworkUrl = "";
     private boolean currentIsPlaying = false;
     private Bitmap currentArtworkBitmap = null;
+    private boolean isPlayerReady = false;
 
     @Override
     public void onCreate() {
@@ -50,6 +60,7 @@ public class BackgroundAudioService extends Service {
         createNotificationChannel();
         initMediaSession();
         acquireLocksAndFocus();
+        initServiceWebView();
     }
 
     private void initMediaSession() {
@@ -60,11 +71,13 @@ public class BackgroundAudioService extends Service {
             mediaSession.setCallback(new MediaSessionCompat.Callback() {
                 @Override
                 public void onPlay() {
+                    togglePlayPauseInService();
                     MainActivity.sendMediaControlToWeb("togglePlayPause");
                 }
 
                 @Override
                 public void onPause() {
+                    togglePlayPauseInService();
                     MainActivity.sendMediaControlToWeb("togglePlayPause");
                 }
 
@@ -130,6 +143,89 @@ public class BackgroundAudioService extends Service {
         }
     }
 
+    private void initServiceWebView() {
+        mainHandler.post(() -> {
+            try {
+                serviceWebView = new WebView(getApplicationContext());
+                WebSettings settings = serviceWebView.getSettings();
+                settings.setJavaScriptEnabled(true);
+                settings.setMediaPlaybackRequiresUserGesture(false);
+                settings.setDomStorageEnabled(true);
+                serviceWebView.setWebViewClient(new WebViewClient());
+
+                serviceWebView.addJavascriptInterface(new Object() {
+                    @JavascriptInterface
+                    public void onPlayerReady() {
+                        isPlayerReady = true;
+                        if (currentVideoId != null && !currentVideoId.isEmpty()) {
+                            playVideoIdInService(currentVideoId);
+                        }
+                    }
+
+                    @JavascriptInterface
+                    public void onStateChange(int state) {
+                        if (state == 1) { // PLAYING
+                            currentIsPlaying = true;
+                            updateAndPostNotification();
+                        } else if (state == 2) { // PAUSED
+                            currentIsPlaying = false;
+                            updateAndPostNotification();
+                        } else if (state == 0) { // ENDED
+                            currentIsPlaying = false;
+                            updateAndPostNotification();
+                            MainActivity.sendMediaControlToWeb("next");
+                        }
+                    }
+                }, "NativeAudioService");
+
+                String html = "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"></head>" +
+                        "<body style=\"margin:0;padding:0;background:#000;\">" +
+                        "<div id=\"player\"></div>" +
+                        "<script src=\"https://www.youtube.com/iframe_api\"></script>" +
+                        "<script>" +
+                        "var player;" +
+                        "function onYouTubeIframeAPIReady(){" +
+                        "  player = new YT.Player('player',{" +
+                        "    height:'100%',width:'100%',videoId:'',host:'https://www.youtube-nocookie.com'," +
+                        "    playerVars:{autoplay:1,playsinline:1,controls:0,disablekb:1,fs:0,rel:0,modestbranding:1}," +
+                        "    events:{" +
+                        "      onReady:function(){ if(window.NativeAudioService) window.NativeAudioService.onPlayerReady(); }," +
+                        "      onStateChange:function(e){ if(window.NativeAudioService) window.NativeAudioService.onStateChange(e.data); }" +
+                        "    }" +
+                        "  });" +
+                        "}" +
+                        "function loadAndPlay(id){ if(player && player.loadVideoById){ player.loadVideoById(id); player.playVideo(); } }" +
+                        "function playVideo(){ if(player && player.playVideo) player.playVideo(); }" +
+                        "function pauseVideo(){ if(player && player.pauseVideo) player.pauseVideo(); }" +
+                        "</script></body></html>";
+
+                serviceWebView.loadDataWithBaseURL("https://music.youtube.com", html, "text/html", "UTF-8", null);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    private void playVideoIdInService(String videoId) {
+        mainHandler.post(() -> {
+            if (serviceWebView != null && videoId != null && !videoId.isEmpty()) {
+                serviceWebView.evaluateJavascript("loadAndPlay('" + videoId + "');", null);
+            }
+        });
+    }
+
+    private void togglePlayPauseInService() {
+        mainHandler.post(() -> {
+            if (serviceWebView != null) {
+                if (currentIsPlaying) {
+                    serviceWebView.evaluateJavascript("pauseVideo();", null);
+                } else {
+                    serviceWebView.evaluateJavascript("playVideo();", null);
+                }
+            }
+        });
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {
@@ -138,6 +234,7 @@ public class BackgroundAudioService extends Service {
                 MainActivity.sendMediaControlToWeb("prev");
                 return START_STICKY;
             } else if (ACTION_TOGGLE_PLAY_PAUSE.equals(action)) {
+                togglePlayPauseInService();
                 MainActivity.sendMediaControlToWeb("togglePlayPause");
                 return START_STICKY;
             } else if (ACTION_NEXT.equals(action)) {
@@ -154,7 +251,21 @@ public class BackgroundAudioService extends Service {
             if (intent.hasExtra("isPlaying")) {
                 currentIsPlaying = intent.getBooleanExtra("isPlaying", false);
             }
+            String newVideoId = intent.hasExtra("videoId") ? intent.getStringExtra("videoId") : "";
             String newArtworkUrl = intent.hasExtra("artworkUrl") ? intent.getStringExtra("artworkUrl") : "";
+
+            if (newVideoId != null && !newVideoId.isEmpty() && !newVideoId.equals(currentVideoId)) {
+                currentVideoId = newVideoId;
+                if (isPlayerReady) {
+                    playVideoIdInService(newVideoId);
+                }
+            } else if (intent.hasExtra("isPlaying")) {
+                if (currentIsPlaying) {
+                    mainHandler.post(() -> { if (serviceWebView != null) serviceWebView.evaluateJavascript("playVideo();", null); });
+                } else {
+                    mainHandler.post(() -> { if (serviceWebView != null) serviceWebView.evaluateJavascript("pauseVideo();", null); });
+                }
+            }
 
             // Update MediaSession Playback State
             if (mediaSession != null) {
@@ -278,11 +389,14 @@ public class BackgroundAudioService extends Service {
         }
     }
 
-
     @Override
     public void onDestroy() {
         super.onDestroy();
         try {
+            if (serviceWebView != null) {
+                serviceWebView.destroy();
+                serviceWebView = null;
+            }
             if (mediaSession != null) {
                 mediaSession.setActive(false);
                 mediaSession.release();
