@@ -18,6 +18,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.PowerManager;
+import android.os.SystemClock;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
@@ -53,6 +54,8 @@ public class BackgroundAudioService extends Service {
     private boolean currentIsPlaying = false;
     private Bitmap currentArtworkBitmap = null;
     private boolean isPlayerReady = false;
+    private double currentPositionSeconds = 0;
+    private double currentDurationSeconds = 210;
 
     @Override
     public void onCreate() {
@@ -90,11 +93,19 @@ public class BackgroundAudioService extends Service {
                 public void onSkipToPrevious() {
                     MainActivity.sendMediaControlToWeb("prev");
                 }
+
+                @Override
+                public void onSeekTo(long posMs) {
+                    double seconds = posMs / 1000.0;
+                    seekToInService(seconds);
+                    MainActivity.sendSeekToWeb(seconds);
+                }
             });
 
             PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
                     .setActions(PlaybackStateCompat.ACTION_PLAY | PlaybackStateCompat.ACTION_PAUSE |
-                            PlaybackStateCompat.ACTION_SKIP_TO_NEXT | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS)
+                            PlaybackStateCompat.ACTION_SKIP_TO_NEXT | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS |
+                            PlaybackStateCompat.ACTION_SEEK_TO)
                     .setState(PlaybackStateCompat.STATE_PAUSED, 0, 0.0f);
             mediaSession.setPlaybackState(stateBuilder.build());
             mediaSession.setActive(true);
@@ -176,6 +187,36 @@ public class BackgroundAudioService extends Service {
                             MainActivity.sendMediaControlToWeb("next");
                         }
                     }
+
+                    @JavascriptInterface
+                    public void onProgress(double currentTime, double duration) {
+                        currentPositionSeconds = currentTime;
+                        if (duration > 0) currentDurationSeconds = duration;
+                        
+                        long currentMs = (long) (currentTime * 1000);
+                        long durationMs = (long) (duration * 1000);
+
+                        if (mediaSession != null) {
+                            PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
+                                    .setActions(PlaybackStateCompat.ACTION_PLAY | PlaybackStateCompat.ACTION_PAUSE |
+                                            PlaybackStateCompat.ACTION_SKIP_TO_NEXT | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS |
+                                            PlaybackStateCompat.ACTION_SEEK_TO)
+                                    .setState(currentIsPlaying ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED,
+                                              currentMs, currentIsPlaying ? 1.0f : 0.0f, SystemClock.elapsedRealtime());
+                            
+                            MediaMetadataCompat.Builder metaBuilder = new MediaMetadataCompat.Builder()
+                                    .putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentTitle)
+                                    .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentArtist)
+                                    .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, durationMs);
+                            if (currentArtworkBitmap != null) {
+                                metaBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, currentArtworkBitmap);
+                            }
+                            mediaSession.setMetadata(metaBuilder.build());
+                            mediaSession.setPlaybackState(stateBuilder.build());
+                        }
+
+                        MainActivity.sendProgressToWeb(currentTime, duration);
+                    }
                 }, "NativeAudioService");
 
                 String html = "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"></head>" +
@@ -189,7 +230,16 @@ public class BackgroundAudioService extends Service {
                         "    height:'100%',width:'100%',videoId:'',host:'https://www.youtube-nocookie.com'," +
                         "    playerVars:{autoplay:1,playsinline:1,controls:0,disablekb:1,fs:0,rel:0,modestbranding:1}," +
                         "    events:{" +
-                        "      onReady:function(){ if(window.NativeAudioService) window.NativeAudioService.onPlayerReady(); }," +
+                        "      onReady:function(){" +
+                        "        if(window.NativeAudioService) window.NativeAudioService.onPlayerReady();" +
+                        "        setInterval(function(){" +
+                        "          if(player && player.getCurrentTime && player.getDuration){" +
+                        "            var c = player.getCurrentTime() || 0;" +
+                        "            var d = player.getDuration() || 0;" +
+                        "            if(window.NativeAudioService) window.NativeAudioService.onProgress(c, d);" +
+                        "          }" +
+                        "        }, 500);" +
+                        "      }," +
                         "      onStateChange:function(e){ if(window.NativeAudioService) window.NativeAudioService.onStateChange(e.data); }" +
                         "    }" +
                         "  });" +
@@ -197,6 +247,7 @@ public class BackgroundAudioService extends Service {
                         "function loadAndPlay(id){ if(player && player.loadVideoById){ player.loadVideoById(id); player.playVideo(); } }" +
                         "function playVideo(){ if(player && player.playVideo) player.playVideo(); }" +
                         "function pauseVideo(){ if(player && player.pauseVideo) player.pauseVideo(); }" +
+                        "function seekTo(sec){ if(player && player.seekTo) player.seekTo(sec, true); }" +
                         "</script></body></html>";
 
                 serviceWebView.loadDataWithBaseURL("https://music.youtube.com", html, "text/html", "UTF-8", null);
@@ -226,6 +277,14 @@ public class BackgroundAudioService extends Service {
         });
     }
 
+    private void seekToInService(double seconds) {
+        mainHandler.post(() -> {
+            if (serviceWebView != null) {
+                serviceWebView.evaluateJavascript("seekTo(" + seconds + ");", null);
+            }
+        });
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {
@@ -251,6 +310,10 @@ public class BackgroundAudioService extends Service {
             if (intent.hasExtra("isPlaying")) {
                 currentIsPlaying = intent.getBooleanExtra("isPlaying", false);
             }
+            if (intent.hasExtra("seekToSeconds")) {
+                double seekSec = intent.getDoubleExtra("seekToSeconds", 0);
+                seekToInService(seekSec);
+            }
             String newVideoId = intent.hasExtra("videoId") ? intent.getStringExtra("videoId") : "";
             String newArtworkUrl = intent.hasExtra("artworkUrl") ? intent.getStringExtra("artworkUrl") : "";
 
@@ -272,13 +335,15 @@ public class BackgroundAudioService extends Service {
                 int state = currentIsPlaying ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
                 PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
                         .setActions(PlaybackStateCompat.ACTION_PLAY | PlaybackStateCompat.ACTION_PAUSE |
-                                PlaybackStateCompat.ACTION_SKIP_TO_NEXT | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS)
-                        .setState(state, 0, currentIsPlaying ? 1.0f : 0.0f);
+                                PlaybackStateCompat.ACTION_SKIP_TO_NEXT | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS |
+                                PlaybackStateCompat.ACTION_SEEK_TO)
+                        .setState(state, (long)(currentPositionSeconds * 1000), currentIsPlaying ? 1.0f : 0.0f, SystemClock.elapsedRealtime());
                 mediaSession.setPlaybackState(stateBuilder.build());
 
                 MediaMetadataCompat.Builder metaBuilder = new MediaMetadataCompat.Builder()
                         .putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentTitle)
-                        .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentArtist);
+                        .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentArtist)
+                        .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, (long)(currentDurationSeconds * 1000));
                 if (currentArtworkBitmap != null) {
                     metaBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, currentArtworkBitmap);
                 }
@@ -308,6 +373,7 @@ public class BackgroundAudioService extends Service {
                                 MediaMetadataCompat.Builder metaBuilder = new MediaMetadataCompat.Builder()
                                         .putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentTitle)
                                         .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentArtist)
+                                        .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, (long)(currentDurationSeconds * 1000))
                                         .putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap);
                                 mediaSession.setMetadata(metaBuilder.build());
                             }

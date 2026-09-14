@@ -48,6 +48,39 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
+    public static void sendProgressToWeb(final double currentTime, final double duration) {
+        if (instance != null && instance.bridge != null && instance.bridge.getWebView() != null) {
+            instance.runOnUiThread(() -> {
+                try {
+                    WebView webView = instance.bridge.getWebView();
+                    if (webView != null) {
+                        String js = "if (window.usePlayerStore) { window.usePlayerStore.setState({ currentTime: " + currentTime + ", duration: " + (duration > 0 ? duration : 210) + " }); }";
+                        webView.evaluateJavascript(js, null);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+    }
+
+    public static void sendSeekToWeb(final double seconds) {
+        if (instance != null && instance.bridge != null && instance.bridge.getWebView() != null) {
+            instance.runOnUiThread(() -> {
+                try {
+                    WebView webView = instance.bridge.getWebView();
+                    if (webView != null) {
+                        String js = "if (window.usePlayerStore) { window.usePlayerStore.getState().seek(" + seconds + "); }";
+                        webView.evaluateJavascript(js, null);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+    }
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         instance = this;
