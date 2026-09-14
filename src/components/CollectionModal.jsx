@@ -76,7 +76,7 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-6 pt-10 sm:pt-6 font-['Plus_Jakarta_Sans'] select-none">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 pt-12 pb-[165px] font-['Plus_Jakarta_Sans'] select-none">
           {/* Backdrop Blur */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -86,14 +86,15 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
             className="fixed inset-0 bg-black/80 backdrop-blur-xl"
           />
 
-          {/* Modal Container (Strict height budget h-[calc(100vh-235px)] so bottom sits cleanly above mini player) */}
+          {/* Modal Container (Sits 100% cleanly above mini player bar on both Web & Mobile) */}
           <motion.div
             initial={{ opacity: 0, scale: 0.94, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-            className="relative w-full max-w-2xl h-[calc(100vh-235px)] sm:h-[82vh] max-h-[620px] sm:max-h-[85vh] bg-[#0c0c0e]/95 border border-white/15 rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10"
+            className="relative w-full max-w-2xl h-full max-h-[calc(100vh-220px)] bg-[#0c0c0e]/95 border border-white/15 rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10"
           >
+
             {/* Mobile Pull Handle Indicator */}
             <div className="w-full pt-2 flex justify-center sm:hidden bg-[#0c0c0e] flex-shrink-0">
               <div className="w-10 h-1 rounded-full bg-white/30" />
