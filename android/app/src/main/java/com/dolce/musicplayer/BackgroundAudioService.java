@@ -245,6 +245,7 @@ public class BackgroundAudioService extends Service {
             NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                     .setContentTitle(currentTitle)
                     .setContentText(currentArtist)
+                    .setSubText("DOLCE")
                     .setSmallIcon(R.mipmap.ic_launcher)
                     .setContentIntent(contentPendingIntent)
                     .setOngoing(currentIsPlaying)
@@ -267,11 +268,16 @@ public class BackgroundAudioService extends Service {
             }
 
             Notification notification = builder.build();
-            startForeground(NOTIFICATION_ID, notification);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+            } else {
+                startForeground(NOTIFICATION_ID, notification);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
 
     @Override
     public void onDestroy() {

@@ -134,6 +134,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onPause() {
+        super.onPause();
         // Prevent default Capacitor/Chromium webView.onPause() which kills iframe media decoders!
         if (bridge != null && bridge.getWebView() != null) {
             WebView webView = bridge.getWebView();
@@ -146,6 +147,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onStop() {
+        super.onStop();
         // Prevent default Capacitor/Chromium webView.onStop() which halts DOM timers!
         if (bridge != null && bridge.getWebView() != null) {
             WebView webView = bridge.getWebView();
@@ -167,6 +169,12 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
+    public void onDestroy() {
+        keepAliveHandler.removeCallbacks(keepAliveRunnable);
+        super.onDestroy();
+    }
+
+    @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (!hasFocus && bridge != null && bridge.getWebView() != null) {
@@ -177,3 +185,4 @@ public class MainActivity extends BridgeActivity {
         }
     }
 }
+
