@@ -94,45 +94,72 @@ export const PlayerBar = ({ themePalette }) => {
   };
 
   const handleTouchQueueStart = (e, index) => {
+    if (e.cancelable) {
+      e.preventDefault();
+    }
     const touch = e.touches[0];
+    if (!touch) return;
+
     touchQueueDragRef.current = {
       currentIndex: index,
     };
     setDraggedQueueIdx(index);
-  };
 
-  const handleTouchQueueMove = (e) => {
-    if (!touchQueueDragRef.current || !queueContainerRef.current) return;
-    const touch = e.touches[0];
-    const container = queueContainerRef.current;
-    const rect = container.getBoundingClientRect();
-    const edgeThreshold = 45;
-
-    if (touch.clientY < rect.top + edgeThreshold) {
-      container.scrollTop -= 16;
-    } else if (touch.clientY > rect.bottom - edgeThreshold) {
-      container.scrollTop += 16;
-    }
-
-    const elements = container.querySelectorAll('[data-queue-index]');
-    for (let el of elements) {
-      const elRect = el.getBoundingClientRect();
-      if (touch.clientY >= elRect.top && touch.clientY <= elRect.bottom) {
-        const targetIdx = parseInt(el.getAttribute('data-queue-index'), 10);
-        if (!isNaN(targetIdx) && targetIdx !== touchQueueDragRef.current.currentIndex) {
-          moveQueueItem(touchQueueDragRef.current.currentIndex, targetIdx);
-          touchQueueDragRef.current.currentIndex = targetIdx;
-          setDraggedQueueIdx(targetIdx);
-        }
-        break;
+    const handleWindowTouchMove = (moveEvent) => {
+      if (!touchQueueDragRef.current || !queueContainerRef.current) return;
+      if (moveEvent.cancelable) {
+        moveEvent.preventDefault();
       }
-    }
+
+      const moveTouch = moveEvent.touches[0];
+      if (!moveTouch) return;
+
+      const container = queueContainerRef.current;
+      const rect = container.getBoundingClientRect();
+      const edgeThreshold = 50;
+
+      // Edge auto-scrolling on mobile touch drag
+      if (moveTouch.clientY < rect.top + edgeThreshold) {
+        container.scrollTop -= 18;
+      } else if (moveTouch.clientY > rect.bottom - edgeThreshold) {
+        container.scrollTop += 18;
+      }
+
+      // Y-midpoint index calculation across all queue rows
+      const rows = Array.from(container.querySelectorAll('[data-queue-index]'));
+      if (rows.length === 0) return;
+
+      let targetIdx = rows.length - 1;
+      for (let i = 0; i < rows.length; i++) {
+        const rowRect = rows[i].getBoundingClientRect();
+        const rowMiddleY = rowRect.top + rowRect.height / 2;
+        if (moveTouch.clientY < rowMiddleY) {
+          targetIdx = i;
+          break;
+        }
+      }
+
+      const currentIdx = touchQueueDragRef.current.currentIndex;
+      if (targetIdx >= 0 && targetIdx < rows.length && targetIdx !== currentIdx) {
+        moveQueueItem(currentIdx, targetIdx);
+        touchQueueDragRef.current.currentIndex = targetIdx;
+        setDraggedQueueIdx(targetIdx);
+      }
+    };
+
+    const handleWindowTouchEnd = () => {
+      window.removeEventListener('touchmove', handleWindowTouchMove);
+      window.removeEventListener('touchend', handleWindowTouchEnd);
+      window.removeEventListener('touchcancel', handleWindowTouchEnd);
+      touchQueueDragRef.current = null;
+      setDraggedQueueIdx(null);
+    };
+
+    window.addEventListener('touchmove', handleWindowTouchMove, { passive: false });
+    window.addEventListener('touchend', handleWindowTouchEnd, { passive: true });
+    window.addEventListener('touchcancel', handleWindowTouchEnd, { passive: true });
   };
 
-  const handleTouchQueueEnd = () => {
-    touchQueueDragRef.current = null;
-    setDraggedQueueIdx(null);
-  };
 
 
 
@@ -689,7 +716,7 @@ export const PlayerBar = ({ themePalette }) => {
                         const isTrackActive = currentTrack.id === track.id;
                         return (
                           <div
-                            key={`${track.id}-${qIdx}`}
+                            key={track.id || `queue-item-${qIdx}`}
                             data-queue-index={qIdx}
                             draggable
                             onDragStart={(e) => handleQueueDragStart(e, qIdx)}
@@ -710,9 +737,7 @@ export const PlayerBar = ({ themePalette }) => {
                               {/* Spotify-style Two Line Drag Handle */}
                               <div
                                 onTouchStart={(e) => handleTouchQueueStart(e, qIdx)}
-                                onTouchMove={handleTouchQueueMove}
-                                onTouchEnd={handleTouchQueueEnd}
-                                className="p-1 text-white/40 hover:text-white cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
+                                className="p-2 text-white/40 hover:text-white cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
                                 title="Drag up or down to reorder queue"
                               >
                                 <GripVertical size={18} />
