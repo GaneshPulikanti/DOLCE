@@ -24,8 +24,8 @@ export const usePlayerStore = create(
         if (command === 'APPLY_SYNC_STATE') {
           isApplyingRemoteJamSync = true;
           try {
-            const { currentTrack, isPlaying, currentTime, queue, hostTimestamp } = data;
-            const transitLatency = Math.max(0, (Date.now() - (hostTimestamp || Date.now())) / 1000);
+            const { currentTrack, isPlaying, currentTime, queue, hostTimestamp, stateTimestamp } = data;
+            const transitLatency = Math.max(0, (Date.now() - (stateTimestamp || hostTimestamp || Date.now())) / 1000);
             const targetTime = (currentTime || 0) + (isPlaying ? transitLatency : 0);
 
             if (queue && Array.isArray(queue) && queue.length > 0) {
@@ -33,16 +33,32 @@ export const usePlayerStore = create(
             }
 
             if (currentTrack && currentTrack.id) {
-              get().playTrack(currentTrack, queue || [currentTrack], targetTime);
-              if (!isPlaying) {
-                setTimeout(() => {
+              const activeId = audioEngine.currentVideoId || get().currentTrack?.id;
+              if (activeId === currentTrack.id) {
+                // Song already in memory/buffer: Instant zero-overhead alignment
+                audioEngine.currentVideoId = currentTrack.id;
+                if (isPlaying) {
+                  audioEngine.resume(true);
+                  if (Math.abs(get().currentTime - targetTime) > 2.0) {
+                    audioEngine.seek(targetTime);
+                  }
+                } else {
                   audioEngine.pause();
-                  set({ isPlaying: false, currentTime: targetTime });
-                }, 350);
+                  audioEngine.seek(targetTime);
+                }
+                set({ currentTrack, isPlaying, currentTime: targetTime, isLoading: false });
+              } else {
+                get().playTrack(currentTrack, queue || [currentTrack], targetTime);
+                if (!isPlaying) {
+                  setTimeout(() => {
+                    audioEngine.pause();
+                    set({ isPlaying: false, currentTime: targetTime });
+                  }, 350);
+                }
               }
             }
           } finally {
-            setTimeout(() => { isApplyingRemoteJamSync = false; }, 600);
+            isApplyingRemoteJamSync = false;
           }
           return;
         }
@@ -72,14 +88,21 @@ export const usePlayerStore = create(
             const currentTrack = get().currentTrack;
             const targetTrackId = data.trackId || currentTrack?.id;
             const localTime = get().currentTime;
-            const transitLatency = Math.max(0, (Date.now() - (data.hostTimestamp || Date.now())) / 1000);
+            const transitLatency = Math.max(0, (Date.now() - (data.stateTimestamp || data.hostTimestamp || Date.now())) / 1000);
             const targetTime = (data.currentTime || 0) + transitLatency;
 
+            const activeId = audioEngine.currentVideoId || currentTrack?.id;
+
             // If audio engine has not loaded this track yet, load and play it
-            if (targetTrackId && audioEngine.currentVideoId !== targetTrackId) {
-              audioEngine.playTrack(targetTrackId, targetTime);
+            if (targetTrackId && activeId && targetTrackId !== activeId) {
+              if (data.track) {
+                get().playTrack(data.track, get().queue, targetTime);
+              } else {
+                audioEngine.playTrack(targetTrackId, targetTime);
+              }
             } else {
               // ⚡ Instant resume (0ms latency, keep pre-buffered audio)
+              audioEngine.currentVideoId = targetTrackId || activeId;
               audioEngine.resume(true);
 
               // Only seek if user skipped far ahead/back (> 2.0s)
@@ -89,7 +112,7 @@ export const usePlayerStore = create(
             }
             set({ isPlaying: true, currentTime: targetTime });
           } finally {
-            setTimeout(() => { isApplyingRemoteJamSync = false; }, 200);
+            isApplyingRemoteJamSync = false;
           }
           return;
         }
@@ -104,7 +127,7 @@ export const usePlayerStore = create(
               set({ currentTime: data.currentTime });
             }
           } finally {
-            setTimeout(() => { isApplyingRemoteJamSync = false; }, 200);
+            isApplyingRemoteJamSync = false;
           }
           return;
         }
@@ -115,7 +138,7 @@ export const usePlayerStore = create(
             audioEngine.seek(data.currentTime);
             set({ currentTime: data.currentTime });
           } finally {
-            setTimeout(() => { isApplyingRemoteJamSync = false; }, 400);
+            isApplyingRemoteJamSync = false;
           }
           return;
         }
@@ -125,7 +148,7 @@ export const usePlayerStore = create(
           try {
             get().playTrack(data.track, data.queue, data.startSeconds || 0);
           } finally {
-            setTimeout(() => { isApplyingRemoteJamSync = false; }, 500);
+            isApplyingRemoteJamSync = false;
           }
           return;
         }
@@ -137,7 +160,7 @@ export const usePlayerStore = create(
               set({ queue: data.queue });
             }
           } finally {
-            setTimeout(() => { isApplyingRemoteJamSync = false; }, 400);
+            isApplyingRemoteJamSync = false;
           }
           return;
         }

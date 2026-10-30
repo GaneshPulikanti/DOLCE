@@ -11,6 +11,7 @@ import { Library } from './pages/Library';
 import { TasteProfile } from './pages/TasteProfile';
 import { useSearchStore } from './store/useSearchStore';
 import { usePlayerStore } from './store/usePlayerStore';
+import { useJamStore, initJamAutoRestore } from './store/useJamStore';
 import { extractArtworkColor } from './services/colorExtractor';
 
 export const App = () => {
@@ -19,6 +20,10 @@ export const App = () => {
   const [themePalette, setThemePalette] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+
+  useEffect(() => {
+    initJamAutoRestore();
+  }, []);
 
   useEffect(() => {
     if (currentTrack?.artworkUrl) {

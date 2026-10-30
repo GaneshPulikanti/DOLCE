@@ -1,21 +1,29 @@
 import { create } from 'zustand';
 import { jamService } from '../services/jamService';
 
+const savedSession = jamService.getSavedSession();
+
 export const useJamStore = create((set, get) => {
-  // Sync initial state from jamService
+  // Sync state from jamService
   jamService.onStateChangeCallback = (state) => {
     set(state);
   };
 
   return {
     isJamModalOpen: false,
-    isInJam: false,
-    roomCode: null,
-    role: null,
-    isHost: false,
+    isInJam: !!savedSession?.code,
+    roomCode: savedSession?.code || null,
+    role: savedSession?.role || null,
+    isHost: savedSession?.isHost || false,
     isConnected: false,
-    isConnecting: false,
-    participants: [],
+    isConnecting: !!savedSession?.code,
+    participants: savedSession ? [{
+      deviceId: jamService.deviceId,
+      name: savedSession.isHost ? `${jamService.userName} (Host)` : jamService.userName,
+      role: savedSession.role,
+      isHost: savedSession.isHost,
+      joinedAt: savedSession.savedAt || Date.now()
+    }] : [],
     allowGuestControl: true,
     userName: jamService.userName,
     errorMsg: null,
@@ -99,3 +107,10 @@ export const useJamStore = create((set, get) => {
   };
 });
 
+export const initJamAutoRestore = () => {
+  if (typeof window !== 'undefined') {
+    jamService.autoRestoreSession(() => {
+      return window.usePlayerStore ? window.usePlayerStore.getState() : {};
+    });
+  }
+};

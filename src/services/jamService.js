@@ -24,10 +24,71 @@ class JamService {
     this.currentBrokerIdx = 0;
     this.isConnecting = false;
     this.isConnected = false;
+    this.lastProcessedTimestamp = 0;
 
     // Callbacks
     this.onStateChangeCallback = null;
     this.onSyncCommandCallback = null;
+  }
+
+  saveSession(code, role) {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      localStorage.setItem('DOLCE_JAM_PERSISTED_SESSION', JSON.stringify({
+        code,
+        role,
+        userName: this.userName,
+        isHost: role === 'host',
+        savedAt: Date.now()
+      }));
+    } catch (_) {}
+  }
+
+  clearSession() {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      localStorage.removeItem('DOLCE_JAM_PERSISTED_SESSION');
+    } catch (_) {}
+  }
+
+  getSavedSession() {
+    if (typeof localStorage === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem('DOLCE_JAM_PERSISTED_SESSION');
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  autoRestoreSession(getStateCallback) {
+    const saved = this.getSavedSession();
+    if (!saved || !saved.code) return;
+
+    console.log(`🛸 [JamService] Auto-restoring persistent Jam session: ${saved.code} (${saved.role})`);
+    this.roomCode = saved.code;
+    this.role = saved.role;
+    this.participants = [{
+      deviceId: this.deviceId,
+      name: saved.isHost ? `${this.userName} (Host)` : this.userName,
+      role: saved.role,
+      isHost: saved.isHost,
+      joinedAt: saved.savedAt || Date.now()
+    }];
+
+    this.connectClient(saved.code, () => {
+      if (saved.role === 'host') {
+        this.startHostHeartbeat(getStateCallback);
+      } else {
+        this.publishMessage({
+          type: 'JOIN',
+          deviceId: this.deviceId,
+          name: this.userName,
+          isReconnecting: true,
+          timestamp: Date.now()
+        });
+      }
+    });
   }
 
   getOrCreateDeviceId() {
@@ -96,12 +157,12 @@ class JamService {
         clientId: `dolce_${this.deviceId}_${Math.random().toString(16).substring(2, 6)}`,
         clean: true,
         connectTimeout: 8000,
-        reconnectPeriod: 3000,
+        reconnectPeriod: 2500,
         keepalive: 30,
       });
 
       this.client.on('connect', () => {
-        console.log(`✅ [JamService] Connected to room ${roomCode}`);
+        console.log(`✅ [JamService] Connected/Reconnected to room ${roomCode}`);
         this.isConnected = true;
         this.isConnecting = false;
 
@@ -112,6 +173,31 @@ class JamService {
             if (onError) onError(err);
           } else {
             if (onConnectSuccess) onConnectSuccess();
+
+            // Reconnection state synchronization
+            if (this.role === 'guest') {
+              this.publishMessage({
+                type: 'JOIN',
+                deviceId: this.deviceId,
+                name: this.userName,
+                isReconnecting: true,
+                timestamp: Date.now()
+              });
+            } else if (this.role === 'host' && this.onSyncCommandCallback) {
+              const currentState = this.onSyncCommandCallback('GET_CURRENT_STATE');
+              if (currentState && currentState.currentTrack) {
+                this.publishMessage({
+                  type: 'SYNC_FULL_STATE',
+                  currentTrack: currentState.currentTrack,
+                  isPlaying: currentState.isPlaying,
+                  currentTime: currentState.currentTime || 0,
+                  queue: currentState.queue || [],
+                  allowGuestControl: this.allowGuestControl,
+                  hostTimestamp: Date.now(),
+                  stateTimestamp: Date.now()
+                });
+              }
+            }
           }
         });
         this.notifyState();
@@ -161,6 +247,7 @@ class JamService {
 
       this.roomCode = code;
       this.role = 'host';
+      this.lastProcessedTimestamp = Date.now();
       this.participants = [{
         deviceId: this.deviceId,
         name: `${this.userName} (Host)`,
@@ -168,6 +255,8 @@ class JamService {
         isHost: true,
         joinedAt: Date.now()
       }];
+
+      this.saveSession(code, 'host');
 
       this.connectClient(code, () => {
         this.startHostHeartbeat(initialState);
@@ -191,6 +280,7 @@ class JamService {
       const normalizedCode = code.trim().toUpperCase();
       this.roomCode = normalizedCode;
       this.role = 'guest';
+      this.lastProcessedTimestamp = Date.now();
       this.participants = [{
         deviceId: this.deviceId,
         name: this.userName,
@@ -198,6 +288,8 @@ class JamService {
         isHost: false,
         joinedAt: Date.now()
       }];
+
+      this.saveSession(normalizedCode, 'guest');
 
       this.connectClient(normalizedCode, () => {
         // Send JOIN announcement to host
@@ -219,6 +311,7 @@ class JamService {
    * Leave Jam Session
    */
   leaveSession() {
+    this.clearSession();
     if (this.isConnected && this.roomCode) {
       this.publishMessage({
         type: 'LEAVE',
@@ -239,17 +332,20 @@ class JamService {
     this.participants = [];
     this.isConnected = false;
     this.isConnecting = false;
+    this.lastProcessedTimestamp = 0;
     this.notifyState();
   }
 
   publishMessage(msg) {
     if (!this.client || !this.isConnected || !this.roomCode) return;
     const topic = this.getTopic(this.roomCode);
+    const now = Date.now();
     const enriched = {
       ...msg,
+      stateTimestamp: msg.stateTimestamp || now,
       senderId: this.deviceId,
       senderName: this.userName,
-      sentAt: Date.now()
+      sentAt: now
     };
     try {
       this.client.publish(topic, JSON.stringify(enriched), { qos: 0 });
@@ -288,6 +384,18 @@ class JamService {
 
     // Discard our own messages
     if (msg.senderId === this.deviceId) return;
+
+    // Monotonic timestamp fencing: Drop out-of-order older packets
+    if (['PLAY', 'PAUSE', 'SEEK', 'TRACK_CHANGE', 'SYNC_FULL_STATE'].includes(msg.type)) {
+      const packetTs = msg.stateTimestamp || msg.hostTimestamp || msg.sentAt || 0;
+      if (packetTs && packetTs < this.lastProcessedTimestamp) {
+        console.log(`[JamService] Discarded older out-of-order packet: ${msg.type} (${packetTs} < ${this.lastProcessedTimestamp})`);
+        return;
+      }
+      if (packetTs) {
+        this.lastProcessedTimestamp = packetTs;
+      }
+    }
 
     switch (msg.type) {
       case 'JOIN': {
