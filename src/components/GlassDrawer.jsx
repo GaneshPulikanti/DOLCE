@@ -1,10 +1,12 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Home, Search, Library, Heart, Download, History, Music } from 'lucide-react';
+import { X, Home, Search, Library, Heart, Download, History, Music, Radio } from 'lucide-react';
 import { useSearchStore } from '../store/useSearchStore';
+import { useJamStore } from '../store/useJamStore';
 
 export const GlassDrawer = ({ isOpen, onClose, onOpenAbout }) => {
   const { setActiveTab } = useSearchStore();
+  const { isInJam, participants, openJamModal } = useJamStore();
 
   const menuItems = [
     { label: 'Discover', icon: Home, tab: 'home' },
@@ -61,6 +63,27 @@ export const GlassDrawer = ({ isOpen, onClose, onOpenAbout }) => {
 
             {/* Navigation Items */}
             <div className="flex-1 overflow-y-auto py-4 px-3 flex flex-col gap-1">
+              {/* Special Jam Session Button */}
+              <button
+                onClick={() => {
+                  onClose();
+                  openJamModal();
+                }}
+                className={`flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold transition-all text-left transform active:scale-98 mb-2 ${
+                  isInJam
+                    ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 shadow-lg shadow-emerald-500/10'
+                    : 'bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-transparent border border-pink-500/30 text-pink-300 hover:bg-pink-500/30'
+                }`}
+              >
+                <div className="flex items-center gap-3.5">
+                  <Radio size={19} className={isInJam ? 'text-emerald-400 animate-pulse' : 'text-pink-400'} />
+                  <span>{isInJam ? `Active Jam (${participants.length})` : 'DOLCE Jam'}</span>
+                </div>
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-white/10 text-white">
+                  {isInJam ? 'Live' : 'Co-Listen'}
+                </span>
+              </button>
+
               {menuItems.map((item, idx) => {
                 const Icon = item.icon;
                 return (

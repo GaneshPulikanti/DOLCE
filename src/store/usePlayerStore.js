@@ -3,10 +3,137 @@ import { persist } from 'zustand/middleware';
 import { audioEngine } from '../services/player';
 import { recordHistory } from '../services/db';
 import { syncMediaSession, updateMediaPosition } from '../services/mediaSession';
+import { jamService } from '../services/jamService';
+
+let isApplyingRemoteJamSync = false;
 
 export const usePlayerStore = create(
   persist(
     (set, get) => {
+      // Wire Jam Sync Command Callback
+      jamService.onSyncCommandCallback = (command, data) => {
+        if (command === 'GET_CURRENT_STATE') {
+          return {
+            currentTrack: get().currentTrack,
+            isPlaying: get().isPlaying,
+            currentTime: get().currentTime,
+            queue: get().queue,
+          };
+        }
+
+        if (command === 'APPLY_SYNC_STATE') {
+          isApplyingRemoteJamSync = true;
+          try {
+            const { currentTrack, isPlaying, currentTime, queue, hostTimestamp } = data;
+            const transitLatency = Math.max(0, (Date.now() - (hostTimestamp || Date.now())) / 1000);
+            const targetTime = (currentTime || 0) + (isPlaying ? transitLatency : 0);
+
+            if (queue && Array.isArray(queue) && queue.length > 0) {
+              set({ queue });
+            }
+
+            if (currentTrack && currentTrack.id) {
+              get().playTrack(currentTrack, queue || [currentTrack], targetTime);
+              if (!isPlaying) {
+                setTimeout(() => {
+                  audioEngine.pause();
+                  set({ isPlaying: false, currentTime: targetTime });
+                }, 350);
+              }
+            }
+          } finally {
+            setTimeout(() => { isApplyingRemoteJamSync = false; }, 600);
+          }
+          return;
+        }
+
+        if (command === 'APPLY_HEARTBEAT') {
+          const { trackId, isPlaying, currentTime, hostTimestamp } = data;
+          const { currentTrack, isPlaying: localPlaying, currentTime: localTime } = get();
+          if (!trackId || !currentTrack) return;
+
+          const transitLatency = Math.max(0, (Date.now() - (hostTimestamp || Date.now())) / 1000);
+          const targetTime = (currentTime || 0) + (isPlaying ? transitLatency : 0);
+
+          if (isPlaying && !localPlaying) {
+            audioEngine.resume(true);
+            set({ isPlaying: true });
+          } else if (!isPlaying && localPlaying) {
+            audioEngine.pause();
+            set({ isPlaying: false });
+          }
+
+          if (Math.abs(localTime - targetTime) > 1.8) {
+            audioEngine.seek(targetTime);
+            set({ currentTime: targetTime });
+          }
+          return;
+        }
+
+        if (command === 'REMOTE_PLAY') {
+          isApplyingRemoteJamSync = true;
+          try {
+            const transitLatency = Math.max(0, (Date.now() - (data.hostTimestamp || Date.now())) / 1000);
+            const targetTime = (data.currentTime || 0) + transitLatency;
+            audioEngine.seek(targetTime);
+            audioEngine.resume(true);
+            set({ isPlaying: true, currentTime: targetTime });
+          } finally {
+            setTimeout(() => { isApplyingRemoteJamSync = false; }, 400);
+          }
+          return;
+        }
+
+        if (command === 'REMOTE_PAUSE') {
+          isApplyingRemoteJamSync = true;
+          try {
+            audioEngine.pause();
+            if (data.currentTime !== undefined) {
+              audioEngine.seek(data.currentTime);
+              set({ isPlaying: false, currentTime: data.currentTime });
+            } else {
+              set({ isPlaying: false });
+            }
+          } finally {
+            setTimeout(() => { isApplyingRemoteJamSync = false; }, 400);
+          }
+          return;
+        }
+
+        if (command === 'REMOTE_SEEK') {
+          isApplyingRemoteJamSync = true;
+          try {
+            audioEngine.seek(data.currentTime);
+            set({ currentTime: data.currentTime });
+          } finally {
+            setTimeout(() => { isApplyingRemoteJamSync = false; }, 400);
+          }
+          return;
+        }
+
+        if (command === 'REMOTE_TRACK_CHANGE') {
+          isApplyingRemoteJamSync = true;
+          try {
+            get().playTrack(data.track, data.queue, data.startSeconds || 0);
+          } finally {
+            setTimeout(() => { isApplyingRemoteJamSync = false; }, 500);
+          }
+          return;
+        }
+
+        if (command === 'REMOTE_QUEUE_UPDATE') {
+          isApplyingRemoteJamSync = true;
+          try {
+            if (data.queue && Array.isArray(data.queue)) {
+              set({ queue: data.queue });
+            }
+          } finally {
+            setTimeout(() => { isApplyingRemoteJamSync = false; }, 400);
+          }
+          return;
+        }
+      };
+
       // Wire audio engine listeners
       audioEngine.onStateChange = (stateStr) => {
         const isPlaying = stateStr === 'playing';
@@ -80,6 +207,10 @@ export const usePlayerStore = create(
 
           const updatedQueue = [...currentQueue, track];
           set({ queue: updatedQueue });
+
+          if (!isApplyingRemoteJamSync && jamService.roomCode && (jamService.role === 'host' || jamService.allowGuestControl)) {
+            jamService.broadcastQueueUpdate(updatedQueue);
+          }
         },
 
         removeFromQueue: (index) => {
@@ -103,6 +234,10 @@ export const usePlayerStore = create(
           }
 
           set({ queue: updatedQueue, currentIndex: newCurrentIndex });
+
+          if (!isApplyingRemoteJamSync && jamService.roomCode && (jamService.role === 'host' || jamService.allowGuestControl)) {
+            jamService.broadcastQueueUpdate(updatedQueue);
+          }
         },
 
         moveQueueItem: (fromIndex, toIndex) => {
@@ -124,6 +259,10 @@ export const usePlayerStore = create(
           }
 
           set({ queue: updatedQueue, currentIndex: newCurrentIndex });
+
+          if (!isApplyingRemoteJamSync && jamService.roomCode && (jamService.role === 'host' || jamService.allowGuestControl)) {
+            jamService.broadcastQueueUpdate(updatedQueue);
+          }
         },
 
 
@@ -159,6 +298,11 @@ export const usePlayerStore = create(
           audioEngine.playTrack(track.id, startSeconds);
           recordHistory(track);
 
+          // Broadcast to Jam if active
+          if (!isApplyingRemoteJamSync && jamService.roomCode && (jamService.role === 'host' || jamService.allowGuestControl)) {
+            jamService.broadcastTrackChange(track, queue, startSeconds);
+          }
+
           syncMediaSession({
             track,
             isPlaying: true,
@@ -185,22 +329,22 @@ export const usePlayerStore = create(
           try {
             const { searchSongs, isValidAudioSong } = await import('../services/catalog');
             
-            const albumQuery = `${seedTrack.artistName || ''} ${seedTrack.title} movie full songs`;
-            const radioQuery = `${seedTrack.artistName || ''} ${seedTrack.title} songs radio`;
+            const similarQuery = `${seedTrack.artistName || ''} ${seedTrack.title} audio`;
+            const artistQuery = `${seedTrack.artistName || ''} top songs`;
             
-            const [albumRes, radioRes] = await Promise.allSettled([
-              searchSongs(albumQuery),
-              searchSongs(radioQuery)
+            const [similarRes, artistRes] = await Promise.allSettled([
+              searchSongs(similarQuery),
+              searchSongs(artistQuery)
             ]);
 
-            const albumTracks = albumRes.status === 'fulfilled' ? albumRes.value : [];
-            const radioTracks = radioRes.status === 'fulfilled' ? radioRes.value : [];
+            const similarTracks = similarRes.status === 'fulfilled' ? similarRes.value : [];
+            const artistTracks = artistRes.status === 'fulfilled' ? artistRes.value : [];
 
             const currentQueue = get().queue;
             const existingIds = new Set(currentQueue.map(q => q.id));
 
-            const combined = [...albumTracks, ...radioTracks];
-            const newTracks = combined.filter(r => r && r.id && !existingIds.has(r.id) && isValidAudioSong(r));
+            const combined = [...similarTracks, ...artistTracks];
+            const newTracks = combined.filter(r => r && r.id && !existingIds.has(r.id) && isValidAudioSong(r) && r.artworkUrl && r.artworkUrl.length > 15);
             
             if (newTracks.length > 0) {
               const updatedQueue = [...currentQueue, ...newTracks];
@@ -223,6 +367,9 @@ export const usePlayerStore = create(
           if (isPlaying) {
             audioEngine.pause();
             set({ isPlaying: false });
+            if (!isApplyingRemoteJamSync && jamService.roomCode && (jamService.role === 'host' || jamService.allowGuestControl)) {
+              jamService.broadcastPause(currentTime);
+            }
           } else {
             if (audioEngine.currentVideoId !== currentTrack.id) {
               audioEngine.playTrack(currentTrack.id, currentTime || 0);
@@ -230,12 +377,18 @@ export const usePlayerStore = create(
               audioEngine.resume(true);
             }
             set({ isPlaying: true });
+            if (!isApplyingRemoteJamSync && jamService.roomCode && (jamService.role === 'host' || jamService.allowGuestControl)) {
+              jamService.broadcastPlay(currentTime);
+            }
           }
         },
 
         seek: (seconds) => {
           audioEngine.seek(seconds);
           set({ currentTime: seconds });
+          if (!isApplyingRemoteJamSync && jamService.roomCode && (jamService.role === 'host' || jamService.allowGuestControl)) {
+            jamService.broadcastSeek(seconds);
+          }
         },
 
         setVolume: (volume) => {

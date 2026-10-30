@@ -7,6 +7,7 @@ import {
 import { Music } from 'lucide-react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { usePlayerStore } from '../store/usePlayerStore';
+import { useJamStore } from '../store/useJamStore';
 import { 
   db, toggleFavorite, isFavorite, downloadTrackLocally, isDownloadedLocally,
   getUserPlaylists, createPlaylist, addTrackToPlaylist 
@@ -22,6 +23,8 @@ export const PlayerBar = ({ themePalette }) => {
     isExpanded, setExpanded,
     removeFromQueue, moveQueueItem
   } = usePlayerStore();
+
+  const { isInJam, roomCode, participants, openJamModal } = useJamStore();
 
   const dragControls = useDragControls();
 
@@ -430,6 +433,20 @@ export const PlayerBar = ({ themePalette }) => {
 
         {/* Playback Controls & Expand Indicator */}
         <div className="flex items-center gap-1.5 sm:gap-3" onClick={(e) => e.stopPropagation()}>
+          {/* Jam Button / Live Pill */}
+          <button
+            onClick={(e) => { e.stopPropagation(); openJamModal(); }}
+            className={`p-1.5 rounded-full transition-all active:scale-90 transform flex items-center gap-1 ${
+              isInJam 
+                ? 'px-2 py-1 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 shadow-sm' 
+                : 'text-white/60 hover:text-white'
+            }`}
+            title={isInJam ? `In Jam (${participants.length} listeners)` : "DOLCE Jam (Listen Together)"}
+          >
+            <Radio size={17} className={isInJam ? 'animate-pulse text-emerald-400' : ''} />
+            {isInJam && <span className="text-[10px] font-black">{participants.length}</span>}
+          </button>
+
           <button 
             onClick={skipPrev} 
             className="p-1.5 text-white/80 hover:text-white transition-colors active:scale-90 transform"
@@ -673,6 +690,20 @@ export const PlayerBar = ({ themePalette }) => {
                   className="p-3 text-white/80 hover:text-white transition-colors transform active:scale-90"
                 >
                   <SkipForward size={32} />
+                </button>
+
+                {/* Jam Co-Listening Button */}
+                <button 
+                  onClick={openJamModal}
+                  className={`p-3 transition-colors rounded-full transform active:scale-90 relative ${
+                    isInJam ? 'text-emerald-300 bg-emerald-500/20 border border-emerald-500/40 shadow-lg shadow-emerald-500/20' : 'text-white/40 hover:text-white'
+                  }`}
+                  title={isInJam ? `Active Jam (${participants.length} listeners)` : "DOLCE Jam (Listen Together)"}
+                >
+                  <Radio size={22} className={isInJam ? 'animate-pulse text-emerald-400' : ''} />
+                  {isInJam && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-black animate-ping" />
+                  )}
                 </button>
 
                 {/* Up Next Queue Toggle Button */}

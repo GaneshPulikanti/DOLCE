@@ -1,7 +1,10 @@
 import React from 'react';
-import { Menu, Info } from 'lucide-react';
+import { Menu, Info, Radio } from 'lucide-react';
+import { useJamStore } from '../store/useJamStore';
 
 export const Navbar = ({ onOpenDrawer, onOpenAbout }) => {
+  const { isInJam, participants, openJamModal } = useJamStore();
+
   return (
     <header className="sticky top-0 z-30 w-full px-4 lg:px-8 py-3.5 flex items-center justify-between bg-[#080808]/80 backdrop-blur-xl border-b border-white/10 font-['Plus_Jakarta_Sans']">
       {/* Left: Hamburger Drawer Menu Button & Title */}
@@ -34,15 +37,30 @@ export const Navbar = ({ onOpenDrawer, onOpenAbout }) => {
         </div>
       </div>
 
-      {/* Right: Info / About App Button */}
-      <button
-        onClick={onOpenAbout}
-        className="p-2 rounded-2xl bg-white/5 border border-white/10 text-white/80 hover:text-white hover:bg-white/10 transition-all active:scale-95 flex items-center gap-1.5 px-3 text-xs font-bold"
-        title="About DOLCE"
-      >
-        <Info size={18} className="text-purple-400" />
-        <span className="hidden sm:inline">About</span>
-      </button>
+      {/* Right: Jam Co-Listening & Info / About App Button */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={openJamModal}
+          className={`p-2 rounded-2xl border transition-all active:scale-95 flex items-center gap-1.5 px-3 text-xs font-bold ${
+            isInJam
+              ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 shadow-md shadow-emerald-500/10'
+              : 'bg-white/5 border-white/10 text-white/80 hover:text-white hover:bg-white/10'
+          }`}
+          title={isInJam ? `In Jam (${participants.length} listeners)` : "DOLCE Jam"}
+        >
+          <Radio size={16} className={isInJam ? 'text-emerald-400 animate-pulse' : 'text-pink-400'} />
+          <span>{isInJam ? `Jam (${participants.length})` : 'Jam'}</span>
+        </button>
+
+        <button
+          onClick={onOpenAbout}
+          className="p-2 rounded-2xl bg-white/5 border border-white/10 text-white/80 hover:text-white hover:bg-white/10 transition-all active:scale-95 flex items-center gap-1.5 px-3 text-xs font-bold"
+          title="About DOLCE"
+        >
+          <Info size={18} className="text-purple-400" />
+          <span className="hidden sm:inline">About</span>
+        </button>
+      </div>
     </header>
   );
 };

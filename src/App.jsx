@@ -4,6 +4,7 @@ import { BottomNav } from './components/BottomNav';
 import { PlayerBar } from './components/PlayerBar';
 import { GlassDrawer } from './components/GlassDrawer';
 import { AboutModal } from './components/AboutModal';
+import { JamModal } from './components/JamModal';
 import { Home } from './pages/Home';
 import { Search } from './pages/Search';
 import { Library } from './pages/Library';
@@ -54,6 +55,9 @@ export const App = () => {
         isOpen={isAboutOpen} 
         onClose={() => setIsAboutOpen(false)} 
       />
+
+      {/* DOLCE Jam Co-Listening Modal */}
+      <JamModal />
 
       {/* Top App Bar Header */}
       <Navbar 

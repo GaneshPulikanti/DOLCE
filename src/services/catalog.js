@@ -173,6 +173,9 @@ export function isValidAudioSong(track) {
   if (!track.artworkUrl || typeof track.artworkUrl !== 'string' || track.artworkUrl.trim() === '') return false;
   if (track.artworkUrl.includes('null') || track.artworkUrl.includes('undefined')) return false;
 
+  // 🚫 STRICT FILTER: Must have a valid artwork URL with genuine length
+  if (track.artworkUrl.length < 15) return false;
+
   const lowerArtist = (track.artistName || '').toLowerCase();
   if (lowerArtist === 'video' || lowerArtist.startsWith('video') || lowerArtist.includes('video •')) return false;
   if (lowerArtist === 'episode' || lowerArtist.startsWith('episode') || lowerArtist.includes('episode •') || lowerArtist.includes('podcast')) return false;
@@ -190,9 +193,9 @@ export async function searchSongs(query) {
   return result.songs || [];
 }
 
-async function fetchYtMusicSearch(query) {
+async function fetchYtMusicSearch(query, params = null) {
   const apiKey = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_DOLCE_SERVICE_KEY) || 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
-  const body = JSON.stringify({
+  const payload = {
     context: {
       client: {
         clientName: 'WEB_REMIX',
@@ -202,7 +205,11 @@ async function fetchYtMusicSearch(query) {
       }
     },
     query: query
-  });
+  };
+  if (params) {
+    payload.params = params;
+  }
+  const body = JSON.stringify(payload);
   const headers = { 'Content-Type': 'application/json' };
 
   // 1. Direct YouTube Music API (Instant 200 OK for Android Capacitor APK via native CapacitorHttp)
@@ -328,13 +335,32 @@ export async function searchCatalog(query) {
           return;
         }
 
+        // Check watch endpoint music configs
+        const watchEndpoint = r.playlistItemData?.watchEndpoint ||
+                              r.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.navigationEndpoint?.watchEndpoint ||
+                              r.navigationEndpoint?.watchEndpoint;
+        const musicVideoType = watchEndpoint?.watchEndpointMusicSupportedConfigs?.watchEndpointMusicConfig?.musicVideoType;
+        if (musicVideoType === 'MUSIC_VIDEO_TYPE_UGC' || musicVideoType === 'MUSIC_VIDEO_TYPE_OMV') {
+          return;
+        }
+
+        // Strictly verify thumbnails (Must have actual artwork, eliminate video items without square covers)
+        const thumbs = r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails;
+        if (!thumbs || thumbs.length === 0) return;
+        const rawUrl = thumbs[thumbs.length - 1]?.url;
+        if (!rawUrl || typeof rawUrl !== 'string' || rawUrl.trim() === '') return;
+
+        // Video items often have view counts in subtitle (e.g. "12M views") without album info
+        if (lowerSub.includes('views') && !lowerSub.includes('album') && !lowerSub.includes('song')) {
+          return;
+        }
+
         if (artist.toLowerCase() === 'song') {
           artist = runs[2]?.text || runs[1]?.text || 'Artist';
         }
 
-        const thumbs = r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails;
-        const rawUrl = thumbs?.[thumbs.length - 1]?.url;
         const hdArtwork = getHDArtworkUrl(rawUrl, videoId);
+        if (!hdArtwork || hdArtwork.length < 15) return;
 
         if (rawTitle && isUnwantedVideoItem(rawTitle, artist, cleanQuery)) return;
 
@@ -409,20 +435,20 @@ export async function searchCatalog(query) {
   const isLanguageSpecific = lowerQuery.includes('english') || lowerQuery.includes('korean') || lowerQuery.includes('spanish') || lowerQuery.includes('punjabi') || lowerQuery.includes('tamil') || lowerQuery.includes('hindi');
 
   const searchPromises = [
-    fetchYtMusicSearch(cleanQuery),
-    fetchYtMusicSearch(`${cleanQuery} full songs`),
+    fetchYtMusicSearch(cleanQuery, 'EgWKAQIIAWoKEAkQChAFEAMQBA%3D%3D'), // Pure audio songs filter
+    fetchYtMusicSearch(cleanQuery), // Albums, artists, playlists, top results
     customFetch(`https://lrclib.net/api/search?q=${encodeURIComponent(cleanQuery)}`).then(r => r.ok ? r.json() : null)
   ];
 
   if (normalizedQuery !== lowerQuery) {
-    searchPromises.push(fetchYtMusicSearch(normalizedQuery));
+    searchPromises.push(fetchYtMusicSearch(normalizedQuery, 'EgWKAQIIAWoKEAkQChAFEAMQBA%3D%3D'));
     searchPromises.push(fetchYtMusicSearch(`${normalizedQuery} album`));
   } else {
-    searchPromises.push(fetchYtMusicSearch(`${cleanQuery} songs`));
+    searchPromises.push(fetchYtMusicSearch(`${cleanQuery} audio`, 'EgWKAQIIAWoKEAkQChAFEAMQBA%3D%3D'));
   }
 
   if (!isLanguageSpecific && !lowerQuery.includes('telugu')) {
-    searchPromises.push(fetchYtMusicSearch(`${normalizedQuery} telugu`));
+    searchPromises.push(fetchYtMusicSearch(`${normalizedQuery} telugu`, 'EgWKAQIIAWoKEAkQChAFEAMQBA%3D%3D'));
   }
 
   const results = await Promise.allSettled(searchPromises);
