@@ -63,7 +63,8 @@ export const usePlayerStore = create(
             set({ isPlaying: false });
           }
 
-          if (Math.abs(localTime - targetTime) > 1.8) {
+          // ⚡ Audio Stability: Only resync position if major drift (> 3.5s) to prevent audio frame drops
+          if (Math.abs(localTime - targetTime) > 3.5) {
             audioEngine.seek(targetTime);
             set({ currentTime: targetTime });
           }
@@ -73,13 +74,21 @@ export const usePlayerStore = create(
         if (command === 'REMOTE_PLAY') {
           isApplyingRemoteJamSync = true;
           try {
+            const localTime = get().currentTime;
             const transitLatency = Math.max(0, (Date.now() - (data.hostTimestamp || Date.now())) / 1000);
             const targetTime = (data.currentTime || 0) + transitLatency;
-            audioEngine.seek(targetTime);
+
+            // ⚡ Zero-Latency Instant Resume (Do not flush pre-buffered audio with an unnecessary seek)
             audioEngine.resume(true);
-            set({ isPlaying: true, currentTime: targetTime });
+            set({ isPlaying: true });
+
+            // Only seek if user explicitly skipped far ahead/back (> 2.0s)
+            if (Math.abs(localTime - targetTime) > 2.0) {
+              audioEngine.seek(targetTime);
+              set({ currentTime: targetTime });
+            }
           } finally {
-            setTimeout(() => { isApplyingRemoteJamSync = false; }, 400);
+            setTimeout(() => { isApplyingRemoteJamSync = false; }, 250);
           }
           return;
         }
@@ -87,15 +96,14 @@ export const usePlayerStore = create(
         if (command === 'REMOTE_PAUSE') {
           isApplyingRemoteJamSync = true;
           try {
+            // ⚡ Zero-Latency Instant Pause (Keeps pre-buffered audio intact for immediate resume)
             audioEngine.pause();
+            set({ isPlaying: false });
             if (data.currentTime !== undefined) {
-              audioEngine.seek(data.currentTime);
-              set({ isPlaying: false, currentTime: data.currentTime });
-            } else {
-              set({ isPlaying: false });
+              set({ currentTime: data.currentTime });
             }
           } finally {
-            setTimeout(() => { isApplyingRemoteJamSync = false; }, 400);
+            setTimeout(() => { isApplyingRemoteJamSync = false; }, 250);
           }
           return;
         }

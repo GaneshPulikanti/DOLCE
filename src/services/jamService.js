@@ -270,7 +270,7 @@ class JamService {
         currentTime: state.currentTime || 0,
         hostTimestamp: Date.now()
       });
-    }, 4500);
+    }, 6000);
   }
 
   stopHostHeartbeat() {
@@ -478,3 +478,4 @@ class JamService {
 }
 
 export const jamService = new JamService();
+

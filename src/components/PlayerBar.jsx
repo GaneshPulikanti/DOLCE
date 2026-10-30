@@ -433,20 +433,6 @@ export const PlayerBar = ({ themePalette }) => {
 
         {/* Playback Controls & Expand Indicator */}
         <div className="flex items-center gap-1.5 sm:gap-3" onClick={(e) => e.stopPropagation()}>
-          {/* Jam Button / Live Pill */}
-          <button
-            onClick={(e) => { e.stopPropagation(); openJamModal(); }}
-            className={`p-1.5 rounded-full transition-all active:scale-90 transform flex items-center gap-1 ${
-              isInJam 
-                ? 'px-2 py-1 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 shadow-sm' 
-                : 'text-white/60 hover:text-white'
-            }`}
-            title={isInJam ? `In Jam (${participants.length} listeners)` : "DOLCE Jam (Listen Together)"}
-          >
-            <Radio size={17} className={isInJam ? 'animate-pulse text-emerald-400' : ''} />
-            {isInJam && <span className="text-[10px] font-black">{participants.length}</span>}
-          </button>
-
           <button 
             onClick={skipPrev} 
             className="p-1.5 text-white/80 hover:text-white transition-colors active:scale-90 transform"
@@ -471,16 +457,32 @@ export const PlayerBar = ({ themePalette }) => {
             <SkipForward size={19} />
           </button>
 
+          {/* Favourite Like Heart Button */}
           <button
             onClick={handleLike}
-            className="hidden md:block p-2 text-white/70 hover:text-pink-500 transition-colors"
+            className="p-1.5 sm:p-2 text-white/70 hover:text-pink-500 transition-colors active:scale-90 transform"
+            title={liked ? "Remove from Favorites" : "Add to Favorites"}
           >
             <Heart size={18} fill={liked ? '#ec4899' : 'none'} color={liked ? '#ec4899' : 'currentColor'} />
           </button>
 
+          {/* Jam Button (Beside Like Icon) */}
+          <button
+            onClick={(e) => { e.stopPropagation(); openJamModal(); }}
+            className={`p-1.5 rounded-full transition-all active:scale-90 transform flex items-center gap-1 ${
+              isInJam 
+                ? 'px-2 py-1 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 shadow-sm' 
+                : 'text-white/60 hover:text-pink-400'
+            }`}
+            title={isInJam ? `In Jam (${participants.length} listeners)` : "DOLCE Jam (Listen Together)"}
+          >
+            <Radio size={17} className={isInJam ? 'animate-pulse text-emerald-400' : ''} />
+            {isInJam && <span className="text-[10px] font-black">{participants.length}</span>}
+          </button>
+
           <button
             onClick={() => setExpanded(true)}
-            className="p-1.5 text-white/40 hover:text-white transition-colors ml-1"
+            className="p-1.5 text-white/40 hover:text-white transition-colors ml-0.5"
             title="Expand Full Player"
           >
             <ChevronUp size={20} />
@@ -624,12 +626,31 @@ export const PlayerBar = ({ themePalette }) => {
                   </p>
                 </div>
 
-                <button
-                  onClick={handleLike}
-                  className="p-2.5 text-white/70 hover:text-pink-500 transition-all transform active:scale-95"
-                >
-                  <Heart size={26} fill={liked ? '#ec4899' : 'none'} color={liked ? '#ec4899' : 'currentColor'} />
-                </button>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {/* Jam Co-Listening Button (Beside Favourite Heart) */}
+                  <button
+                    onClick={openJamModal}
+                    className={`p-2.5 rounded-full transition-all transform active:scale-95 flex items-center justify-center relative ${
+                      isInJam 
+                        ? 'text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 shadow-lg shadow-emerald-500/20' 
+                        : 'text-white/60 hover:text-white'
+                    }`}
+                    title={isInJam ? `Active Jam (${participants.length} listeners)` : "DOLCE Jam (Listen Together)"}
+                  >
+                    <Radio size={24} className={isInJam ? 'animate-pulse text-emerald-400' : ''} />
+                    {isInJam && (
+                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-black animate-ping" />
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleLike}
+                    className="p-2.5 text-white/70 hover:text-pink-500 transition-all transform active:scale-95"
+                    title={liked ? "Remove from Favorites" : "Add to Favorites"}
+                  >
+                    <Heart size={26} fill={liked ? '#ec4899' : 'none'} color={liked ? '#ec4899' : 'currentColor'} />
+                  </button>
+                </div>
               </div>
 
               {/* Progress Scrubber & Timestamps */}
@@ -690,20 +711,6 @@ export const PlayerBar = ({ themePalette }) => {
                   className="p-3 text-white/80 hover:text-white transition-colors transform active:scale-90"
                 >
                   <SkipForward size={32} />
-                </button>
-
-                {/* Jam Co-Listening Button */}
-                <button 
-                  onClick={openJamModal}
-                  className={`p-3 transition-colors rounded-full transform active:scale-90 relative ${
-                    isInJam ? 'text-emerald-300 bg-emerald-500/20 border border-emerald-500/40 shadow-lg shadow-emerald-500/20' : 'text-white/40 hover:text-white'
-                  }`}
-                  title={isInJam ? `Active Jam (${participants.length} listeners)` : "DOLCE Jam (Listen Together)"}
-                >
-                  <Radio size={22} className={isInJam ? 'animate-pulse text-emerald-400' : ''} />
-                  {isInJam && (
-                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-black animate-ping" />
-                  )}
                 </button>
 
                 {/* Up Next Queue Toggle Button */}
