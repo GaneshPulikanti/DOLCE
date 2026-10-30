@@ -235,16 +235,21 @@ class AudioEngine {
     this.userIntentToPause = true;
     this.isCurrentlyPlaying = false;
 
+    const track = window.usePlayerStore ? window.usePlayerStore.getState().currentTrack : null;
+
     if (typeof window !== 'undefined' && window.AndroidNativePlayer) {
       try {
-        const track = window.usePlayerStore ? window.usePlayerStore.getState().currentTrack : null;
-        window.AndroidNativePlayer.updateNotification(
-          this.currentVideoId || '',
-          track?.title || 'DOLCE Music',
-          track?.artistName || 'DOLCE Stream',
-          track?.artworkUrl || '',
-          false
-        );
+        if (typeof window.AndroidNativePlayer.pause === 'function') {
+          window.AndroidNativePlayer.pause();
+        } else {
+          window.AndroidNativePlayer.updateNotification(
+            this.currentVideoId || track?.id || '',
+            track?.title || 'DOLCE Music',
+            track?.artistName || 'DOLCE Stream',
+            track?.artworkUrl || '',
+            false
+          );
+        }
       } catch (_) {}
     }
 
@@ -261,16 +266,24 @@ class AudioEngine {
     this.userIntentToPause = false;
     this.isCurrentlyPlaying = true;
 
+    const track = window.usePlayerStore ? window.usePlayerStore.getState().currentTrack : null;
+    if (track && track.id && !this.currentVideoId) {
+      this.currentVideoId = track.id;
+    }
+
     if (typeof window !== 'undefined' && window.AndroidNativePlayer) {
       try {
-        const track = window.usePlayerStore ? window.usePlayerStore.getState().currentTrack : null;
-        window.AndroidNativePlayer.updateNotification(
-          this.currentVideoId || '',
-          track?.title || 'DOLCE Music',
-          track?.artistName || 'DOLCE Stream',
-          track?.artworkUrl || '',
-          true
-        );
+        if (typeof window.AndroidNativePlayer.resume === 'function') {
+          window.AndroidNativePlayer.resume();
+        } else {
+          window.AndroidNativePlayer.updateNotification(
+            this.currentVideoId || track?.id || '',
+            track?.title || 'DOLCE Music',
+            track?.artistName || 'DOLCE Stream',
+            track?.artworkUrl || '',
+            true
+          );
+        }
       } catch (_) {}
     }
 

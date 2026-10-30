@@ -47,6 +47,12 @@ public class BackgroundAudioService extends Service {
     private WebView serviceWebView;
     private Handler mainHandler = new Handler(Looper.getMainLooper());
 
+    private static BackgroundAudioService instance;
+
+    public static BackgroundAudioService getInstance() {
+        return instance;
+    }
+
     private String currentVideoId = "";
     private String currentTitle = "DOLCE Music";
     private String currentArtist = "Ambient Music Streaming";
@@ -60,6 +66,8 @@ public class BackgroundAudioService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        instance = this;
+        mainHandler = new Handler(Looper.getMainLooper());
         createNotificationChannel();
         initMediaSession();
         acquireLocksAndFocus();
@@ -158,6 +166,7 @@ public class BackgroundAudioService extends Service {
         mainHandler.post(() -> {
             try {
                 serviceWebView = new WebView(getApplicationContext());
+                serviceWebView.onResume();
                 WebSettings settings = serviceWebView.getSettings();
                 settings.setJavaScriptEnabled(true);
                 settings.setMediaPlaybackRequiresUserGesture(false);
@@ -263,6 +272,39 @@ public class BackgroundAudioService extends Service {
                 serviceWebView.evaluateJavascript("loadAndPlay('" + videoId + "');", null);
             }
         });
+    }
+
+    public void playDirectly() {
+        mainHandler.post(() -> {
+            if (serviceWebView != null) {
+                currentIsPlaying = true;
+                serviceWebView.evaluateJavascript("playVideo();", null);
+                updateMediaSessionPlaybackState();
+            }
+        });
+    }
+
+    public void pauseDirectly() {
+        mainHandler.post(() -> {
+            if (serviceWebView != null) {
+                currentIsPlaying = false;
+                serviceWebView.evaluateJavascript("pauseVideo();", null);
+                updateMediaSessionPlaybackState();
+            }
+        });
+    }
+
+    private void updateMediaSessionPlaybackState() {
+        if (mediaSession != null) {
+            int state = currentIsPlaying ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
+            PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
+                    .setActions(PlaybackStateCompat.ACTION_PLAY | PlaybackStateCompat.ACTION_PAUSE |
+                            PlaybackStateCompat.ACTION_SKIP_TO_NEXT | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS |
+                            PlaybackStateCompat.ACTION_SEEK_TO)
+                    .setState(state, (long)(currentPositionSeconds * 1000), currentIsPlaying ? 1.0f : 0.0f, SystemClock.elapsedRealtime());
+            mediaSession.setPlaybackState(stateBuilder.build());
+        }
+        updateAndPostNotification();
     }
 
     private void togglePlayPauseInService() {
@@ -472,6 +514,7 @@ public class BackgroundAudioService extends Service {
 
     @Override
     public void onDestroy() {
+        instance = null;
         super.onDestroy();
         try {
             if (serviceWebView != null) {

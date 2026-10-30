@@ -408,17 +408,19 @@ class JamService {
   }
 
   // Outbound action triggers (invoked by user actions in player store)
-  broadcastPlay(currentTime) {
+  broadcastPlay(currentTime, trackId) {
     this.publishMessage({
       type: 'PLAY',
+      trackId: trackId || null,
       currentTime: currentTime || 0,
       hostTimestamp: Date.now()
     });
   }
 
-  broadcastPause(currentTime) {
+  broadcastPause(currentTime, trackId) {
     this.publishMessage({
       type: 'PAUSE',
+      trackId: trackId || null,
       currentTime: currentTime || 0,
       hostTimestamp: Date.now()
     });

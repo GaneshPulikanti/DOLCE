@@ -34,6 +34,34 @@ public class WebAppInterface {
     }
 
     @JavascriptInterface
+    public void resume() {
+        try {
+            BackgroundAudioService service = BackgroundAudioService.getInstance();
+            if (service != null) {
+                service.playDirectly();
+            } else {
+                updateNotification("", "", "", "", true);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @JavascriptInterface
+    public void pause() {
+        try {
+            BackgroundAudioService service = BackgroundAudioService.getInstance();
+            if (service != null) {
+                service.pauseDirectly();
+            } else {
+                updateNotification("", "", "", "", false);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @JavascriptInterface
     public void seekTo(double seconds) {
         try {
             Intent intent = new Intent(mContext, BackgroundAudioService.class);

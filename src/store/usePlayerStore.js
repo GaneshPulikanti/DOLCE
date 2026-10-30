@@ -48,25 +48,20 @@ export const usePlayerStore = create(
         }
 
         if (command === 'APPLY_HEARTBEAT') {
-          const { trackId, isPlaying, currentTime, hostTimestamp } = data;
+          const { trackId, isPlaying: hostPlaying, currentTime, hostTimestamp } = data;
           const { currentTrack, isPlaying: localPlaying, currentTime: localTime } = get();
           if (!trackId || !currentTrack) return;
 
-          const transitLatency = Math.max(0, (Date.now() - (hostTimestamp || Date.now())) / 1000);
-          const targetTime = (currentTime || 0) + (isPlaying ? transitLatency : 0);
+          // ⚡ Smooth Drift Sync: ONLY sync position when BOTH devices are actively playing the same song
+          // This eliminates race conditions so a pause is NEVER overridden by a background heartbeat
+          if (hostPlaying && localPlaying && trackId === currentTrack.id) {
+            const transitLatency = Math.max(0, (Date.now() - (hostTimestamp || Date.now())) / 1000);
+            const targetTime = (currentTime || 0) + transitLatency;
 
-          if (isPlaying && !localPlaying) {
-            audioEngine.resume(true);
-            set({ isPlaying: true });
-          } else if (!isPlaying && localPlaying) {
-            audioEngine.pause();
-            set({ isPlaying: false });
-          }
-
-          // ⚡ Audio Stability: Only resync position if major drift (> 3.5s) to prevent audio frame drops
-          if (Math.abs(localTime - targetTime) > 3.5) {
-            audioEngine.seek(targetTime);
-            set({ currentTime: targetTime });
+            if (Math.abs(localTime - targetTime) > 3.5) {
+              audioEngine.seek(targetTime);
+              set({ currentTime: targetTime });
+            }
           }
           return;
         }
@@ -74,21 +69,27 @@ export const usePlayerStore = create(
         if (command === 'REMOTE_PLAY') {
           isApplyingRemoteJamSync = true;
           try {
+            const currentTrack = get().currentTrack;
+            const targetTrackId = data.trackId || currentTrack?.id;
             const localTime = get().currentTime;
             const transitLatency = Math.max(0, (Date.now() - (data.hostTimestamp || Date.now())) / 1000);
             const targetTime = (data.currentTime || 0) + transitLatency;
 
-            // ⚡ Zero-Latency Instant Resume (Do not flush pre-buffered audio with an unnecessary seek)
-            audioEngine.resume(true);
-            set({ isPlaying: true });
+            // If audio engine has not loaded this track yet, load and play it
+            if (targetTrackId && audioEngine.currentVideoId !== targetTrackId) {
+              audioEngine.playTrack(targetTrackId, targetTime);
+            } else {
+              // ⚡ Instant resume (0ms latency, keep pre-buffered audio)
+              audioEngine.resume(true);
 
-            // Only seek if user explicitly skipped far ahead/back (> 2.0s)
-            if (Math.abs(localTime - targetTime) > 2.0) {
-              audioEngine.seek(targetTime);
-              set({ currentTime: targetTime });
+              // Only seek if user skipped far ahead/back (> 2.0s)
+              if (Math.abs(localTime - targetTime) > 2.0) {
+                audioEngine.seek(targetTime);
+              }
             }
+            set({ isPlaying: true, currentTime: targetTime });
           } finally {
-            setTimeout(() => { isApplyingRemoteJamSync = false; }, 250);
+            setTimeout(() => { isApplyingRemoteJamSync = false; }, 200);
           }
           return;
         }
@@ -103,7 +104,7 @@ export const usePlayerStore = create(
               set({ currentTime: data.currentTime });
             }
           } finally {
-            setTimeout(() => { isApplyingRemoteJamSync = false; }, 250);
+            setTimeout(() => { isApplyingRemoteJamSync = false; }, 200);
           }
           return;
         }
@@ -376,7 +377,7 @@ export const usePlayerStore = create(
             audioEngine.pause();
             set({ isPlaying: false });
             if (!isApplyingRemoteJamSync && jamService.roomCode && (jamService.role === 'host' || jamService.allowGuestControl)) {
-              jamService.broadcastPause(currentTime);
+              jamService.broadcastPause(currentTime, currentTrack.id);
             }
           } else {
             if (audioEngine.currentVideoId !== currentTrack.id) {
@@ -386,7 +387,7 @@ export const usePlayerStore = create(
             }
             set({ isPlaying: true });
             if (!isApplyingRemoteJamSync && jamService.roomCode && (jamService.role === 'host' || jamService.allowGuestControl)) {
-              jamService.broadcastPlay(currentTime);
+              jamService.broadcastPlay(currentTime, currentTrack.id);
             }
           }
         },
