@@ -6,10 +6,7 @@ import mqtt from 'mqtt';
  * Ultra-low latency (<50ms), zero-server setup, works seamlessly across cellular data and Wi-Fi.
  */
 
-const BROKERS = [
-  'wss://broker.emqx.io:8084/mqtt',
-  'wss://broker.hivemq.com:8884/mqtt'
-];
+const PRIMARY_BROKER = 'wss://broker.emqx.io:8084/mqtt';
 
 class JamService {
   constructor() {
@@ -21,10 +18,10 @@ class JamService {
     this.participants = [];
     this.allowGuestControl = true;
     this.heartbeatTimer = null;
-    this.currentBrokerIdx = 0;
     this.isConnecting = false;
     this.isConnected = false;
-    this.lastProcessedTimestamp = 0;
+    this.messageSeq = 0;
+    this.lastProcessedSeqBySender = new Map();
 
     // Callbacks
     this.onStateChangeCallback = null;
@@ -139,6 +136,7 @@ class JamService {
 
   /**
    * Connect to MQTT Broker
+   * All devices connect to the unified global broker to prevent split-brain partition
    */
   connectClient(roomCode, onConnectSuccess, onError) {
     if (this.client) {
@@ -146,18 +144,17 @@ class JamService {
       this.client = null;
     }
 
-    const brokerUrl = BROKERS[this.currentBrokerIdx % BROKERS.length];
-    console.log(`🛸 [JamService] Connecting to broker: ${brokerUrl} for room ${roomCode}`);
+    console.log(`🛸 [JamService] Connecting to unified broker: ${PRIMARY_BROKER} for room ${roomCode}`);
 
     this.isConnecting = true;
     this.notifyState();
 
     try {
-      this.client = mqtt.connect(brokerUrl, {
+      this.client = mqtt.connect(PRIMARY_BROKER, {
         clientId: `dolce_${this.deviceId}_${Math.random().toString(16).substring(2, 6)}`,
         clean: true,
-        connectTimeout: 8000,
-        reconnectPeriod: 2500,
+        connectTimeout: 10000,
+        reconnectPeriod: 2000,
         keepalive: 30,
       });
 
@@ -194,7 +191,6 @@ class JamService {
                   queue: currentState.queue || [],
                   allowGuestControl: this.allowGuestControl,
                   hostTimestamp: Date.now(),
-                  stateTimestamp: Date.now()
                 });
               }
             }
@@ -216,8 +212,6 @@ class JamService {
         console.warn('Jam MQTT Error:', err);
         this.isConnecting = false;
         this.notifyState();
-        // Switch broker on persistent failure
-        this.currentBrokerIdx++;
         if (onError) onError(err);
       });
 
@@ -247,7 +241,8 @@ class JamService {
 
       this.roomCode = code;
       this.role = 'host';
-      this.lastProcessedTimestamp = Date.now();
+      this.messageSeq = 0;
+      this.lastProcessedSeqBySender.clear();
       this.participants = [{
         deviceId: this.deviceId,
         name: `${this.userName} (Host)`,
@@ -280,7 +275,8 @@ class JamService {
       const normalizedCode = code.trim().toUpperCase();
       this.roomCode = normalizedCode;
       this.role = 'guest';
-      this.lastProcessedTimestamp = Date.now();
+      this.messageSeq = 0;
+      this.lastProcessedSeqBySender.clear();
       this.participants = [{
         deviceId: this.deviceId,
         name: this.userName,
@@ -332,20 +328,21 @@ class JamService {
     this.participants = [];
     this.isConnected = false;
     this.isConnecting = false;
-    this.lastProcessedTimestamp = 0;
+    this.messageSeq = 0;
+    this.lastProcessedSeqBySender.clear();
     this.notifyState();
   }
 
   publishMessage(msg) {
     if (!this.client || !this.isConnected || !this.roomCode) return;
     const topic = this.getTopic(this.roomCode);
-    const now = Date.now();
+    this.messageSeq++;
     const enriched = {
       ...msg,
-      stateTimestamp: msg.stateTimestamp || now,
+      seq: this.messageSeq,
       senderId: this.deviceId,
       senderName: this.userName,
-      sentAt: now
+      sentAt: Date.now()
     };
     try {
       this.client.publish(topic, JSON.stringify(enriched), { qos: 0 });
@@ -364,9 +361,8 @@ class JamService {
         trackId: state.currentTrack?.id || null,
         isPlaying: state.isPlaying || false,
         currentTime: state.currentTime || 0,
-        hostTimestamp: Date.now()
       });
-    }, 6000);
+    }, 5000);
   }
 
   stopHostHeartbeat() {
@@ -385,16 +381,13 @@ class JamService {
     // Discard our own messages
     if (msg.senderId === this.deviceId) return;
 
-    // Monotonic timestamp fencing: Drop out-of-order older packets
-    if (['PLAY', 'PAUSE', 'SEEK', 'TRACK_CHANGE', 'SYNC_FULL_STATE'].includes(msg.type)) {
-      const packetTs = msg.stateTimestamp || msg.hostTimestamp || msg.sentAt || 0;
-      if (packetTs && packetTs < this.lastProcessedTimestamp) {
-        console.log(`[JamService] Discarded older out-of-order packet: ${msg.type} (${packetTs} < ${this.lastProcessedTimestamp})`);
+    // Per-sender monotonic sequencing: drop duplicate or out-of-order packets from the SAME sender
+    if (msg.senderId && msg.seq) {
+      const lastSeq = this.lastProcessedSeqBySender.get(msg.senderId) || 0;
+      if (msg.seq <= lastSeq) {
         return;
       }
-      if (packetTs) {
-        this.lastProcessedTimestamp = packetTs;
-      }
+      this.lastProcessedSeqBySender.set(msg.senderId, msg.seq);
     }
 
     switch (msg.type) {
@@ -411,18 +404,18 @@ class JamService {
           this.notifyState();
         }
 
-        // If I am Host, respond with full immediate state sync
+        // If I am Host, respond with immediate full state sync TARGETED to this newly joined device
         if (this.role === 'host' && this.onSyncCommandCallback) {
           const currentState = this.onSyncCommandCallback('GET_CURRENT_STATE');
           if (currentState) {
             this.publishMessage({
               type: 'SYNC_FULL_STATE',
+              targetDeviceId: msg.deviceId,
               currentTrack: currentState.currentTrack,
               isPlaying: currentState.isPlaying,
               currentTime: currentState.currentTime || 0,
               queue: currentState.queue || [],
               allowGuestControl: this.allowGuestControl,
-              hostTimestamp: Date.now()
             });
           }
         }
@@ -430,9 +423,13 @@ class JamService {
       }
 
       case 'SYNC_FULL_STATE': {
-        // Update participants list if host supplied
         if (msg.allowGuestControl !== undefined) {
           this.allowGuestControl = msg.allowGuestControl;
+        }
+
+        // If message was specifically targeted to a different joining guest, do not disturb existing local playback
+        if (msg.targetDeviceId && msg.targetDeviceId !== this.deviceId) {
+          return;
         }
 
         // Apply state through callback
@@ -516,21 +513,25 @@ class JamService {
   }
 
   // Outbound action triggers (invoked by user actions in player store)
-  broadcastPlay(currentTime, trackId) {
+  broadcastPlay(currentTime, track) {
+    const trackObj = typeof track === 'object' ? track : null;
+    const trackId = trackObj ? trackObj.id : (typeof track === 'string' ? track : null);
     this.publishMessage({
       type: 'PLAY',
       trackId: trackId || null,
+      track: trackObj,
       currentTime: currentTime || 0,
-      hostTimestamp: Date.now()
     });
   }
 
-  broadcastPause(currentTime, trackId) {
+  broadcastPause(currentTime, track) {
+    const trackObj = typeof track === 'object' ? track : null;
+    const trackId = trackObj ? trackObj.id : (typeof track === 'string' ? track : null);
     this.publishMessage({
       type: 'PAUSE',
       trackId: trackId || null,
+      track: trackObj,
       currentTime: currentTime || 0,
-      hostTimestamp: Date.now()
     });
   }
 
@@ -538,7 +539,6 @@ class JamService {
     this.publishMessage({
       type: 'SEEK',
       currentTime: seconds,
-      hostTimestamp: Date.now()
     });
   }
 
@@ -548,7 +548,6 @@ class JamService {
       track,
       queue,
       startSeconds,
-      hostTimestamp: Date.now()
     });
   }
 
@@ -556,7 +555,6 @@ class JamService {
     this.publishMessage({
       type: 'QUEUE_UPDATE',
       queue,
-      hostTimestamp: Date.now()
     });
   }
 
@@ -588,4 +586,3 @@ class JamService {
 }
 
 export const jamService = new JamService();
-

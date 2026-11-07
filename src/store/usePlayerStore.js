@@ -24,9 +24,8 @@ export const usePlayerStore = create(
         if (command === 'APPLY_SYNC_STATE') {
           isApplyingRemoteJamSync = true;
           try {
-            const { currentTrack, isPlaying, currentTime, queue, hostTimestamp, stateTimestamp } = data;
-            const transitLatency = Math.max(0, (Date.now() - (stateTimestamp || hostTimestamp || Date.now())) / 1000);
-            const targetTime = (currentTime || 0) + (isPlaying ? transitLatency : 0);
+            const { currentTrack, isPlaying, currentTime, queue } = data;
+            const targetTime = currentTime || 0;
 
             if (queue && Array.isArray(queue) && queue.length > 0) {
               set({ queue });
@@ -35,16 +34,18 @@ export const usePlayerStore = create(
             if (currentTrack && currentTrack.id) {
               const activeId = audioEngine.currentVideoId || get().currentTrack?.id;
               if (activeId === currentTrack.id) {
-                // Song already in memory/buffer: Instant zero-overhead alignment
+                // Song already loaded in audio engine/buffer: align state smoothly without reloading
                 audioEngine.currentVideoId = currentTrack.id;
                 if (isPlaying) {
                   audioEngine.resume(true);
-                  if (Math.abs(get().currentTime - targetTime) > 2.0) {
+                  if (Math.abs(get().currentTime - targetTime) > 5.0) {
                     audioEngine.seek(targetTime);
                   }
                 } else {
                   audioEngine.pause();
-                  audioEngine.seek(targetTime);
+                  if (Math.abs(get().currentTime - targetTime) > 5.0) {
+                    audioEngine.seek(targetTime);
+                  }
                 }
                 set({ currentTrack, isPlaying, currentTime: targetTime, isLoading: false });
               } else {
@@ -64,19 +65,16 @@ export const usePlayerStore = create(
         }
 
         if (command === 'APPLY_HEARTBEAT') {
-          const { trackId, isPlaying: hostPlaying, currentTime, hostTimestamp } = data;
+          const { trackId, isPlaying: hostPlaying, currentTime: hostTime } = data;
           const { currentTrack, isPlaying: localPlaying, currentTime: localTime } = get();
           if (!trackId || !currentTrack) return;
 
           // ⚡ Smooth Drift Sync: ONLY sync position when BOTH devices are actively playing the same song
-          // This eliminates race conditions so a pause is NEVER overridden by a background heartbeat
+          // Only correct severe drift (> 6.0 seconds) to avoid constant rebuffering/interruption
           if (hostPlaying && localPlaying && trackId === currentTrack.id) {
-            const transitLatency = Math.max(0, (Date.now() - (hostTimestamp || Date.now())) / 1000);
-            const targetTime = (currentTime || 0) + transitLatency;
-
-            if (Math.abs(localTime - targetTime) > 3.5) {
-              audioEngine.seek(targetTime);
-              set({ currentTime: targetTime });
+            if (hostTime !== undefined && Math.abs(localTime - hostTime) > 6.0) {
+              audioEngine.seek(hostTime);
+              set({ currentTime: hostTime });
             }
           }
           return;
@@ -86,31 +84,31 @@ export const usePlayerStore = create(
           isApplyingRemoteJamSync = true;
           try {
             const currentTrack = get().currentTrack;
-            const targetTrackId = data.trackId || currentTrack?.id;
+            const targetTrack = data.track || currentTrack;
+            const targetTrackId = data.trackId || targetTrack?.id;
             const localTime = get().currentTime;
-            const transitLatency = Math.max(0, (Date.now() - (data.stateTimestamp || data.hostTimestamp || Date.now())) / 1000);
-            const targetTime = (data.currentTime || 0) + transitLatency;
+            const targetTime = data.currentTime !== undefined ? data.currentTime : localTime;
 
             const activeId = audioEngine.currentVideoId || currentTrack?.id;
 
             // If audio engine has not loaded this track yet, load and play it
-            if (targetTrackId && activeId && targetTrackId !== activeId) {
-              if (data.track) {
-                get().playTrack(data.track, get().queue, targetTime);
+            if (targetTrackId && targetTrackId !== activeId) {
+              if (targetTrack) {
+                get().playTrack(targetTrack, get().queue, targetTime);
               } else {
                 audioEngine.playTrack(targetTrackId, targetTime);
               }
             } else {
-              // ⚡ Instant resume (0ms latency, keep pre-buffered audio)
+              // ⚡ Instant in-memory resume (0ms latency, keep pre-buffered audio)
               audioEngine.currentVideoId = targetTrackId || activeId;
               audioEngine.resume(true);
 
-              // Only seek if user skipped far ahead/back (> 2.0s)
-              if (Math.abs(localTime - targetTime) > 2.0) {
+              // Only seek if severe drift (> 5.0s) to prevent audio glitches
+              if (targetTime !== undefined && Math.abs(localTime - targetTime) > 5.0) {
                 audioEngine.seek(targetTime);
               }
             }
-            set({ isPlaying: true, currentTime: targetTime });
+            set({ isPlaying: true, ...(targetTrack ? { currentTrack: targetTrack } : {}) });
           } finally {
             isApplyingRemoteJamSync = false;
           }
@@ -120,7 +118,7 @@ export const usePlayerStore = create(
         if (command === 'REMOTE_PAUSE') {
           isApplyingRemoteJamSync = true;
           try {
-            // ⚡ Zero-Latency Instant Pause (Keeps pre-buffered audio intact for immediate resume)
+            // ⚡ Zero-Latency Instant Pause on all devices
             audioEngine.pause();
             set({ isPlaying: false });
             if (data.currentTime !== undefined) {
@@ -146,7 +144,9 @@ export const usePlayerStore = create(
         if (command === 'REMOTE_TRACK_CHANGE') {
           isApplyingRemoteJamSync = true;
           try {
-            get().playTrack(data.track, data.queue, data.startSeconds || 0);
+            if (data.track) {
+              get().playTrack(data.track, data.queue || get().queue, data.startSeconds || 0);
+            }
           } finally {
             isApplyingRemoteJamSync = false;
           }
@@ -400,7 +400,7 @@ export const usePlayerStore = create(
             audioEngine.pause();
             set({ isPlaying: false });
             if (!isApplyingRemoteJamSync && jamService.roomCode && (jamService.role === 'host' || jamService.allowGuestControl)) {
-              jamService.broadcastPause(currentTime, currentTrack.id);
+              jamService.broadcastPause(currentTime, currentTrack);
             }
           } else {
             if (audioEngine.currentVideoId !== currentTrack.id) {
@@ -410,7 +410,7 @@ export const usePlayerStore = create(
             }
             set({ isPlaying: true });
             if (!isApplyingRemoteJamSync && jamService.roomCode && (jamService.role === 'host' || jamService.allowGuestControl)) {
-              jamService.broadcastPlay(currentTime, currentTrack.id);
+              jamService.broadcastPlay(currentTime, currentTrack);
             }
           }
         },

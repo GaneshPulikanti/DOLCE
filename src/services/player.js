@@ -209,6 +209,13 @@ class AudioEngine {
           track?.artworkUrl || '',
           true
         );
+        if (startSeconds > 0) {
+          setTimeout(() => {
+            if (window.AndroidNativePlayer && typeof window.AndroidNativePlayer.seekTo === 'function') {
+              window.AndroidNativePlayer.seekTo(startSeconds);
+            }
+          }, 800);
+        }
       } catch (e) {
         console.warn('Native updateNotification error:', e);
       }

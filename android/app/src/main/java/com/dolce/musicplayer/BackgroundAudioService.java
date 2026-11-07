@@ -253,7 +253,7 @@ public class BackgroundAudioService extends Service {
                         "    }" +
                         "  });" +
                         "}" +
-                        "function loadAndPlay(id){ if(player && player.loadVideoById){ player.loadVideoById(id); player.playVideo(); } }" +
+                        "function loadAndPlay(id, sec){ if(player && player.loadVideoById){ if(sec && sec > 0){ player.loadVideoById({ videoId: id, startSeconds: Math.floor(sec) }); } else { player.loadVideoById(id); } player.playVideo(); } }" +
                         "function playVideo(){ if(player && player.playVideo) player.playVideo(); }" +
                         "function pauseVideo(){ if(player && player.pauseVideo) player.pauseVideo(); }" +
                         "function seekTo(sec){ if(player && player.seekTo) player.seekTo(sec, true); }" +
