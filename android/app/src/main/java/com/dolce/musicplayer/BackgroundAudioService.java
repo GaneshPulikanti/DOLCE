@@ -53,6 +53,14 @@ public class BackgroundAudioService extends Service {
         return instance;
     }
 
+    public double getCurrentPositionSeconds() {
+        return currentPositionSeconds;
+    }
+
+    public boolean getIsPlaying() {
+        return currentIsPlaying;
+    }
+
     private String currentVideoId = "";
     private String currentTitle = "DOLCE Music";
     private String currentArtist = "Ambient Music Streaming";

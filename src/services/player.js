@@ -315,6 +315,30 @@ class AudioEngine {
     }
   }
 
+  getCurrentTime() {
+    if (typeof window !== 'undefined' && window.AndroidNativePlayer && typeof window.AndroidNativePlayer.getCurrentPosition === 'function') {
+      try {
+        const pos = window.AndroidNativePlayer.getCurrentPosition();
+        if (pos > 0) return pos;
+      } catch (_) {}
+    }
+    if (this.ytPlayer && typeof this.ytPlayer.getCurrentTime === 'function') {
+      try {
+        return this.ytPlayer.getCurrentTime() || 0;
+      } catch (_) {}
+    }
+    return 0;
+  }
+
+  getIsPlaying() {
+    if (typeof window !== 'undefined' && window.AndroidNativePlayer && typeof window.AndroidNativePlayer.getIsPlaying === 'function') {
+      try {
+        return window.AndroidNativePlayer.getIsPlaying();
+      } catch (_) {}
+    }
+    return this.isCurrentlyPlaying;
+  }
+
   setVolume(volumePct) {
     const vol = Math.min(100, Math.max(0, volumePct));
     if (this.ytPlayer && typeof this.ytPlayer.setVolume === 'function') {

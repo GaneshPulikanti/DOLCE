@@ -356,13 +356,24 @@ class JamService {
     this.heartbeatTimer = setInterval(() => {
       if (this.role !== 'host' || !this.isConnected) return;
       const state = typeof getStateCallback === 'function' ? getStateCallback() : {};
+
+      // Get real-time audio position directly from audioEngine if available
+      let currentPos = 0;
+      if (typeof window !== 'undefined' && window.audioEngine && typeof window.audioEngine.getCurrentTime === 'function') {
+        currentPos = window.audioEngine.getCurrentTime();
+      }
+      if (!currentPos && state.currentTime) {
+        currentPos = state.currentTime;
+      }
+
       this.publishMessage({
         type: 'HEARTBEAT',
         trackId: state.currentTrack?.id || null,
         isPlaying: state.isPlaying || false,
-        currentTime: state.currentTime || 0,
+        currentTime: currentPos || 0,
+        participants: this.participants, // Keep all connected devices synchronized with full member list
       });
-    }, 5000);
+    }, 4000);
   }
 
   stopHostHeartbeat() {
@@ -408,16 +419,43 @@ class JamService {
         if (this.role === 'host' && this.onSyncCommandCallback) {
           const currentState = this.onSyncCommandCallback('GET_CURRENT_STATE');
           if (currentState) {
+            let currentPos = 0;
+            if (typeof window !== 'undefined' && window.audioEngine && typeof window.audioEngine.getCurrentTime === 'function') {
+              currentPos = window.audioEngine.getCurrentTime();
+            }
+            if (!currentPos && currentState.currentTime) {
+              currentPos = currentState.currentTime;
+            }
+
             this.publishMessage({
               type: 'SYNC_FULL_STATE',
               targetDeviceId: msg.deviceId,
               currentTrack: currentState.currentTrack,
               isPlaying: currentState.isPlaying,
-              currentTime: currentState.currentTime || 0,
+              currentTime: currentPos || 0,
               queue: currentState.queue || [],
               allowGuestControl: this.allowGuestControl,
+              participants: this.participants, // Send complete participant roster to new member
+            });
+
+            // Broadcast updated participants roster to ALL existing members in room
+            this.publishMessage({
+              type: 'PARTICIPANTS_UPDATE',
+              participants: this.participants,
             });
           }
+        }
+        break;
+      }
+
+      case 'PARTICIPANTS_UPDATE': {
+        if (msg.participants && Array.isArray(msg.participants)) {
+          this.participants = msg.participants.map(p => ({
+            ...p,
+            isHost: p.isHost || p.role === 'host',
+            isMe: p.deviceId === this.deviceId
+          }));
+          this.notifyState();
         }
         break;
       }
@@ -425,6 +463,16 @@ class JamService {
       case 'SYNC_FULL_STATE': {
         if (msg.allowGuestControl !== undefined) {
           this.allowGuestControl = msg.allowGuestControl;
+        }
+
+        // Sync full participants list from host
+        if (msg.participants && Array.isArray(msg.participants)) {
+          this.participants = msg.participants.map(p => ({
+            ...p,
+            isHost: p.isHost || p.role === 'host',
+            isMe: p.deviceId === this.deviceId
+          }));
+          this.notifyState();
         }
 
         // If message was specifically targeted to a different joining guest, do not disturb existing local playback
@@ -441,6 +489,18 @@ class JamService {
       }
 
       case 'HEARTBEAT': {
+        // Automatically sync participants list from host heartbeat if different
+        if (msg.participants && Array.isArray(msg.participants)) {
+          if (this.participants.length !== msg.participants.length) {
+            this.participants = msg.participants.map(p => ({
+              ...p,
+              isHost: p.isHost || p.role === 'host',
+              isMe: p.deviceId === this.deviceId
+            }));
+            this.notifyState();
+          }
+        }
+
         if (this.role === 'guest' && this.onSyncCommandCallback) {
           this.onSyncCommandCallback('APPLY_HEARTBEAT', msg);
         }
@@ -485,6 +545,12 @@ class JamService {
       case 'LEAVE': {
         this.participants = this.participants.filter(p => p.deviceId !== msg.deviceId);
         this.notifyState();
+        if (this.role === 'host') {
+          this.publishMessage({
+            type: 'PARTICIPANTS_UPDATE',
+            participants: this.participants,
+          });
+        }
         break;
       }
 

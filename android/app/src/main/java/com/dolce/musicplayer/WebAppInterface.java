@@ -34,6 +34,32 @@ public class WebAppInterface {
     }
 
     @JavascriptInterface
+    public double getCurrentPosition() {
+        try {
+            BackgroundAudioService service = BackgroundAudioService.getInstance();
+            if (service != null) {
+                return service.getCurrentPositionSeconds();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+    @JavascriptInterface
+    public boolean getIsPlaying() {
+        try {
+            BackgroundAudioService service = BackgroundAudioService.getInstance();
+            if (service != null) {
+                return service.getIsPlaying();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    @JavascriptInterface
     public void resume() {
         try {
             BackgroundAudioService service = BackgroundAudioService.getInstance();

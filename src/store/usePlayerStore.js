@@ -66,13 +66,14 @@ export const usePlayerStore = create(
 
         if (command === 'APPLY_HEARTBEAT') {
           const { trackId, isPlaying: hostPlaying, currentTime: hostTime } = data;
-          const { currentTrack, isPlaying: localPlaying, currentTime: localTime } = get();
+          const { currentTrack, isPlaying: localPlaying } = get();
           if (!trackId || !currentTrack) return;
 
           // ⚡ Smooth Drift Sync: ONLY sync position when BOTH devices are actively playing the same song
-          // Only correct severe drift (> 6.0 seconds) to avoid constant rebuffering/interruption
           if (hostPlaying && localPlaying && trackId === currentTrack.id) {
-            if (hostTime !== undefined && Math.abs(localTime - hostTime) > 6.0) {
+            const localTime = audioEngine.getCurrentTime() || get().currentTime || 0;
+            // 2.5s tolerance: tight enough so listeners are beat-matched, avoiding micro-seeks
+            if (hostTime !== undefined && Math.abs(localTime - hostTime) > 2.5) {
               audioEngine.seek(hostTime);
               set({ currentTime: hostTime });
             }
@@ -86,7 +87,7 @@ export const usePlayerStore = create(
             const currentTrack = get().currentTrack;
             const targetTrack = data.track || currentTrack;
             const targetTrackId = data.trackId || targetTrack?.id;
-            const localTime = get().currentTime;
+            const localTime = audioEngine.getCurrentTime() || get().currentTime || 0;
             const targetTime = data.currentTime !== undefined ? data.currentTime : localTime;
 
             const activeId = audioEngine.currentVideoId || currentTrack?.id;
@@ -103,8 +104,8 @@ export const usePlayerStore = create(
               audioEngine.currentVideoId = targetTrackId || activeId;
               audioEngine.resume(true);
 
-              // Only seek if severe drift (> 5.0s) to prevent audio glitches
-              if (targetTime !== undefined && Math.abs(localTime - targetTime) > 5.0) {
+              // Only seek if drift > 2.5s
+              if (targetTime !== undefined && Math.abs(localTime - targetTime) > 2.5) {
                 audioEngine.seek(targetTime);
               }
             }
@@ -185,7 +186,11 @@ export const usePlayerStore = create(
         });
 
         if (stateStr === 'ended') {
-          get().skipNext();
+          // When in a Jam session, only the host automatically triggers skipNext when a track finishes
+          // This prevents multiple connected devices from racing and skipping songs ahead
+          if (!jamService.roomCode || jamService.role === 'host') {
+            get().skipNext();
+          }
         }
       };
 
@@ -393,12 +398,13 @@ export const usePlayerStore = create(
         },
 
         togglePlayPause: () => {
-          const { isPlaying, currentTrack, currentTime } = get();
+          const { isPlaying, currentTrack } = get();
           if (!currentTrack) return;
+          const currentTime = audioEngine.getCurrentTime() || get().currentTime || 0;
 
           if (isPlaying) {
             audioEngine.pause();
-            set({ isPlaying: false });
+            set({ isPlaying: false, currentTime });
             if (!isApplyingRemoteJamSync && jamService.roomCode && (jamService.role === 'host' || jamService.allowGuestControl)) {
               jamService.broadcastPause(currentTime, currentTrack);
             }
@@ -408,7 +414,7 @@ export const usePlayerStore = create(
             } else {
               audioEngine.resume(true);
             }
-            set({ isPlaying: true });
+            set({ isPlaying: true, currentTime });
             if (!isApplyingRemoteJamSync && jamService.roomCode && (jamService.role === 'host' || jamService.allowGuestControl)) {
               jamService.broadcastPlay(currentTime, currentTrack);
             }

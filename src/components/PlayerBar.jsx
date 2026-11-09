@@ -638,8 +638,10 @@ export const PlayerBar = ({ themePalette }) => {
                     title={isInJam ? `Active Jam (${participants.length} listeners)` : "DOLCE Jam (Listen Together)"}
                   >
                     <Radio size={24} className={isInJam ? 'animate-pulse text-emerald-400' : ''} />
-                    {isInJam && (
-                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-black animate-ping" />
+                    {isInJam && participants.length > 0 && (
+                      <span className="absolute -top-1 -right-1 px-1.5 py-0.5 bg-emerald-500 text-black text-[9px] font-black rounded-full shadow-md">
+                        {participants.length}
+                      </span>
                     )}
                   </button>
 
