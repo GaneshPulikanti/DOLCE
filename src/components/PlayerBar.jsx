@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, 
   Heart, ChevronDown, ChevronUp, Download, MessageSquareQuote, ListMusic,
-  Maximize2, Minimize2, X, Radio, FolderPlus, Plus, Check, ListPlus, Trash2, GripVertical
+  Maximize2, Minimize2, X, Radio, FolderPlus, Plus, Check, ListPlus, Trash2, GripVertical, Sparkles
 } from 'lucide-react';
 import { Music } from 'lucide-react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
@@ -13,6 +13,7 @@ import {
   getUserPlaylists, createPlaylist, addTrackToPlaylist 
 } from '../services/db';
 import { fetchLyrics } from '../services/lyrics';
+import { fetchTrackRadio } from '../services/catalog';
 
 export const PlayerBar = ({ themePalette }) => {
   const { 
@@ -21,7 +22,7 @@ export const PlayerBar = ({ themePalette }) => {
     isShuffle, repeatMode, cyclePlaybackMode,
     lyricFont, setLyricFont,
     isExpanded, setExpanded,
-    removeFromQueue, moveQueueItem
+    addToQueue, removeFromQueue, moveQueueItem
   } = usePlayerStore();
 
   const { isInJam, roomCode, participants, openJamModal } = useJamStore();
@@ -33,6 +34,9 @@ export const PlayerBar = ({ themePalette }) => {
   const [lyricsData, setLyricsData] = useState({ synced: [], plain: '' });
   const [loadingLyrics, setLoadingLyrics] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
+  const [queueSuggestions, setQueueSuggestions] = useState([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [addedQueueIds, setAddedQueueIds] = useState(new Set());
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [userPlaylists, setUserPlaylists] = useState([]);
   const [newPlaylistName, setNewPlaylistName] = useState('');
@@ -295,6 +299,24 @@ export const PlayerBar = ({ themePalette }) => {
       });
     }
   }, [currentTrack?.id, currentTrack?.title, currentTrack?.artistName]);
+
+  // Fetch intelligent queue recommendations based on current track & queue
+  useEffect(() => {
+    if (!showQueue || !currentTrack?.id) return;
+    let isCurrent = true;
+    setLoadingSuggestions(true);
+    fetchTrackRadio(currentTrack.id).then((tracks) => {
+      if (isCurrent && tracks) {
+        const currentQueueIds = new Set(queue.map(t => t.id));
+        const filtered = tracks.filter(t => !currentQueueIds.has(t.id));
+        setQueueSuggestions(filtered.slice(0, 10));
+        setLoadingSuggestions(false);
+      }
+    }).catch(() => {
+      if (isCurrent) setLoadingSuggestions(false);
+    });
+    return () => { isCurrent = false; };
+  }, [showQueue, currentTrack?.id, queue.length]);
 
   // Find active synchronized lyric index
   let activeLyricIdx = -1;
@@ -830,6 +852,100 @@ export const PlayerBar = ({ themePalette }) => {
                         No songs in queue
                       </div>
                     )}
+                  </div>
+
+                  {/* ── Spotify-Style Queue Recommendations ("Recommended for this Queue") ── */}
+                  <div className="flex flex-col gap-3 pt-3 border-t border-white/10 mt-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs uppercase font-extrabold tracking-[0.15em] text-white/80 flex items-center gap-2 font-['Plus_Jakarta_Sans']">
+                        <Sparkles size={16} className="text-pink-400" />
+                        <span>Recommended for this Queue</span>
+                      </span>
+                      {loadingSuggestions && (
+                        <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-2 max-h-60 overflow-y-auto no-scrollbar">
+                      {queueSuggestions.length > 0 ? (
+                        queueSuggestions.map((track) => {
+                          const isAdded = addedQueueIds.has(track.id);
+                          return (
+                            <div
+                              key={track.id}
+                              className="flex items-center justify-between p-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 transition-all group"
+                            >
+                              <div 
+                                onClick={() => playTrack(track, [track, ...queue])}
+                                className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
+                              >
+                                <img
+                                  src={track.artworkUrl || (track.id ? `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg` : '')}
+                                  alt={track.title}
+                                  referrerPolicy="no-referrer"
+                                  className="w-10 h-10 rounded-xl object-cover bg-black/40 border border-white/10 flex-shrink-0"
+                                  onError={(e) => {
+                                    if (track.id) {
+                                      e.target.src = `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`;
+                                    }
+                                  }}
+                                />
+                                <div className="flex flex-col min-w-0">
+                                  <h6 className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-pink-300 transition-colors font-['Plus_Jakarta_Sans']">
+                                    {track.title}
+                                  </h6>
+                                  <p className="text-[11px] text-white/50 truncate mt-0.5 font-['Plus_Jakarta_Sans']">
+                                    {track.artistName}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                {/* 1-Tap Play */}
+                                <button
+                                  onClick={() => playTrack(track, [track, ...queue])}
+                                  className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+                                  title="Play Now"
+                                >
+                                  <Play size={14} fill="currentColor" />
+                                </button>
+
+                                {/* + Add to Queue */}
+                                <button
+                                  onClick={() => {
+                                    addToQueue(track);
+                                    setAddedQueueIds(prev => new Set([...prev, track.id]));
+                                  }}
+                                  disabled={isAdded}
+                                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                                    isAdded 
+                                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 cursor-default' 
+                                      : 'bg-white/10 hover:bg-white/20 text-white active:scale-95 border border-white/10'
+                                  }`}
+                                  title={isAdded ? "Added to Queue" : "Add to Queue"}
+                                >
+                                  {isAdded ? (
+                                    <>
+                                      <Check size={13} className="text-emerald-300" />
+                                      <span className="text-[10px]">Added</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Plus size={13} />
+                                      <span className="text-[10px]">Queue</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : !loadingSuggestions ? (
+                        <div className="text-xs text-white/40 py-2 text-center">
+                          No suggestions found for this track
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               ) : (

@@ -362,29 +362,29 @@ export const usePlayerStore = create(
         },
 
         expandInfiniteQueue: async (seedTrack) => {
-          if (!seedTrack || !seedTrack.title) return;
+          if (!seedTrack || !seedTrack.id) return;
           try {
-            const { searchSongs, isValidAudioSong } = await import('../services/catalog');
+            const { fetchTrackRadio, searchSongs, isValidAudioSong } = await import('../services/catalog');
             
-            const similarQuery = `${seedTrack.artistName || ''} ${seedTrack.title} audio`;
-            const artistQuery = `${seedTrack.artistName || ''} top songs`;
-            
-            const [similarRes, artistRes] = await Promise.allSettled([
-              searchSongs(similarQuery),
-              searchSongs(artistQuery)
-            ]);
+            // 1. YouTube Music AI Track Radio recommendations (RDAMVM graph)
+            let recommendedTracks = await fetchTrackRadio(seedTrack.id);
 
-            const similarTracks = similarRes.status === 'fulfilled' ? similarRes.value : [];
-            const artistTracks = artistRes.status === 'fulfilled' ? artistRes.value : [];
+            // 2. Fallback if radio had no items
+            if (!recommendedTracks || recommendedTracks.length === 0) {
+              const query = `${seedTrack.artistName || ''} ${seedTrack.title} songs`;
+              recommendedTracks = await searchSongs(query);
+            }
 
             const currentQueue = get().queue;
             const existingIds = new Set(currentQueue.map(q => q.id));
 
-            const combined = [...similarTracks, ...artistTracks];
-            const newTracks = combined.filter(r => r && r.id && !existingIds.has(r.id) && isValidAudioSong(r) && r.artworkUrl && r.artworkUrl.length > 15);
+            const newTracks = (recommendedTracks || []).filter(
+              r => r && r.id && !existingIds.has(r.id) && isValidAudioSong(r) && r.artworkUrl && r.artworkUrl.length > 15
+            );
             
             if (newTracks.length > 0) {
-              const updatedQueue = [...currentQueue, ...newTracks];
+              const sliceToAppend = newTracks.slice(0, 10);
+              const updatedQueue = [...currentQueue, ...sliceToAppend];
               set({ queue: updatedQueue });
               
               const currIdx = get().currentIndex;

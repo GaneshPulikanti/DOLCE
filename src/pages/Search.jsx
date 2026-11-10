@@ -158,6 +158,61 @@ export const Search = () => {
       ) : hasAnyResults ? (
         <div className="flex flex-col gap-10 mt-2">
 
+          {/* ── SPOTIFY-STYLE TOP RESULT CARD ── */}
+          {filterCategory === 'all' && catalogResults.topResult && (
+            <section className="flex flex-col gap-3">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Sparkles size={20} className="text-pink-400" />
+                <span>Top Result</span>
+              </h2>
+
+              <div
+                onClick={() => {
+                  if (catalogResults.topResult.type === 'song') {
+                    playTrack(catalogResults.topResult, [catalogResults.topResult, ...catalogResults.songs]);
+                  } else {
+                    setSelectedCollection(catalogResults.topResult);
+                    setIsCollectionOpen(true);
+                  }
+                }}
+                className="group relative rounded-3xl glass-panel p-5 sm:p-6 bg-white/[0.04] hover:bg-white/[0.08] border border-white/12 transition-all duration-300 cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 shadow-2xl hover:scale-[1.008]"
+              >
+                <div className="flex items-center gap-4 sm:gap-5 min-w-0 flex-1">
+                  <div className={`relative flex-shrink-0 overflow-hidden shadow-2xl ${
+                    catalogResults.topResult.type === 'artist' 
+                      ? 'w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-white/20' 
+                      : 'w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-black/40 border border-white/10'
+                  }`}>
+                    <img
+                      src={catalogResults.topResult.artworkUrl}
+                      alt={catalogResults.topResult.title || catalogResults.topResult.name}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  </div>
+
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[11px] font-extrabold uppercase tracking-widest text-pink-400 mb-1">
+                      {catalogResults.topResult.type === 'artist' ? 'Artist' : catalogResults.topResult.type === 'album' ? 'Album' : 'Song'}
+                    </span>
+                    <h3 className="text-xl sm:text-2xl font-black text-white truncate font-['Plus_Jakarta_Sans'] group-hover:text-pink-300 transition-colors">
+                      {catalogResults.topResult.title || catalogResults.topResult.name}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-white/60 truncate font-medium mt-1">
+                      {catalogResults.topResult.artistName || catalogResults.topResult.subtitle || (catalogResults.topResult.type === 'artist' ? 'Artist' : '')}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center self-end sm:self-center flex-shrink-0">
+                  <div className="w-13 h-13 rounded-full bg-white text-black flex items-center justify-center shadow-xl group-hover:scale-110 active:scale-95 transition-all">
+                    <Play size={22} fill="black" className="ml-0.5" />
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* ── SONGS SECTION ── */}
           {(filterCategory === 'all' || filterCategory === 'songs') && catalogResults.songs.length > 0 && (
             <section className="flex flex-col gap-4">

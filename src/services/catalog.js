@@ -58,7 +58,7 @@ function isUnwantedVideoItem(title, artist, queryContext = '') {
   const lowerArtist = (artist || '').toLowerCase();
   const lowerQuery = (queryContext || '').toLowerCase();
 
-  // 🚫 STRICT GENRE ISOLATION: Reject devotional/god songs from secular/love song queues
+  // Strict devotional isolation: only reject devotional songs if user query is not devotional
   const isDevotionalContext = isDevotionalTerm(lowerQuery) || lowerQuery.includes('god') || lowerQuery.includes('bhakti');
   if (!isDevotionalContext) {
     if (isDevotionalTerm(lowerTitle) || isDevotionalTerm(lowerArtist)) {
@@ -66,91 +66,46 @@ function isUnwantedVideoItem(title, artist, queryContext = '') {
     }
   }
 
-  // 🚫 REJECT Unofficial DJ / Fan Channel uploads (e.g., "DJ Kawal", "Shubhadip Dey")
-  if (lowerArtist.startsWith('dj ') || lowerArtist.includes(' dj') || lowerArtist.includes('dj ') || lowerArtist === 'dj') {
-    if (!lowerArtist.includes('snake') && !lowerArtist.includes('khaled')) {
-      return true;
-    }
-  }
-
-  // 🚫 REJECT Fan mashups (e.g., "Raabta x Tum Ho Toh")
-  if (lowerTitle.includes(' x ') || lowerTitle.includes(' × ') || lowerTitle.includes(' X ')) {
+  // Reject placeholder channels
+  if (lowerArtist === 'video' || lowerArtist === 'videos' || lowerArtist === 'episode' || lowerArtist === 'podcast') {
     return true;
   }
 
-  if (lowerArtist === 'video' || lowerArtist.startsWith('video') || lowerArtist.includes('video •')) {
-    return true;
-  }
-  if (lowerTitle === 'video' || lowerTitle.startsWith('video') || lowerTitle.includes('video •')) {
-    return true;
-  }
-
-  // 🚫 REJECT Podcast / Episode items
-  if (lowerArtist === 'episode' || lowerArtist.startsWith('episode') || lowerArtist.includes('episode •') || lowerArtist.includes('podcast')) {
-    return true;
-  }
-  if (lowerTitle === 'episode' || lowerTitle.startsWith('episode') || lowerTitle.includes('episode •') || lowerTitle.includes('podcast')) {
-    return true;
-  }
-
+  // Reject non-music video content (trailers, teasers, full movies, commentary, etc.)
   const junkKeywords = [
-    'mashup',
-    'mash up',
-    'remix',
-    're-mix',
-    'bootleg',
-    'slowed',
-    'reverb',
-    '8d',
-    '3d audio',
-    'fan edit',
-    'fan cover',
-    'cover song',
-    'dance cover',
-    'lofi remix',
-    'status video',
-    'whatsapp status',
-    'instagram status',
-    'reels',
-    'shorts',
-    'reaction',
-    'full movie',
-    'vlog',
-    'teaser',
+    'official trailer',
     'trailer',
+    'official teaser',
+    'teaser',
+    'full movie',
+    'movie scene',
+    'comedy scene',
+    'reaction',
+    'movie review',
     'gameplay',
-    'review',
+    'walkthrough',
     'tutorial',
     'behind the scenes',
     'making of',
     'bloopers',
     'funny moments',
+    'status video',
+    'whatsapp status',
+    'instagram reels',
     'tiktok',
-    'full video song',
-    'official video song',
-    'lyric video',
-    'video song',
-    'full episode',
+    'vlog',
     'podcast episode',
-    'episode',
-    'dappu song',
-    'bit song',
+    'full episode',
+    'cut song',
     'ringtone',
     'ring tone',
-    'whatsapp',
-    'cut song',
-    'short video'
+    'slowed+reverb',
+    'slowed and reverb',
+    '8d audio'
   ];
 
   for (const kw of junkKeywords) {
-    if (lowerTitle.includes(kw) || lowerArtist.includes(kw)) {
-      return true;
-    }
-  }
-
-  // Reject unofficial fan uploader names
-  if (lowerArtist.includes('viralvmusic') || lowerArtist.includes('status video') || lowerArtist.includes('creation') || lowerArtist.includes('edits')) {
-    if (!lowerArtist.includes('official') && !lowerArtist.includes('music')) {
+    if (lowerTitle.includes(kw)) {
       return true;
     }
   }
@@ -158,14 +113,43 @@ function isUnwantedVideoItem(title, artist, queryContext = '') {
   return false;
 }
 
-function cleanSongTitle(rawTitle) {
+export function cleanSongTitle(rawTitle) {
   if (!rawTitle) return '';
-  return rawTitle
-    .replace(/[\(\[]\s*(official\s*(music\s*)?video|official\s*audio|lyric\s*video|full\s*video(\s*song)?|4k|8k|hd|video|audio)\s*[\)\]]/gi, '')
-    .replace(/official\s*(music\s*)?video/gi, '')
-    .replace(/full\s*video\s*song/gi, '')
+  let title = rawTitle;
+
+  // 1. Remove hashtags (#shorts, #trending, etc.)
+  title = title.replace(/#\S+/g, '');
+
+  // 2. Remove (From "Movie") or [From "Movie"]
+  title = title.replace(/[\(\[]\s*From\s*["“][^"”]+["”]\s*[\)\]]/gi, '');
+
+  // 3. Remove parenthesized/bracketed video descriptors
+  title = title.replace(/[\(\[]\s*(official\s*(music\s*)?(video|audio)|lyric(al)?\s*video|full\s*(video|audio)(\s*song)?|video\s*song|audio\s*song|4k|8k|hd|ultra\s*hd|remastered|visualizer|extended|special\s*version)\s*[\)\]]/gi, '');
+
+  // 4. Remove trailing suffixes like " - Full Video ...", " - Official Video", etc.
+  title = title.replace(/\s*[-–|:]\s*(full\s*)?(official\s*)?(music\s*)?(video|audio|lyric|lyrical)(\s*song)?\b.*/gi, '');
+
+  // 5. If pipe delimiter exists with movie/channel info (e.g., "Song | Movie | Label"), keep the first meaningful part
+  if (title.includes('|')) {
+    const parts = title.split('|');
+    if (parts[0].trim().length >= 2) {
+      title = parts[0];
+    }
+  }
+
+  // 6. Clean standalone descriptor words
+  title = title
+    .replace(/\bofficial\s*(music\s*)?video\b/gi, '')
+    .replace(/\bfull\s*video(\s*song)?\b/gi, '')
+    .replace(/\bvideo\s*song\b/gi, '')
+    .replace(/\blyric(al)?\s*video\b/gi, '')
     .replace(/\s+/g, ' ')
     .trim();
+
+  // 7. Remove trailing hyphens or colons
+  title = title.replace(/[-–:]\s*$/, '').trim();
+
+  return title || rawTitle;
 }
 
 export function isValidAudioSong(track) {
@@ -173,20 +157,116 @@ export function isValidAudioSong(track) {
   if (!track.artworkUrl || typeof track.artworkUrl !== 'string' || track.artworkUrl.trim() === '') return false;
   if (track.artworkUrl.includes('null') || track.artworkUrl.includes('undefined')) return false;
 
-  // 🚫 STRICT FILTER: Must have a valid artwork URL with genuine length
+  // Must have a valid artwork URL with genuine length
   if (track.artworkUrl.length < 15) return false;
 
   const lowerArtist = (track.artistName || '').toLowerCase();
-  if (lowerArtist === 'video' || lowerArtist.startsWith('video') || lowerArtist.includes('video •')) return false;
-  if (lowerArtist === 'episode' || lowerArtist.startsWith('episode') || lowerArtist.includes('episode •') || lowerArtist.includes('podcast')) return false;
+  if (lowerArtist === 'video' || lowerArtist === 'episode' || lowerArtist === 'podcast') return false;
 
   if (isUnwantedVideoItem(track.title, track.artistName)) return false;
   return true;
 }
 
 /**
- * Searches songs catalog using DOLCE Gateway with Lyric Matching & Multi-pass resolution.
- * Finds pure audio songs by title, artist, AND matching lyric lines.
+ * YouTube Music Track Radio Engine (RDAMVM Recommendation Graph).
+ * Generates official 50-track Spotify-grade recommendations for any given song.
+ */
+const trackRadioCache = new Map();
+
+export async function fetchTrackRadio(videoId) {
+  if (!videoId) return [];
+  if (trackRadioCache.has(videoId)) {
+    return trackRadioCache.get(videoId);
+  }
+
+  const apiKey = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_DOLCE_SERVICE_KEY) || 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
+  const payload = {
+    context: {
+      client: {
+        clientName: 'WEB_REMIX',
+        clientVersion: '1.20260526.04.00',
+        gl: 'IN',
+        hl: 'en'
+      }
+    },
+    playlistId: `RDAMVM${videoId}`,
+    isAudioOnly: true
+  };
+  const body = JSON.stringify(payload);
+  const headers = { 'Content-Type': 'application/json' };
+
+  let data = null;
+  // 1. Direct YouTube Music API (CapacitorHttp native for Android or CORS proxy)
+  try {
+    const res1 = await customFetch(`https://music.youtube.com/youtubei/v1/next?key=${apiKey}&alt=json`, {
+      method: 'POST',
+      headers,
+      body
+    });
+    if (res1.ok) {
+      data = await res1.json();
+    }
+  } catch (_) {}
+
+  // 2. Relative gateway proxy (Vite dev server)
+  if (!data) {
+    try {
+      const res2 = await customFetch(`/api/gateway/youtubei/v1/next?key=${apiKey}&alt=json`, {
+        method: 'POST',
+        headers,
+        body
+      });
+      if (res2.ok) {
+        data = await res2.json();
+      }
+    } catch (_) {}
+  }
+
+  if (!data) return [];
+
+  try {
+    const tabs = data?.contents?.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs;
+    const items = tabs?.[0]?.tabRenderer?.content?.musicQueueRenderer?.content?.playlistPanelRenderer?.contents || [];
+
+    const tracks = [];
+    for (const item of items) {
+      const r = item.playlistPanelVideoRenderer;
+      if (!r || !r.videoId || r.videoId === videoId) continue;
+
+      const rawTitle = r.title?.runs?.[0]?.text;
+      if (!rawTitle) continue;
+
+      const artist = r.shortBylineText?.runs?.[0]?.text || r.longBylineText?.runs?.[0]?.text || 'Artist';
+      const duration = r.lengthText?.runs?.[0]?.text || '3:30';
+      const thumbs = r.thumbnail?.thumbnails;
+      const rawThumb = thumbs?.[thumbs.length - 1]?.url;
+      const hdArtwork = getHDArtworkUrl(rawThumb, r.videoId);
+
+      const title = cleanSongTitle(rawTitle);
+      const track = {
+        id: r.videoId,
+        title,
+        artistName: artist,
+        artworkUrl: hdArtwork,
+        duration,
+        durationMs: 210000,
+      };
+
+      if (isValidAudioSong(track)) {
+        tracks.push(track);
+      }
+    }
+
+    trackRadioCache.set(videoId, tracks);
+    return tracks;
+  } catch (e) {
+    console.error('Failed to parse track radio:', e);
+    return [];
+  }
+}
+
+/**
+ * Searches songs catalog using DOLCE Gateway.
  */
 export async function searchSongs(query) {
   const result = await searchCatalog(query);
@@ -432,7 +512,82 @@ export async function searchCatalog(query) {
   const queryWords = lowerQuery.split(/\s+/).filter(w => w.length > 2);
   const normWords = normalizedQuery.split(/\s+/).filter(w => w.length > 2);
   const mainWords = [...new Set([...queryWords, ...normWords])];
-  const isLanguageSpecific = lowerQuery.includes('english') || lowerQuery.includes('korean') || lowerQuery.includes('spanish') || lowerQuery.includes('punjabi') || lowerQuery.includes('tamil') || lowerQuery.includes('hindi');
+
+  let topResult = null;
+
+  const parseTopCard = (data) => {
+    if (topResult) return;
+    const sec0 = data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents?.[0];
+    const card = sec0?.musicCardShelfRenderer;
+    if (!card) return;
+
+    const rawTitle = card.title?.runs?.[0]?.text;
+    if (!rawTitle) return;
+    const subtitleRuns = card.subtitle?.runs || [];
+    const subtitle = subtitleRuns.map(r => r.text).join('').trim();
+    const lowerSub = subtitle.toLowerCase();
+
+    // Skip episode cards
+    if (lowerSub.includes('episode') || lowerSub.includes('podcast')) return;
+
+    const thumbs = card.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails;
+    const rawThumb = thumbs?.[thumbs.length - 1]?.url;
+
+    const watchEndpoint = card.onTap?.watchEndpoint;
+    const browseEndpoint = card.onTap?.browseEndpoint;
+
+    if (watchEndpoint?.videoId) {
+      const videoId = watchEndpoint.videoId;
+      let artist = 'Artist';
+      for (const r of subtitleRuns) {
+        const t = (r.text || '').trim();
+        if (t && t !== '•' && t !== 'Song' && t !== 'Video' && !t.includes('views') && !t.includes(':')) {
+          artist = t;
+          break;
+        }
+      }
+      topResult = {
+        id: videoId,
+        title: cleanSongTitle(rawTitle),
+        artistName: artist,
+        subtitle: subtitle,
+        artworkUrl: getHDArtworkUrl(rawThumb, videoId),
+        duration: '3:30',
+        durationMs: 210000,
+        type: 'song',
+      };
+    } else if (browseEndpoint?.browseId) {
+      const browseId = browseEndpoint.browseId;
+      const hdArtwork = getHDArtworkUrl(rawThumb);
+      if (lowerSub.includes('artist')) {
+        topResult = {
+          id: browseId,
+          name: rawTitle,
+          subtitle: subtitle || 'Artist',
+          artworkUrl: hdArtwork,
+          type: 'artist',
+        };
+      } else if (lowerSub.includes('album') || lowerSub.includes('single') || lowerSub.includes('ep')) {
+        topResult = {
+          id: browseId,
+          title: rawTitle,
+          artistName: subtitleRuns[0]?.text || 'Artist',
+          subtitle: subtitle || 'Album',
+          artworkUrl: hdArtwork,
+          type: 'album',
+        };
+      } else if (lowerSub.includes('playlist')) {
+        topResult = {
+          id: browseId,
+          title: rawTitle,
+          author: subtitleRuns[0]?.text || 'Playlist',
+          subtitle: subtitle || 'Playlist',
+          artworkUrl: hdArtwork,
+          type: 'playlist',
+        };
+      }
+    }
+  };
 
   const searchPromises = [
     fetchYtMusicSearch(cleanQuery, 'EgWKAQIIAWoKEAkQChAFEAMQBA%3D%3D'), // Pure audio songs filter
@@ -442,19 +597,14 @@ export async function searchCatalog(query) {
 
   if (normalizedQuery !== lowerQuery) {
     searchPromises.push(fetchYtMusicSearch(normalizedQuery, 'EgWKAQIIAWoKEAkQChAFEAMQBA%3D%3D'));
-    searchPromises.push(fetchYtMusicSearch(`${normalizedQuery} album`));
-  } else {
-    searchPromises.push(fetchYtMusicSearch(`${cleanQuery} audio`, 'EgWKAQIIAWoKEAkQChAFEAMQBA%3D%3D'));
-  }
-
-  if (!isLanguageSpecific && !lowerQuery.includes('telugu')) {
-    searchPromises.push(fetchYtMusicSearch(`${normalizedQuery} telugu`, 'EgWKAQIIAWoKEAkQChAFEAMQBA%3D%3D'));
+    searchPromises.push(fetchYtMusicSearch(normalizedQuery));
   }
 
   const results = await Promise.allSettled(searchPromises);
 
   results.forEach(res => {
     if (res.status === 'fulfilled' && res.value) {
+      parseTopCard(res.value);
       parseInnerTubeContents(res.value);
     }
   });
@@ -467,61 +617,51 @@ export async function searchCatalog(query) {
       if (match.trackName && match.artistName) {
         const q = `${match.trackName} ${match.artistName}`;
         try {
-          const matchData = await fetchYtMusicSearch(q);
+          const matchData = await fetchYtMusicSearch(q, 'EgWKAQIIAWoKEAkQChAFEAMQBA%3D%3D');
           if (matchData) parseInnerTubeContents(matchData);
         } catch (_) {}
       }
     }
   }
 
-  const teluguKeywords = [
-    'telugu', 'aditya music', 'lahari', 't-series telugu', 'mango music', 
-    'saregama telugu', 'anirudh', 'sid sriram', 'dsp', 'thaman', 'devi sri prasad', 
-    'keeravani', 'spb', 'chitra', 'gopichand', 'rampothineni', 'prabhas', 
-    'allu arjun', 'mahesh babu', 'jr ntr', 'nani', 'vijay devarakonda', 'ram charan', 
-    'pawan kalyan', 'anurag kulkarni', 'shreya ghoshal', 'chinmayi', 'm.m. keeravani'
-  ];
-
   function scorePriority(item) {
     let score = 0;
     const title = (item.title || item.name || '').toLowerCase();
     const artist = (item.artistName || item.author || item.subtitle || '').toLowerCase();
 
-    // 🏆 1. EXACT & PREFIX Title Match Boost
+    // 🏆 1. Exact & Prefix Match Boost
     if (title === lowerQuery || title === normalizedQuery) {
-      score += 20000;
+      score += 50000;
     } else if (title.startsWith(lowerQuery) || (normalizedQuery && title.startsWith(normalizedQuery))) {
-      score += 10000;
+      score += 25000;
     } else if (title.includes(lowerQuery) || lowerQuery.includes(title)) {
-      score += 5000;
+      score += 15000;
     } else if (normalizedQuery && (title.includes(normalizedQuery) || normalizedQuery.includes(title))) {
-      score += 4000;
+      score += 12000;
     }
 
     // 🏆 2. Multi-word Match Boost
     let matchedWordsCount = 0;
     mainWords.forEach(w => {
-      if (title.includes(w) || artist.includes(w)) {
+      if (title.includes(w)) {
+        matchedWordsCount++;
+        score += 3000;
+      } else if (artist.includes(w)) {
         matchedWordsCount++;
         score += 1500;
       }
     });
-    if (mainWords.length > 1 && matchedWordsCount === mainWords.length) {
-      score += 3000;
+    if (mainWords.length > 1 && matchedWordsCount >= mainWords.length) {
+      score += 10000;
     }
 
     // 🏆 3. Artist Match Boost
-    if (artist.includes(lowerQuery) || (normalizedQuery && artist.includes(normalizedQuery))) {
-      score += 2500;
-    }
-
-    // 🏆 4. Top score for Telugu indicators & artists
-    if (teluguKeywords.some(kw => title.includes(kw) || artist.includes(kw))) {
-      score += 300;
-    }
-    // 🇮🇳 High score for major Indian labels
-    if (artist.includes('t-series') || artist.includes('zee music') || artist.includes('saregama') || artist.includes('sony music') || artist.includes('aditya') || artist.includes('lahari')) {
-      score += 150;
+    if (artist === lowerQuery || artist === normalizedQuery) {
+      score += 20000;
+    } else if (artist.startsWith(lowerQuery) || (normalizedQuery && artist.startsWith(normalizedQuery))) {
+      score += 10000;
+    } else if (artist.includes(lowerQuery) || (normalizedQuery && artist.includes(normalizedQuery))) {
+      score += 4000;
     }
 
     return score;
@@ -542,7 +682,7 @@ export async function searchCatalog(query) {
   const allPlaylists = sortStatically(Array.from(playlistsMap.values()));
   const allArtists = sortStatically(Array.from(artistsMap.values()));
 
-  // 🎵 Synthetic Album Promotion: If searching for a movie soundtrack and playlists match movie title, surface as Album
+  // 🎵 Synthetic Album Promotion: If searching for a soundtrack/collection
   allPlaylists.forEach(pl => {
     const plTitle = (pl.title || '').toLowerCase();
     if (plTitle.includes(lowerQuery) || (normalizedQuery && plTitle.includes(normalizedQuery))) {
@@ -550,7 +690,7 @@ export async function searchCatalog(query) {
         allAlbums.unshift({
           id: pl.id,
           title: pl.title,
-          artistName: pl.author || 'Official Motion Picture Soundtrack',
+          artistName: pl.author || 'Soundtrack / Collection',
           subtitle: pl.subtitle || 'Album / Playlist',
           artworkUrl: pl.artworkUrl,
         });
@@ -558,7 +698,22 @@ export async function searchCatalog(query) {
     }
   });
 
+  // Spotify-style Top Result fallback
+  if (!topResult) {
+    const exactArtist = allArtists.find(a => (a.name || '').toLowerCase() === lowerQuery);
+    if (exactArtist) {
+      topResult = { ...exactArtist, type: 'artist' };
+    } else if (allSongs.length > 0) {
+      topResult = { ...allSongs[0], type: 'song' };
+    } else if (allAlbums.length > 0) {
+      topResult = { ...allAlbums[0], type: 'album' };
+    } else if (allArtists.length > 0) {
+      topResult = { ...allArtists[0], type: 'artist' };
+    }
+  }
+
   const finalResult = {
+    topResult,
     songs: allSongs,
     albums: allAlbums,
     playlists: allPlaylists,
@@ -646,18 +801,23 @@ import { getPersonalizedHomeFeed } from './recommendations.js';
 export async function getHomeFeed() {
   try {
     const personalized = await getPersonalizedHomeFeed();
-    if (personalized && personalized.length > 0) {
+    if (personalized && (personalized.sections?.length > 0 || personalized.quickPicks?.length > 0)) {
       return personalized;
+    }
+    if (Array.isArray(personalized) && personalized.length > 0) {
+      return { quickPicks: [], sections: personalized };
     }
   } catch (e) {
     console.error('Personalized home feed error, falling back:', e);
   }
 
   const defaultCategories = [
-    { title: '🔥 Trending Music Hits', query: 'top hits music songs' },
-    { title: '🌧️ Rain Therapy & Chill', query: 'chill lofi beats songs' },
-    { title: '⚡ Workout & Energy', query: 'workout motivation songs' },
-    { title: '❤️ Romantic Melodies', query: 'romantic love songs' },
+    { title: "🔥 Today's Top Hits", query: 'global top hits music songs' },
+    { title: '⚡ Global Viral 50', query: 'viral hits music songs' },
+    { title: '🎧 Pop & Hip-Hop Essentials', query: 'pop hip hop hits songs' },
+    { title: '❤️ Romantic Melodies', query: 'romantic love songs hits' },
+    { title: '🌙 Late Night Lo-Fi & Chill', query: 'chill lofi beats relaxing songs' },
+    { title: '⚡ Workout & High Energy', query: 'workout gym motivation songs' },
   ];
 
   try {
@@ -667,15 +827,17 @@ export async function getHomeFeed() {
         const validTracks = tracks.filter(isValidAudioSong);
         return {
           title: cat.title,
-          tracks: validTracks.slice(0, 10),
+          tracks: validTracks.slice(0, 12),
         };
       })
     );
 
-    return sections.filter(s => s.tracks.length > 0);
+    const validSections = sections.filter(s => s.tracks.length > 0);
+    const quickPicks = validSections[0]?.tracks?.slice(0, 6) || [];
+    return { quickPicks, sections: validSections };
   } catch (e) {
     console.error(`🔴 [YTMusic Service] Home feed error: ${e.message}`);
-    return [];
+    return { quickPicks: [], sections: [] };
   }
 }
 
