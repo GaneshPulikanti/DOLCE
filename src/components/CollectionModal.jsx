@@ -29,8 +29,11 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
     const loadData = async () => {
       let resultTracks = [];
       if (collection.type === 'artist') {
-        const query = `${collection.name || collection.title} top songs`;
-        resultTracks = await searchSongs(query);
+        resultTracks = await fetchCollectionTracks(collection.id);
+        if (resultTracks.length === 0) {
+          const query = `${collection.name || collection.title} top songs`;
+          resultTracks = await searchSongs(query);
+        }
       } else {
         resultTracks = await fetchCollectionTracks(collection.id);
         if (resultTracks.length === 0 && (collection.title || collection.name)) {

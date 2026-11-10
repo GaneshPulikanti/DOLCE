@@ -266,6 +266,77 @@ export async function fetchTrackRadio(videoId) {
 }
 
 /**
+ * YouTube Music Live Predictive Search Autocomplete Engine (like Spotify).
+ * Returns instant query suggestions as the user types.
+ */
+const suggestionsCache = new Map();
+
+export async function fetchSearchSuggestions(query) {
+  if (!query || !query.trim() || query.trim().length < 2) return [];
+  const cleanQuery = query.trim();
+  const cacheKey = cleanQuery.toLowerCase();
+
+  if (suggestionsCache.has(cacheKey)) {
+    return suggestionsCache.get(cacheKey);
+  }
+
+  const apiKey = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_DOLCE_SERVICE_KEY) || 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
+  const payload = {
+    context: {
+      client: {
+        clientName: 'WEB_REMIX',
+        clientVersion: '1.20260526.04.00',
+        gl: 'IN',
+        hl: 'en'
+      }
+    },
+    input: cleanQuery
+  };
+  const body = JSON.stringify(payload);
+  const headers = { 'Content-Type': 'application/json' };
+
+  let data = null;
+  try {
+    const res = await customFetch(`https://music.youtube.com/youtubei/v1/music/get_search_suggestions?key=${apiKey}&alt=json`, {
+      method: 'POST',
+      headers,
+      body
+    });
+    if (res.ok) data = await res.json();
+  } catch (_) {}
+
+  if (!data) {
+    try {
+      const res2 = await customFetch(`/api/gateway/youtubei/v1/music/get_search_suggestions?key=${apiKey}&alt=json`, {
+        method: 'POST',
+        headers,
+        body
+      });
+      if (res2.ok) data = await res2.json();
+    } catch (_) {}
+  }
+
+  if (!data) return [];
+
+  try {
+    const contents = data?.contents?.[0]?.searchSuggestionsSectionRenderer?.contents || [];
+    const suggestions = [];
+    for (const item of contents) {
+      const runs = item.searchSuggestionRenderer?.suggestion?.runs || [];
+      const text = runs.map(r => r.text).join('').trim();
+      if (text && !suggestions.includes(text)) {
+        suggestions.push(text);
+      }
+    }
+    const result = suggestions.slice(0, 6);
+    suggestionsCache.set(cacheKey, result);
+    return result;
+  } catch (e) {
+    return [];
+  }
+}
+
+/**
  * Searches songs catalog using DOLCE Gateway.
  */
 export async function searchSongs(query) {

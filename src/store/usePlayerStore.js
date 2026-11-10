@@ -6,6 +6,7 @@ import { syncMediaSession, updateMediaPosition } from '../services/mediaSession'
 import { jamService } from '../services/jamService';
 
 let isApplyingRemoteJamSync = false;
+let isExpandingQueue = false;
 
 export const usePlayerStore = create(
   persist(
@@ -203,11 +204,14 @@ export const usePlayerStore = create(
 
         updateMediaPosition(currentTime, validDuration);
 
-        // Gapless Pre-Buffering: Cue next track in buffer when current track reaches 65% progress
+        // Gapless Pre-Buffering & Queue Expansion: Cue next track and expand recommendations
         if (validDuration > 0 && currentTime / validDuration > 0.65) {
-          const { queue, currentIndex } = get();
+          const { queue, currentIndex, currentTrack } = get();
           if (queue && queue[currentIndex + 1]) {
             audioEngine.cueNextTrack(queue[currentIndex + 1].id);
+          }
+          if (queue.length - currentIndex <= 4 && currentTrack) {
+            get().expandInfiniteQueue(currentTrack);
           }
         }
       };
@@ -355,23 +359,24 @@ export const usePlayerStore = create(
             audioEngine.cueNextTrack(queue[currentIndex + 1].id);
           }
 
-          // ♾️ Infinite Auto-Queue: Expand radio & album recommendations in background if queue is near end
-          if (queue.length - currentIndex <= 3) {
+          // ♾️ Infinite Auto-Queue: Expand radio recommendations in background if queue is near end
+          if (queue.length - currentIndex <= 5) {
             get().expandInfiniteQueue(track);
           }
         },
 
         expandInfiniteQueue: async (seedTrack) => {
-          if (!seedTrack || !seedTrack.id) return;
+          if (!seedTrack || !seedTrack.id || isExpandingQueue) return;
+          isExpandingQueue = true;
           try {
             const { fetchTrackRadio, searchSongs, isValidAudioSong } = await import('../services/catalog');
             
             // 1. YouTube Music AI Track Radio recommendations (RDAMVM graph)
             let recommendedTracks = await fetchTrackRadio(seedTrack.id);
 
-            // 2. Fallback if radio had no items
+            // 2. Cohesive fallback: artist top hits (NEVER random search keywords)
             if (!recommendedTracks || recommendedTracks.length === 0) {
-              const query = `${seedTrack.artistName || ''} ${seedTrack.title} songs`;
+              const query = `${seedTrack.artistName || ''} top hits`;
               recommendedTracks = await searchSongs(query);
             }
 
@@ -383,7 +388,7 @@ export const usePlayerStore = create(
             );
             
             if (newTracks.length > 0) {
-              const sliceToAppend = newTracks.slice(0, 10);
+              const sliceToAppend = newTracks.slice(0, 25);
               const updatedQueue = [...currentQueue, ...sliceToAppend];
               set({ queue: updatedQueue });
               
@@ -394,6 +399,8 @@ export const usePlayerStore = create(
             }
           } catch (e) {
             console.error('Failed to expand infinite queue:', e);
+          } finally {
+            isExpandingQueue = false;
           }
         },
 
@@ -465,6 +472,7 @@ export const usePlayerStore = create(
           } else if (repeatMode === 'all') {
             playTrack(queue[0]);
           } else {
+            // Reached end of queue: seamlessly expand via AI track radio recommendations!
             if (currentTrack) {
               await get().expandInfiniteQueue(currentTrack);
               const updatedQueue = get().queue;
@@ -473,7 +481,12 @@ export const usePlayerStore = create(
                 return;
               }
             }
-            set({ isPlaying: false, currentTime: 0 });
+            // Continuous Loop: If no new recommendations available, loop back to the start of the queue so music never stops
+            if (queue.length > 0) {
+              playTrack(queue[0]);
+            } else {
+              set({ isPlaying: false, currentTime: 0 });
+            }
           }
         },
 

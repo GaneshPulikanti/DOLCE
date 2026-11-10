@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Search as SearchIcon, Music, Disc, ListMusic, User, Play, Loader2, Sparkles } from 'lucide-react';
-import { searchCatalog, fetchCollectionTracks } from '../services/catalog';
+import { searchCatalog, fetchCollectionTracks, fetchSearchSuggestions } from '../services/catalog';
 import { TrackCard } from '../components/TrackCard';
 import { useSearchStore } from '../store/useSearchStore';
 import { usePlayerStore } from '../store/usePlayerStore';
@@ -15,6 +15,31 @@ export const Search = () => {
   const [loading, setLoading] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState(null);
   const [isCollectionOpen, setIsCollectionOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // Live Predictive Search Autocomplete (Spotify-style)
+  useEffect(() => {
+    if (!searchQuery || searchQuery.trim().length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    let isCurrent = true;
+    const timer = setTimeout(async () => {
+      const sugs = await fetchSearchSuggestions(searchQuery.trim());
+      if (isCurrent && sugs && sugs.length > 0) {
+        setSuggestions(sugs);
+        setShowSuggestions(true);
+      }
+    }, 150);
+
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  }, [searchQuery]);
 
   useEffect(() => {
     if (!searchQuery || !searchQuery.trim()) {
@@ -41,6 +66,11 @@ export const Search = () => {
       clearTimeout(timer);
     };
   }, [searchQuery]);
+
+  const handleSelectSuggestion = (sug) => {
+    setSearchQuery(sug);
+    setShowSuggestions(false);
+  };
 
   const handlePlayCollection = async (browseId) => {
     if (!browseId) return;
@@ -86,22 +116,44 @@ export const Search = () => {
         <h1 className="text-2xl lg:text-3xl font-black text-white tracking-tight">Search Catalog & Lyrics</h1>
 
         {/* Search Input Bar (No autoFocus so mobile keyboard does not pop up automatically) */}
-        <div className="relative w-full flex items-center max-w-2xl">
-          <SearchIcon size={20} className="absolute left-4 text-white/40 pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search songs, albums, artists, or genres..."
-            className="w-full h-12 pl-11 pr-5 rounded-2xl bg-white/5 border border-white/15 text-sm text-white placeholder-white/40 focus:outline-none focus:border-white/40 focus:bg-white/10 transition-all font-medium shadow-inner"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-4 text-xs font-bold text-white/50 hover:text-white transition-colors"
-            >
-              Clear
-            </button>
+        <div className="relative w-full max-w-2xl">
+          <div className="relative w-full flex items-center">
+            <SearchIcon size={20} className="absolute left-4 text-white/40 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') setShowSuggestions(false);
+              }}
+              placeholder="Search songs, albums, artists, or genres..."
+              className="w-full h-12 pl-11 pr-5 rounded-2xl bg-white/5 border border-white/15 text-sm text-white placeholder-white/40 focus:outline-none focus:border-white/40 focus:bg-white/10 transition-all font-medium shadow-inner"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => { setSearchQuery(''); setShowSuggestions(false); }}
+                className="absolute right-4 text-xs font-bold text-white/50 hover:text-white transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* Live Autocomplete Suggestions Dropdown (Like Spotify) */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute top-14 left-0 right-0 z-30 rounded-2xl bg-[#141416]/95 border border-white/15 backdrop-blur-2xl shadow-2xl p-1.5 flex flex-col gap-0.5">
+              {suggestions.map((sug, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => handleSelectSuggestion(sug)}
+                  className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-white/10 text-sm font-semibold text-white/85 hover:text-white cursor-pointer transition-colors"
+                >
+                  <SearchIcon size={15} className="text-white/40 flex-shrink-0" />
+                  <span className="truncate">{sug}</span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
