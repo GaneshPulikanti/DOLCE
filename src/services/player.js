@@ -14,6 +14,21 @@ class AudioEngine {
     this.isCurrentlyPlaying = false;
     this.userIntentToPause = false;
 
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (this.isCurrentlyPlaying && !this.userIntentToPause) {
+          this.initWebAudioKeepAlive();
+          if (document.hidden && this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
+            setTimeout(() => {
+              if (!this.userIntentToPause && this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
+                this.ytPlayer.playVideo();
+              }
+            }, 100);
+          }
+        }
+      });
+    }
+
     this.initYtIframe();
   }
 
@@ -34,7 +49,7 @@ class AudioEngine {
     if (!container) {
       container = document.createElement('div');
       container.id = 'yt-player-container';
-      container.style.cssText = 'position: absolute !important; top: 0 !important; left: 0 !important; width: 1px !important; height: 1px !important; overflow: hidden !important; opacity: 0.001 !important; pointer-events: none !important; z-index: -9999 !important; clip: rect(0, 0, 0, 0) !important;';
+      container.style.cssText = 'position: fixed !important; bottom: -300px !important; right: -300px !important; width: 300px !important; height: 300px !important; overflow: hidden !important; opacity: 0.01 !important; pointer-events: none !important; z-index: -9999 !important;';
       document.body.appendChild(container);
     }
 
@@ -42,7 +57,7 @@ class AudioEngine {
     if (!playerDiv) {
       playerDiv = document.createElement('div');
       playerDiv.id = 'yt-player-iframe';
-      playerDiv.style.cssText = 'width: 1px !important; height: 1px !important; overflow: hidden !important;';
+      playerDiv.style.cssText = 'width: 300px !important; height: 300px !important; border: none !important;';
       container.appendChild(playerDiv);
     }
 
@@ -130,8 +145,8 @@ class AudioEngine {
         iframe.setAttribute('tabindex', '-1');
         iframe.setAttribute('playsinline', '1');
         iframe.setAttribute('webkit-playsinline', 'true');
-        iframe.setAttribute('allow', 'autoplay');
-        iframe.style.cssText = 'width: 1px !important; height: 1px !important; position: absolute !important; top: 0 !important; left: 0 !important; opacity: 0.001 !important; pointer-events: none !important; z-index: -9999 !important; border: none !important;';
+        iframe.setAttribute('allow', 'autoplay; encrypted-media');
+        iframe.style.cssText = 'width: 300px !important; height: 300px !important; position: absolute !important; top: 0 !important; left: 0 !important; opacity: 0.01 !important; pointer-events: none !important; z-index: -9999 !important; border: none !important;';
       }
     } catch (_) {}
   }
@@ -156,6 +171,16 @@ class AudioEngine {
       this.userIntentToPause = false;
       this.startProgressUpdates();
     } else if (stateStr === 'paused') {
+      // 🛡️ Web Background Resilience: If the user did NOT click pause, the browser auto-paused it on tab switch/minimize.
+      if (!this.userIntentToPause && this.isCurrentlyPlaying) {
+        console.log('🛸 [AudioEngine] Browser auto-paused hidden tab/window. Overriding to keep background audio playing...');
+        setTimeout(() => {
+          if (!this.userIntentToPause && this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
+            this.ytPlayer.playVideo();
+          }
+        }, 100);
+        return;
+      }
       this.isCurrentlyPlaying = false;
       this.stopProgressUpdates();
     } else if (stateStr === 'ended' || stateStr === 'idle') {

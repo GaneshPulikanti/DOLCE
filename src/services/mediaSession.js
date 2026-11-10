@@ -18,6 +18,23 @@ function getSilentAudioElement() {
   return silentAudioEl;
 }
 
+if (typeof window !== 'undefined') {
+  const unlockSilent = () => {
+    const el = getSilentAudioElement();
+    if (el) {
+      el.play().then(() => {
+        if (!window.usePlayerStore?.getState().isPlaying) {
+          el.pause();
+        }
+      }).catch(() => {});
+    }
+    document.removeEventListener('click', unlockSilent);
+    document.removeEventListener('touchstart', unlockSilent);
+  };
+  document.addEventListener('click', unlockSilent, { once: true });
+  document.addEventListener('touchstart', unlockSilent, { once: true });
+}
+
 export function syncMediaSession({ track, isPlaying, onPlay, onPause, onSkipNext, onSkipPrev, onSeek }) {
   if (typeof window === 'undefined') return;
 
