@@ -50,12 +50,14 @@ export const TrackCard = ({ track, queue = [] }) => {
     }
   };
 
+  const effectiveQueue = queue && queue.length > 0 ? queue : [track];
+
   const handlePlayClick = (e) => {
     e.stopPropagation();
     if (isCurrent) {
       togglePlayPause();
     } else {
-      playTrack(track, queue);
+      playTrack(track, effectiveQueue);
     }
   };
 
@@ -74,7 +76,7 @@ export const TrackCard = ({ track, queue = [] }) => {
 
   return (
     <div
-      onClick={() => playTrack(track, queue)}
+      onClick={() => playTrack(track, effectiveQueue)}
       className={`group relative glass-panel border border-white/10 p-3 rounded-2xl flex flex-col cursor-pointer transition-all duration-300 bg-white/[0.04] hover:bg-white/[0.09] hover:-translate-y-1 shadow-lg ${
         isCurrent ? 'border-white/40 ring-1 ring-white/30' : ''
       }`}

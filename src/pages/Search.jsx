@@ -1,28 +1,54 @@
-import React, { useEffect, useState } from 'react';
-import { Search as SearchIcon, Music, Disc, ListMusic, User, Play, Loader2, Sparkles } from 'lucide-react';
-import { searchCatalog, fetchCollectionTracks, fetchSearchSuggestions } from '../services/catalog';
+import React, { useEffect, useState, useRef } from 'react';
+import { Search as SearchIcon, Music, Disc, ListMusic, User, Play, Pause, Sparkles, Heart, ListPlus } from 'lucide-react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { searchCatalog, fetchSearchSuggestions } from '../services/catalog';
 import { TrackCard } from '../components/TrackCard';
 import { useSearchStore } from '../store/useSearchStore';
 import { usePlayerStore } from '../store/usePlayerStore';
 
 import { CollectionModal } from '../components/CollectionModal';
-import { addRecentSearch } from '../services/db';
+import { db, toggleFavorite, addRecentSearch } from '../services/db';
+
+const EMPTY_RESULTS = { topResult: null, songs: [], albums: [], playlists: [], artists: [] };
 
 export const Search = () => {
   const { searchQuery, setSearchQuery, filterCategory, setFilterCategory } = useSearchStore();
-  const { playTrack } = usePlayerStore();
-  const [catalogResults, setCatalogResults] = useState({ songs: [], albums: [], playlists: [], artists: [] });
+  const { playTrack, addToQueue, togglePlayPause, currentTrack, isPlaying } = usePlayerStore();
+  const [catalogResults, setCatalogResults] = useState(EMPTY_RESULTS);
   const [loading, setLoading] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState(null);
   const [isCollectionOpen, setIsCollectionOpen] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchBoxRef = useRef(null);
+  const suppressSuggestRef = useRef(false);
+
+  const favoriteIds = useLiveQuery(async () => {
+    const all = await db.favorites.toArray();
+    return new Set(all.map(f => f.id));
+  }) || new Set();
+
+  // Close autocomplete dropdown on outside click
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
 
   // Live Predictive Search Autocomplete (Spotify-style)
   useEffect(() => {
     if (!searchQuery || searchQuery.trim().length < 2) {
       setSuggestions([]);
       setShowSuggestions(false);
+      return;
+    }
+
+    if (suppressSuggestRef.current) {
+      suppressSuggestRef.current = false;
       return;
     }
 
@@ -43,7 +69,7 @@ export const Search = () => {
 
   useEffect(() => {
     if (!searchQuery || !searchQuery.trim()) {
-      setCatalogResults({ songs: [], albums: [], playlists: [], artists: [] });
+      setCatalogResults(EMPTY_RESULTS);
       setLoading(false);
       return;
     }
@@ -56,10 +82,10 @@ export const Search = () => {
       addRecentSearch(trimmed);
       const res = await searchCatalog(trimmed);
       if (isCurrentRequest) {
-        setCatalogResults(res);
+        setCatalogResults(res || EMPTY_RESULTS);
         setLoading(false);
       }
-    }, 350);
+    }, 320);
 
     return () => {
       isCurrentRequest = false;
@@ -68,18 +94,9 @@ export const Search = () => {
   }, [searchQuery]);
 
   const handleSelectSuggestion = (sug) => {
+    suppressSuggestRef.current = true;
     setSearchQuery(sug);
     setShowSuggestions(false);
-  };
-
-  const handlePlayCollection = async (browseId) => {
-    if (!browseId) return;
-    setLoadingCollectionId(browseId);
-    const collectionTracks = await fetchCollectionTracks(browseId);
-    setLoadingCollectionId(null);
-    if (collectionTracks.length > 0) {
-      playTrack(collectionTracks[0], collectionTracks);
-    }
   };
 
   // Spotify-Authentic Matte Solid Colors (No AI gradients, no icons)
@@ -104,19 +121,20 @@ export const Search = () => {
     { id: 'artists', label: 'Artists' },
   ];
 
-  const hasAnyResults = catalogResults.songs.length > 0 || 
-                        catalogResults.albums.length > 0 || 
-                        catalogResults.playlists.length > 0 || 
+  const hasAnyResults = Boolean(catalogResults.topResult) ||
+                        catalogResults.songs.length > 0 ||
+                        catalogResults.albums.length > 0 ||
+                        catalogResults.playlists.length > 0 ||
                         catalogResults.artists.length > 0;
 
   return (
     <div className="w-full min-h-screen pb-40 px-4 lg:px-12 pt-6 flex flex-col gap-6 font-['Plus_Jakarta_Sans']">
       {/* Search Header */}
       <div className="flex flex-col gap-4">
-        <h1 className="text-2xl lg:text-3xl font-black text-white tracking-tight">Search Catalog & Lyrics</h1>
+        <h1 className="text-2xl lg:text-3xl font-black text-white tracking-tight">Search</h1>
 
         {/* Search Input Bar (No autoFocus so mobile keyboard does not pop up automatically) */}
-        <div className="relative w-full max-w-2xl">
+        <div ref={searchBoxRef} className="relative w-full max-w-2xl">
           <div className="relative w-full flex items-center">
             <SearchIcon size={20} className="absolute left-4 text-white/40 pointer-events-none" />
             <input
@@ -125,9 +143,9 @@ export const Search = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') setShowSuggestions(false);
+                if (e.key === 'Enter' || e.key === 'Escape') setShowSuggestions(false);
               }}
-              placeholder="Search songs, albums, artists, or genres..."
+              placeholder="What do you want to play?"
               className="w-full h-12 pl-11 pr-5 rounded-2xl bg-white/5 border border-white/15 text-sm text-white placeholder-white/40 focus:outline-none focus:border-white/40 focus:bg-white/10 transition-all font-medium shadow-inner"
             />
             {searchQuery && (
@@ -146,7 +164,10 @@ export const Search = () => {
               {suggestions.map((sug, idx) => (
                 <div
                   key={idx}
-                  onClick={() => handleSelectSuggestion(sug)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelectSuggestion(sug);
+                  }}
                   className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-white/10 text-sm font-semibold text-white/85 hover:text-white cursor-pointer transition-colors"
                 >
                   <SearchIcon size={15} className="text-white/40 flex-shrink-0" />
@@ -210,71 +231,181 @@ export const Search = () => {
       ) : hasAnyResults ? (
         <div className="flex flex-col gap-10 mt-2">
 
-          {/* ── SPOTIFY-STYLE TOP RESULT CARD ── */}
-          {filterCategory === 'all' && catalogResults.topResult && (
-            <section className="flex flex-col gap-3">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Sparkles size={20} className="text-pink-400" />
-                <span>Top Result</span>
-              </h2>
+          {/* ── SPOTIFY-STYLE TOP RESULT + TOP 4 SONGS ROW ── */}
+          {filterCategory === 'all' && (catalogResults.topResult || catalogResults.songs.length > 0) && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left Column: Top Result Hero Card */}
+              {catalogResults.topResult && (
+                <section className={`${catalogResults.songs.length > 0 ? 'lg:col-span-5' : 'lg:col-span-12'} flex flex-col gap-3`}>
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Sparkles size={19} className="text-pink-400" />
+                    <span>Top Result</span>
+                  </h2>
 
-              <div
-                onClick={() => {
-                  if (catalogResults.topResult.type === 'song') {
-                    playTrack(catalogResults.topResult, [catalogResults.topResult, ...catalogResults.songs]);
-                  } else {
-                    setSelectedCollection(catalogResults.topResult);
-                    setIsCollectionOpen(true);
-                  }
-                }}
-                className="group relative rounded-3xl glass-panel p-5 sm:p-6 bg-white/[0.04] hover:bg-white/[0.08] border border-white/12 transition-all duration-300 cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 shadow-2xl hover:scale-[1.008]"
-              >
-                <div className="flex items-center gap-4 sm:gap-5 min-w-0 flex-1">
-                  <div className={`relative flex-shrink-0 overflow-hidden shadow-2xl ${
-                    catalogResults.topResult.type === 'artist' 
-                      ? 'w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-white/20' 
-                      : 'w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-black/40 border border-white/10'
-                  }`}>
-                    <img
-                      src={catalogResults.topResult.artworkUrl}
-                      alt={catalogResults.topResult.title || catalogResults.topResult.name}
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
+                  <div
+                    onClick={() => {
+                      if (catalogResults.topResult.type === 'song') {
+                        if (currentTrack?.id === catalogResults.topResult.id) {
+                          togglePlayPause();
+                        } else {
+                          playTrack(catalogResults.topResult, [catalogResults.topResult]);
+                        }
+                      } else {
+                        setSelectedCollection(catalogResults.topResult);
+                        setIsCollectionOpen(true);
+                      }
+                    }}
+                    className="group relative rounded-3xl glass-panel p-5 sm:p-6 bg-white/[0.04] hover:bg-white/[0.08] border border-white/12 transition-all duration-300 cursor-pointer flex flex-col justify-between gap-5 shadow-2xl min-h-[220px]"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className={`relative flex-shrink-0 overflow-hidden shadow-2xl ${
+                        catalogResults.topResult.type === 'artist'
+                          ? 'w-24 h-24 rounded-full border-2 border-white/20'
+                          : 'w-24 h-24 rounded-2xl bg-black/40 border border-white/10'
+                      }`}>
+                        <img
+                          src={catalogResults.topResult.artworkUrl}
+                          alt={catalogResults.topResult.title || catalogResults.topResult.name}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      </div>
+
+                      <div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-xl group-hover:scale-110 active:scale-95 transition-all flex-shrink-0">
+                        {catalogResults.topResult.type === 'song' && currentTrack?.id === catalogResults.topResult.id && isPlaying ? (
+                          <Pause size={20} fill="black" />
+                        ) : (
+                          <Play size={20} fill="black" className="ml-0.5" />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col min-w-0">
+                      <h3 className="text-xl sm:text-2xl font-black text-white truncate font-['Plus_Jakarta_Sans'] group-hover:text-pink-300 transition-colors">
+                        {catalogResults.topResult.title || catalogResults.topResult.name}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1.5 text-xs sm:text-sm text-white/60 truncate font-medium">
+                        <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-extrabold uppercase tracking-wider text-white/85 flex-shrink-0">
+                          {catalogResults.topResult.type === 'artist' ? 'Artist' : catalogResults.topResult.type === 'album' ? 'Album' : catalogResults.topResult.type === 'playlist' ? 'Playlist' : 'Song'}
+                        </span>
+                        <span className="truncate">
+                          {catalogResults.topResult.artistName || catalogResults.topResult.subtitle || ''}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {/* Right Column: Top 4 Matching Songs (Isolated Radio Play on Click) */}
+              {catalogResults.songs.length > 0 && (
+                <section className={`${catalogResults.topResult ? 'lg:col-span-7' : 'lg:col-span-12'} flex flex-col gap-3`}>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                      <Music size={19} className="text-pink-400" />
+                      <span>Songs</span>
+                    </h2>
+                    {catalogResults.songs.length > 4 && (
+                      <button
+                        onClick={() => setFilterCategory('songs')}
+                        className="text-xs font-bold text-white/50 hover:text-white transition-colors"
+                      >
+                        Show all ({catalogResults.songs.length})
+                      </button>
+                    )}
                   </div>
 
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[11px] font-extrabold uppercase tracking-widest text-pink-400 mb-1">
-                      {catalogResults.topResult.type === 'artist' ? 'Artist' : catalogResults.topResult.type === 'album' ? 'Album' : 'Song'}
-                    </span>
-                    <h3 className="text-xl sm:text-2xl font-black text-white truncate font-['Plus_Jakarta_Sans'] group-hover:text-pink-300 transition-colors">
-                      {catalogResults.topResult.title || catalogResults.topResult.name}
-                    </h3>
-                    <p className="text-xs sm:text-sm text-white/60 truncate font-medium mt-1">
-                      {catalogResults.topResult.artistName || catalogResults.topResult.subtitle || (catalogResults.topResult.type === 'artist' ? 'Artist' : '')}
-                    </p>
-                  </div>
-                </div>
+                  <div className="flex flex-col gap-1.5 rounded-3xl glass-panel p-2 bg-white/[0.025] border border-white/10">
+                    {catalogResults.songs.slice(0, 4).map((track) => {
+                      const isActive = currentTrack?.id === track.id;
+                      const isFav = favoriteIds.has(track.id);
+                      return (
+                        <div
+                          key={track.id}
+                          onClick={() => {
+                            if (isActive) {
+                              togglePlayPause();
+                            } else {
+                              playTrack(track, [track]);
+                            }
+                          }}
+                          className={`group flex items-center justify-between gap-3 p-2.5 rounded-2xl cursor-pointer transition-all ${
+                            isActive ? 'bg-white/12 border border-white/15' : 'hover:bg-white/[0.07] border border-transparent'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-black/40 flex-shrink-0">
+                              <img
+                                src={track.artworkUrl}
+                                alt={track.title}
+                                referrerPolicy="no-referrer"
+                                className="w-full h-full object-cover"
+                              />
+                              <div className={`absolute inset-0 bg-black/50 flex items-center justify-center transition-opacity ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                                {isActive && isPlaying ? (
+                                  <Pause size={16} fill="white" className="text-white" />
+                                ) : (
+                                  <Play size={16} fill="white" className="text-white ml-0.5" />
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className={`text-sm font-bold truncate ${isActive ? 'text-pink-400' : 'text-white group-hover:text-pink-200'}`}>
+                                {track.title}
+                              </span>
+                              <span className="text-xs text-white/50 truncate">
+                                {track.artistName}
+                              </span>
+                            </div>
+                          </div>
 
-                <div className="flex items-center self-end sm:self-center flex-shrink-0">
-                  <div className="w-13 h-13 rounded-full bg-white text-black flex items-center justify-center shadow-xl group-hover:scale-110 active:scale-95 transition-all">
-                    <Play size={22} fill="black" className="ml-0.5" />
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleFavorite(track);
+                              }}
+                              title={isFav ? 'Remove from Liked Songs' : 'Save to Liked Songs'}
+                              className={`p-1.5 rounded-full transition-colors ${
+                                isFav ? 'text-pink-500' : 'text-white/30 hover:text-white opacity-0 group-hover:opacity-100'
+                              }`}
+                            >
+                              <Heart size={15} fill={isFav ? 'currentColor' : 'none'} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                addToQueue(track);
+                              }}
+                              title="Add to Queue"
+                              className="p-1.5 rounded-full text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+                            >
+                              <ListPlus size={15} />
+                            </button>
+                            <span className="text-xs font-medium text-white/40 w-10 text-right tabular-nums">
+                              {track.duration || '3:30'}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-              </div>
-            </section>
+                </section>
+              )}
+            </div>
           )}
 
-          {/* ── SONGS SECTION ── */}
-          {(filterCategory === 'all' || filterCategory === 'songs') && catalogResults.songs.length > 0 && (
+          {/* ── SONGS GRID (Full list in 'Tracks' tab, or remaining songs in 'All') ── */}
+          {((filterCategory === 'songs' && catalogResults.songs.length > 0) ||
+            (filterCategory === 'all' && catalogResults.songs.length > 4)) && (
             <section className="flex flex-col gap-4">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
                 <Music size={20} className="text-pink-400" />
-                <span>Songs</span>
+                <span>{filterCategory === 'songs' ? 'Songs' : 'More Matching Tracks'}</span>
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 lg:gap-6">
-                {catalogResults.songs.map((track) => (
-                  <TrackCard key={track.id} track={track} queue={catalogResults.songs} />
+                {(filterCategory === 'songs' ? catalogResults.songs : catalogResults.songs.slice(4)).map((track) => (
+                  <TrackCard key={track.id} track={track} queue={[track]} />
                 ))}
               </div>
             </section>

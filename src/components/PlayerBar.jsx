@@ -300,23 +300,26 @@ export const PlayerBar = ({ themePalette }) => {
     }
   }, [currentTrack?.id, currentTrack?.title, currentTrack?.artistName]);
 
-  // Fetch intelligent queue recommendations based on current track & queue
+  // Fetch intelligent queue recommendations when opening Queue or switching active track
   useEffect(() => {
     if (!showQueue || !currentTrack?.id) return;
     let isCurrent = true;
     setLoadingSuggestions(true);
     fetchTrackRadio(currentTrack.id).then((tracks) => {
       if (isCurrent && tracks) {
-        const currentQueueIds = new Set(queue.map(t => t.id));
+        const currentQueueIds = new Set(getQueueIdsSnapshot());
         const filtered = tracks.filter(t => !currentQueueIds.has(t.id));
-        setQueueSuggestions(filtered.slice(0, 10));
+        setQueueSuggestions(filtered.slice(0, 12));
         setLoadingSuggestions(false);
       }
     }).catch(() => {
       if (isCurrent) setLoadingSuggestions(false);
     });
     return () => { isCurrent = false; };
-  }, [showQueue, currentTrack?.id, queue.length]);
+    function getQueueIdsSnapshot() {
+      return queue.map(t => t.id);
+    }
+  }, [showQueue, currentTrack?.id]);
 
   // Find active synchronized lyric index
   let activeLyricIdx = -1;
@@ -867,48 +870,51 @@ export const PlayerBar = ({ themePalette }) => {
                     </div>
 
                     <div className="flex flex-col gap-2 max-h-60 overflow-y-auto no-scrollbar">
-                      {queueSuggestions.length > 0 ? (
-                        queueSuggestions.map((track) => {
-                          const isAdded = addedQueueIds.has(track.id);
-                          return (
-                            <div
-                              key={track.id}
-                              className="flex items-center justify-between p-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 transition-all group"
-                            >
-                              <div 
-                                onClick={() => playTrack(track, [track, ...queue])}
-                                className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
+                      {(() => {
+                        const queueIdSet = new Set(queue.map(q => q.id));
+                        const visibleSuggestions = queueSuggestions.filter(t => !queueIdSet.has(t.id)).slice(0, 10);
+                        return visibleSuggestions.length > 0 ? (
+                          visibleSuggestions.map((track) => {
+                            const isAdded = addedQueueIds.has(track.id);
+                            return (
+                              <div
+                                key={track.id}
+                                className="flex items-center justify-between p-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 transition-all group"
                               >
-                                <img
-                                  src={track.artworkUrl || (track.id ? `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg` : '')}
-                                  alt={track.title}
-                                  referrerPolicy="no-referrer"
-                                  className="w-10 h-10 rounded-xl object-cover bg-black/40 border border-white/10 flex-shrink-0"
-                                  onError={(e) => {
-                                    if (track.id) {
-                                      e.target.src = `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`;
-                                    }
-                                  }}
-                                />
-                                <div className="flex flex-col min-w-0">
-                                  <h6 className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-pink-300 transition-colors font-['Plus_Jakarta_Sans']">
-                                    {track.title}
-                                  </h6>
-                                  <p className="text-[11px] text-white/50 truncate mt-0.5 font-['Plus_Jakarta_Sans']">
-                                    {track.artistName}
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                                {/* 1-Tap Play */}
-                                <button
-                                  onClick={() => playTrack(track, [track, ...queue])}
-                                  className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                                  title="Play Now"
+                                <div
+                                  onClick={() => playTrack(track, [track])}
+                                  className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
                                 >
-                                  <Play size={14} fill="currentColor" />
-                                </button>
+                                  <img
+                                    src={track.artworkUrl || (track.id ? `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg` : '')}
+                                    alt={track.title}
+                                    referrerPolicy="no-referrer"
+                                    className="w-10 h-10 rounded-xl object-cover bg-black/40 border border-white/10 flex-shrink-0"
+                                    onError={(e) => {
+                                      if (track.id) {
+                                        e.target.src = `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`;
+                                      }
+                                    }}
+                                  />
+                                  <div className="flex flex-col min-w-0">
+                                    <h6 className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-pink-300 transition-colors font-['Plus_Jakarta_Sans']">
+                                      {track.title}
+                                    </h6>
+                                    <p className="text-[11px] text-white/50 truncate mt-0.5 font-['Plus_Jakarta_Sans']">
+                                      {track.artistName}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                  {/* 1-Tap Play */}
+                                  <button
+                                    onClick={() => playTrack(track, [track])}
+                                    className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+                                    title="Play Now"
+                                  >
+                                    <Play size={14} fill="currentColor" />
+                                  </button>
 
                                 {/* + Add to Queue */}
                                 <button
@@ -944,7 +950,8 @@ export const PlayerBar = ({ themePalette }) => {
                         <div className="text-xs text-white/40 py-2 text-center">
                           No suggestions found for this track
                         </div>
-                      ) : null}
+                      ) : null;
+                      })()}
                     </div>
                   </div>
                 </div>

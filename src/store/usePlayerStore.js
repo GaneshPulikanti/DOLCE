@@ -6,7 +6,8 @@ import { syncMediaSession, updateMediaPosition } from '../services/mediaSession'
 import { jamService } from '../services/jamService';
 
 let isApplyingRemoteJamSync = false;
-let isExpandingQueue = false;
+let activeExpansionToken = 0;
+let activeExpansionPromise = null;
 
 export const usePlayerStore = create(
   persist(
@@ -314,6 +315,8 @@ export const usePlayerStore = create(
           let currentIndex = get().currentIndex;
 
           if (newQueue && newQueue.length > 0) {
+            activeExpansionToken++;
+            activeExpansionPromise = null;
             queue = newQueue;
             currentIndex = queue.findIndex(t => t.id === track.id);
             if (currentIndex === -1) {
@@ -366,42 +369,81 @@ export const usePlayerStore = create(
         },
 
         expandInfiniteQueue: async (seedTrack) => {
-          if (!seedTrack || !seedTrack.id || isExpandingQueue) return;
-          isExpandingQueue = true;
-          try {
-            const { fetchTrackRadio, searchSongs, isValidAudioSong } = await import('../services/catalog');
-            
-            // 1. YouTube Music AI Track Radio recommendations (RDAMVM graph)
-            let recommendedTracks = await fetchTrackRadio(seedTrack.id);
+          if (!seedTrack || !seedTrack.id) return;
+          if (activeExpansionPromise) return activeExpansionPromise;
 
-            // 2. Cohesive fallback: artist top hits (NEVER random search keywords)
-            if (!recommendedTracks || recommendedTracks.length === 0) {
-              const query = `${seedTrack.artistName || ''} top hits`;
-              recommendedTracks = await searchSongs(query);
-            }
+          const myToken = activeExpansionToken;
+          let promiseRef;
+          promiseRef = (async () => {
+            try {
+              const { fetchTrackRadio, searchSongs, isValidAudioSong } = await import('../services/catalog');
 
-            const currentQueue = get().queue;
-            const existingIds = new Set(currentQueue.map(q => q.id));
+              // 1. Primary track's YTM Radio (RDAMVM studio audio graph)
+              let recommendedTracks = await fetchTrackRadio(seedTrack.id);
 
-            const newTracks = (recommendedTracks || []).filter(
-              r => r && r.id && !existingIds.has(r.id) && isValidAudioSong(r) && r.artworkUrl && r.artworkUrl.length > 15
-            );
-            
-            if (newTracks.length > 0) {
-              const sliceToAppend = newTracks.slice(0, 25);
-              const updatedQueue = [...currentQueue, ...sliceToAppend];
-              set({ queue: updatedQueue });
-              
-              const currIdx = get().currentIndex;
-              if (updatedQueue[currIdx + 1]) {
-                audioEngine.cueNextTrack(updatedQueue[currIdx + 1].id);
+              if (myToken !== activeExpansionToken) return;
+
+              let currentQueue = get().queue;
+              let existingIds = new Set(currentQueue.map(q => q.id));
+
+              let newTracks = (recommendedTracks || []).filter(
+                r => r && r.id && !existingIds.has(r.id) && isValidAudioSong(r) && r.artworkUrl && r.artworkUrl.length > 15
+              );
+
+              // 2. Tail-seed Radio fallback when playing deep in an existing radio queue
+              const tailTrack = currentQueue[currentQueue.length - 1];
+              if (newTracks.length < 4 && tailTrack && tailTrack.id && tailTrack.id !== seedTrack.id) {
+                const tailRadio = await fetchTrackRadio(tailTrack.id);
+                if (myToken !== activeExpansionToken) return;
+                const moreTracks = (tailRadio || []).filter(
+                  r => r && r.id && !existingIds.has(r.id) && !newTracks.some(n => n.id === r.id) && isValidAudioSong(r)
+                );
+                newTracks = [...newTracks, ...moreTracks];
+              }
+
+              // 3. Cohesive artist fallback only if radio yields nothing new
+              if (newTracks.length === 0 && seedTrack.artistName) {
+                const primaryArtist = seedTrack.artistName.split(/[,&]/)[0].trim();
+                const artistTracks = await searchSongs(primaryArtist);
+                if (myToken !== activeExpansionToken) return;
+                newTracks = (artistTracks || []).filter(
+                  r => r && r.id && !existingIds.has(r.id) && isValidAudioSong(r)
+                );
+              }
+
+              // Re-check token before mutating store so old tracks never contaminate a newly started song
+              if (myToken !== activeExpansionToken) return;
+
+              if (newTracks.length > 0) {
+                currentQueue = get().queue;
+                existingIds = new Set(currentQueue.map(q => q.id));
+                const dedupedNew = newTracks.filter(t => !existingIds.has(t.id)).slice(0, 25);
+                if (dedupedNew.length === 0) return;
+
+                const updatedQueue = [...currentQueue, ...dedupedNew];
+                set({ queue: updatedQueue });
+
+                const currIdx = get().currentIndex;
+                if (updatedQueue[currIdx + 1]) {
+                  audioEngine.cueNextTrack(updatedQueue[currIdx + 1].id);
+                }
+
+                // Sync auto-expanded queue with Jam room listeners
+                if (!isApplyingRemoteJamSync && jamService.roomCode && (jamService.role === 'host' || jamService.allowGuestControl)) {
+                  jamService.broadcastQueueUpdate(updatedQueue);
+                }
+              }
+            } catch (e) {
+              console.error('Failed to expand infinite queue:', e);
+            } finally {
+              if (activeExpansionPromise === promiseRef) {
+                activeExpansionPromise = null;
               }
             }
-          } catch (e) {
-            console.error('Failed to expand infinite queue:', e);
-          } finally {
-            isExpandingQueue = false;
-          }
+          })();
+
+          activeExpansionPromise = promiseRef;
+          return activeExpansionPromise;
         },
 
         togglePlayPause: () => {
@@ -472,7 +514,7 @@ export const usePlayerStore = create(
           } else if (repeatMode === 'all') {
             playTrack(queue[0]);
           } else {
-            // Reached end of queue: seamlessly expand via AI track radio recommendations!
+            // Reached end of queue: await any in-flight or new AI track radio expansion
             if (currentTrack) {
               await get().expandInfiniteQueue(currentTrack);
               const updatedQueue = get().queue;
@@ -482,8 +524,9 @@ export const usePlayerStore = create(
               }
             }
             // Continuous Loop: If no new recommendations available, loop back to the start of the queue so music never stops
-            if (queue.length > 0) {
-              playTrack(queue[0]);
+            const finalQueue = get().queue;
+            if (finalQueue.length > 0) {
+              playTrack(finalQueue[0]);
             } else {
               set({ isPlaying: false, currentTime: 0 });
             }

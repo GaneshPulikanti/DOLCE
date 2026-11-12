@@ -1,30 +1,47 @@
 import React, { useEffect, useState } from 'react';
-import { Heart, ChevronRight, Play } from 'lucide-react';
+import { Heart, ChevronRight, Play, Disc } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getHomeFeed } from '../services/catalog';
 import { TrackCard } from '../components/TrackCard';
+import { CollectionModal } from '../components/CollectionModal';
 import { db } from '../services/db';
 import { useSearchStore } from '../store/useSearchStore';
 import { usePlayerStore } from '../store/usePlayerStore';
+
+const HOME_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'made_for_you', label: 'Made For You' },
+  { id: 'charts', label: 'Charts' },
+  { id: 'hindi', label: 'Hindi' },
+  { id: 'telugu', label: 'Telugu' },
+  { id: 'chill', label: 'Chill & Lo-Fi' },
+  { id: 'romance', label: 'Romance' },
+  { id: 'workout', label: 'Workout' },
+];
 
 export const Home = () => {
   const [feedData, setFeedData] = useState(() => {
     if (typeof localStorage !== 'undefined') {
       try {
-        const cachedV3 = localStorage.getItem('DOLCE_HOME_FEED_V3');
-        if (cachedV3) return JSON.parse(cachedV3);
+        const cachedV4 = localStorage.getItem('DOLCE_HOME_FEED_V4');
+        if (cachedV4) return JSON.parse(cachedV4);
         const cachedV2 = localStorage.getItem('DOLCE_HOME_FEED_CACHE_V2');
         if (cachedV2) {
           const parsed = JSON.parse(cachedV2);
-          return Array.isArray(parsed) ? { quickPicks: [], sections: parsed } : parsed;
+          return Array.isArray(parsed) ? { quickPicks: [], newAlbums: [], sections: parsed } : parsed;
         }
       } catch (_) { }
     }
-    return { quickPicks: [], sections: [] };
+    return { quickPicks: [], newAlbums: [], sections: [] };
   });
+
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [selectedCollection, setSelectedCollection] = useState(null);
+  const [isCollectionOpen, setIsCollectionOpen] = useState(false);
 
   const sections = feedData.sections || [];
   const quickPicks = feedData.quickPicks || [];
+  const newAlbums = feedData.newAlbums || [];
   const [loading, setLoading] = useState(() => sections.length === 0);
   const favorites = useLiveQuery(() => db.favorites.toArray()) || [];
   const historyCount = useLiveQuery(() => db.history.count()) || 0;
@@ -39,7 +56,7 @@ export const Home = () => {
           setFeedData(data);
           setLoading(false);
         } else if (Array.isArray(data) && data.length > 0) {
-          setFeedData({ quickPicks: [], sections: data });
+          setFeedData({ quickPicks: [], newAlbums: [], sections: data });
           setLoading(false);
         }
       }
@@ -54,27 +71,54 @@ export const Home = () => {
     return 'Good evening';
   };
 
+  const visibleFilters = HOME_FILTERS.filter(
+    (f) => f.id === 'all' || sections.some((s) => s.category === f.id)
+  );
+  const filteredSections = activeFilter === 'all'
+    ? sections
+    : sections.filter((s) => s.category === activeFilter);
+
   return (
     <div className="w-full min-h-screen pb-40 px-4 lg:px-12 pt-4 flex flex-col gap-6 font-['Plus_Jakarta_Sans']">
 
-      {/* ── Greeting Header ── */}
-      <div className="flex flex-col items-start gap-0.5">
-        <span className="text-xs font-medium text-white/50 tracking-wider">
-          {getGreeting()},
-        </span>
-        <h2 className="text-2xl lg:text-3xl font-black text-white tracking-tight">
-          Welcome to DOLCE
-        </h2>
+      {/* ── Greeting Header & Vibe Filter Pills ── */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col items-start gap-0.5">
+          <span className="text-xs font-medium text-white/50 tracking-wider">
+            {getGreeting()},
+          </span>
+          <h2 className="text-2xl lg:text-3xl font-black text-white tracking-tight">
+            Welcome to DOLCE
+          </h2>
+        </div>
+
+        {visibleFilters.length > 1 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+            {visibleFilters.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setActiveFilter(f.id)}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 ${
+                  activeFilter === f.id
+                    ? 'bg-white text-black shadow-lg shadow-white/10'
+                    : 'bg-white/[0.06] border border-white/10 text-white/75 hover:text-white hover:bg-white/12'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Spotify-Style Quick Picks / "Jump Back In" (6-Item Grid) ── */}
-      {quickPicks.length > 0 && (
+      {(activeFilter === 'all' || activeFilter === 'made_for_you') && quickPicks.length > 0 && (
         <section className="flex flex-col gap-2.5">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3">
             {quickPicks.slice(0, 6).map((track) => (
               <div
                 key={track.id}
-                onClick={() => playTrack(track, quickPicks)}
+                onClick={() => playTrack(track, [track])}
                 className="group relative h-14 sm:h-16 rounded-xl glass-panel bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 flex items-center overflow-hidden cursor-pointer transition-all duration-200 hover:scale-[1.01] shadow-md select-none"
               >
                 <img
@@ -108,7 +152,7 @@ export const Home = () => {
       )}
 
       {/* ── Synced Liked Songs Card (If favorites exist) ── */}
-      {favorites.length > 0 && (
+      {(activeFilter === 'all' || activeFilter === 'made_for_you') && favorites.length > 0 && (
         <div
           onClick={() => setActiveTab('library')}
           className="w-full rounded-2xl p-4 sm:p-5 glass-panel border border-white/12 bg-white/[0.03] backdrop-blur-2xl flex items-center justify-between cursor-pointer hover:bg-white/[0.07] transition-all shadow-lg"
@@ -143,23 +187,104 @@ export const Home = () => {
           ))}
         </div>
       ) : (
-        sections.map((section, idx) => (
-          <section key={idx} className="flex flex-col gap-3">
-            <h3 className="text-lg lg:text-xl font-bold text-white flex items-center gap-2">
-              <span>{section.title}</span>
-            </h3>
-
-            {/* Horizontal Scroll Carousel */}
-            <div className="flex items-center gap-4 overflow-x-auto pb-4 pt-1 no-scrollbar scroll-smooth">
-              {section.tracks.map((track) => (
-                <div key={track.id} className="w-40 lg:w-44 flex-shrink-0">
-                  <TrackCard track={track} queue={section.tracks} />
+        <>
+          {filteredSections.map((section, idx) => (
+            <section key={`${section.title}-${idx}`} className="flex flex-col gap-3">
+              <div
+                className={`flex items-end justify-between gap-2 ${section.browseId ? 'cursor-pointer group' : ''}`}
+                onClick={() => {
+                  if (section.browseId) {
+                    setSelectedCollection({
+                      id: section.browseId,
+                      title: section.title,
+                      subtitle: section.subtitle || 'Playlist',
+                      artworkUrl: section.tracks?.[0]?.artworkUrl,
+                      type: 'playlist',
+                    });
+                    setIsCollectionOpen(true);
+                  }
+                }}
+              >
+                <div className="flex flex-col min-w-0">
+                  <h3 className="text-lg lg:text-xl font-bold text-white flex items-center gap-2 group-hover:text-pink-300 transition-colors">
+                    <span className="truncate">{section.title}</span>
+                  </h3>
+                  {section.subtitle && (
+                    <span className="text-xs text-white/45 mt-0.5 truncate">{section.subtitle}</span>
+                  )}
                 </div>
-              ))}
-            </div>
-          </section>
-        ))
+                {section.browseId && (
+                  <span className="text-xs font-bold text-white/45 group-hover:text-white flex items-center gap-0.5 flex-shrink-0 transition-colors">
+                    Open <ChevronRight size={14} />
+                  </span>
+                )}
+              </div>
+
+              {/* Horizontal Scroll Carousel */}
+              <div className="flex items-center gap-4 overflow-x-auto pb-4 pt-1 no-scrollbar scroll-smooth">
+                {section.tracks.map((track) => (
+                  <div key={track.id} className="w-40 lg:w-44 flex-shrink-0">
+                    <TrackCard track={track} queue={section.tracks} />
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+
+          {/* ── New Albums & Singles (From YTM Explore) ── */}
+          {(activeFilter === 'all' || activeFilter === 'charts') && newAlbums.length > 0 && (
+            <section className="flex flex-col gap-3">
+              <div className="flex flex-col">
+                <h3 className="text-lg lg:text-xl font-bold text-white flex items-center gap-2">
+                  <Disc size={18} className="text-purple-400" />
+                  <span>New Releases & Albums</span>
+                </h3>
+                <span className="text-xs text-white/45 mt-0.5">Fresh official albums & singles</span>
+              </div>
+              <div className="flex items-center gap-4 overflow-x-auto pb-4 pt-1 no-scrollbar scroll-smooth">
+                {newAlbums.map((album) => (
+                  <div
+                    key={album.id}
+                    onClick={() => {
+                      setSelectedCollection({ ...album, type: 'album' });
+                      setIsCollectionOpen(true);
+                    }}
+                    className="w-40 lg:w-44 flex-shrink-0 group relative rounded-2xl glass-panel p-3 bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] hover:border-white/25 transition-all duration-300 cursor-pointer flex flex-col gap-2.5 shadow-lg"
+                  >
+                    <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-black/40">
+                      <img
+                        src={album.artworkUrl}
+                        alt={album.title}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                        <div className="w-11 h-11 rounded-full bg-white text-black flex items-center justify-center shadow-xl scale-90 group-hover:scale-100 transition-transform">
+                          <Play size={18} fill="black" className="ml-0.5" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <h4 className="text-sm font-bold text-white truncate group-hover:text-purple-300 transition-colors">
+                        {album.title}
+                      </h4>
+                      <p className="text-xs text-white/50 truncate mt-0.5">
+                        {album.artistName || album.subtitle}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       )}
+
+      <CollectionModal
+        collection={selectedCollection}
+        isOpen={isCollectionOpen}
+        onClose={() => setIsCollectionOpen(false)}
+      />
 
     </div>
   );

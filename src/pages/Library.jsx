@@ -230,23 +230,22 @@ export const Library = () => {
       {activeSubTab === 'history' && (
         history.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 lg:gap-6">
-            {history.map((item, idx) => (
-              <TrackCard 
-                key={`${item.trackId}-${idx}`} 
-                track={{
-                  id: item.trackId,
-                  title: item.title,
-                  artistName: item.artistName,
-                  artworkUrl: item.artworkUrl,
-                }} 
-                queue={history.map(h => ({
-                  id: h.trackId,
-                  title: h.title,
-                  artistName: h.artistName,
-                  artworkUrl: h.artworkUrl,
-                }))} 
-              />
-            ))}
+            {history.map((item, idx) => {
+              const histTrack = {
+                id: item.trackId,
+                title: item.title,
+                artistName: item.artistName,
+                artworkUrl: item.artworkUrl,
+                duration: item.duration || '3:30',
+              };
+              return (
+                <TrackCard
+                  key={`${item.trackId}-${idx}`}
+                  track={histTrack}
+                  queue={[histTrack]}
+                />
+              );
+            })}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center text-white/50">
