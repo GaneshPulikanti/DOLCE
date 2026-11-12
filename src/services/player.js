@@ -13,17 +13,35 @@ class AudioEngine {
     this.progressTimer = null;
     this.isCurrentlyPlaying = false;
     this.userIntentToPause = false;
+    this.bgResumeTimer = null;
+    this.bgResumeAttempts = 0;
+    this.cuedNextVideoId = null;
 
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', () => {
-        if (this.isCurrentlyPlaying && !this.userIntentToPause) {
-          this.initWebAudioKeepAlive();
-          if (document.hidden && this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
-            setTimeout(() => {
-              if (!this.userIntentToPause && this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
+        if (document.hidden) {
+          this.bgResumeAttempts = 0;
+          if (this.isCurrentlyPlaying && !this.userIntentToPause) {
+            this.initWebAudioKeepAlive();
+            if (this.bgResumeTimer) clearTimeout(this.bgResumeTimer);
+            this.bgResumeTimer = setTimeout(() => {
+              if (
+                document.hidden &&
+                this.isCurrentlyPlaying &&
+                !this.userIntentToPause &&
+                this.ytPlayer &&
+                typeof this.ytPlayer.getPlayerState === 'function' &&
+                this.ytPlayer.getPlayerState() === window.YT?.PlayerState?.PAUSED &&
+                typeof this.ytPlayer.playVideo === 'function'
+              ) {
                 this.ytPlayer.playVideo();
               }
-            }, 100);
+            }, 150);
+          }
+        } else {
+          if (this.bgResumeTimer) {
+            clearTimeout(this.bgResumeTimer);
+            this.bgResumeTimer = null;
           }
         }
       });
@@ -89,11 +107,11 @@ class AudioEngine {
             this.isYtReady = true;
             console.log('🛸 [AudioEngine] YouTube IFrame API Ready.');
             this.secureIframeElement();
-            if (this.pendingVideoId) {
+            if (this.pendingVideoId && !this.userIntentToPause) {
               this.playTrack(this.pendingVideoId, this.pendingStartSeconds || 0);
-              this.pendingVideoId = null;
-              this.pendingStartSeconds = 0;
             }
+            this.pendingVideoId = null;
+            this.pendingStartSeconds = 0;
           },
           onStateChange: (event) => this.handleYtStateChange(event),
           onError: (err) => {
@@ -103,13 +121,20 @@ class AudioEngine {
       });
     };
 
-    // User gesture unlock for mobile browsers
+    // Unlock WebAudio context on first user gesture without ever hijacking paused playback
     const unlockAudio = () => {
       try {
-        if (this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
+        this.initWebAudioKeepAlive();
+        if (
+          this.isCurrentlyPlaying &&
+          !this.userIntentToPause &&
+          this.ytPlayer &&
+          typeof this.ytPlayer.getPlayerState === 'function' &&
+          this.ytPlayer.getPlayerState() !== window.YT?.PlayerState?.PLAYING &&
+          typeof this.ytPlayer.playVideo === 'function'
+        ) {
           this.ytPlayer.playVideo();
         }
-        this.initWebAudioKeepAlive();
       } catch (_) {}
       document.removeEventListener('click', unlockAudio);
       document.removeEventListener('touchstart', unlockAudio);
@@ -167,25 +192,55 @@ class AudioEngine {
     console.log(`🛸 [AudioEngine] State changed: ${stateStr}`);
 
     if (stateStr === 'playing') {
+      // Guard against delayed/stale YouTube PLAYING events arriving after user explicitly paused
+      if (this.userIntentToPause) {
+        if (this.ytPlayer && typeof this.ytPlayer.pauseVideo === 'function') {
+          this.ytPlayer.pauseVideo();
+        }
+        return;
+      }
       this.isCurrentlyPlaying = true;
-      this.userIntentToPause = false;
+      this.bgResumeAttempts = 0;
       this.startProgressUpdates();
     } else if (stateStr === 'paused') {
-      // 🛡️ Web Background Resilience: If the user did NOT click pause, the browser auto-paused it on tab switch/minimize.
-      if (!this.userIntentToPause && this.isCurrentlyPlaying) {
+      // Only recover automatic background pauses while the tab is actually hidden (never override visible desktop pauses)
+      const isHidden = typeof document !== 'undefined' && document.hidden;
+      if (!this.userIntentToPause && this.isCurrentlyPlaying && isHidden && this.bgResumeAttempts < 2) {
+        this.bgResumeAttempts += 1;
         console.log('🛸 [AudioEngine] Browser auto-paused hidden tab/window. Overriding to keep background audio playing...');
-        setTimeout(() => {
-          if (!this.userIntentToPause && this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
+        if (this.bgResumeTimer) clearTimeout(this.bgResumeTimer);
+        this.bgResumeTimer = setTimeout(() => {
+          if (
+            !this.userIntentToPause &&
+            this.isCurrentlyPlaying &&
+            typeof document !== 'undefined' &&
+            document.hidden &&
+            this.ytPlayer &&
+            typeof this.ytPlayer.playVideo === 'function'
+          ) {
             this.ytPlayer.playVideo();
           }
-        }, 100);
+        }, 120);
         return;
+      }
+      if (this.bgResumeTimer) {
+        clearTimeout(this.bgResumeTimer);
+        this.bgResumeTimer = null;
+      }
+      if (stateStr === 'paused' && !this.userIntentToPause) {
+        this.userIntentToPause = true;
       }
       this.isCurrentlyPlaying = false;
       this.stopProgressUpdates();
     } else if (stateStr === 'ended' || stateStr === 'idle') {
+      if (this.bgResumeTimer) {
+        clearTimeout(this.bgResumeTimer);
+        this.bgResumeTimer = null;
+      }
       this.isCurrentlyPlaying = false;
       this.stopProgressUpdates();
+    } else if (stateStr === 'buffering') {
+      // Preserve progress timer & playing intent while YouTube buffers
     } else {
       this.stopProgressUpdates();
     }
@@ -215,9 +270,19 @@ class AudioEngine {
     }
   }
 
+  cueNextTrack(videoId) {
+    if (!videoId || videoId === this.currentVideoId) return;
+    this.cuedNextVideoId = videoId;
+  }
+
   playTrack(videoId, startSeconds = 0) {
     if (!videoId) return;
 
+    if (this.bgResumeTimer) {
+      clearTimeout(this.bgResumeTimer);
+      this.bgResumeTimer = null;
+    }
+    this.bgResumeAttempts = 0;
     this.currentVideoId = videoId;
     this.isCurrentlyPlaying = true;
     this.userIntentToPause = false;
@@ -254,9 +319,6 @@ class AudioEngine {
         videoId: videoId,
         startSeconds: startSeconds,
       });
-      if (typeof this.ytPlayer.playVideo === 'function') {
-        this.ytPlayer.playVideo();
-      }
     } else {
       this.pendingVideoId = videoId;
       this.pendingStartSeconds = startSeconds;
@@ -264,6 +326,12 @@ class AudioEngine {
   }
 
   pause() {
+    if (this.bgResumeTimer) {
+      clearTimeout(this.bgResumeTimer);
+      this.bgResumeTimer = null;
+    }
+    this.pendingVideoId = null;
+    this.pendingStartSeconds = 0;
     this.userIntentToPause = true;
     this.isCurrentlyPlaying = false;
 
@@ -295,8 +363,14 @@ class AudioEngine {
   }
 
   resume(userInitiated = false) {
+    if (this.bgResumeTimer) {
+      clearTimeout(this.bgResumeTimer);
+      this.bgResumeTimer = null;
+    }
+    this.bgResumeAttempts = 0;
     this.userIntentToPause = false;
     this.isCurrentlyPlaying = true;
+    this.initWebAudioKeepAlive();
 
     const track = window.usePlayerStore ? window.usePlayerStore.getState().currentTrack : null;
     if (track && track.id && !this.currentVideoId) {
@@ -319,8 +393,21 @@ class AudioEngine {
       } catch (_) {}
     }
 
-    if (this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
-      this.ytPlayer.playVideo();
+    if (this.ytPlayer) {
+      let loadedId = '';
+      try {
+        loadedId = this.ytPlayer.getVideoData?.()?.video_id || '';
+      } catch (_) {}
+
+      const fallbackTime = window.usePlayerStore?.getState?.().currentTime || 0;
+      if (!this.isYtReady || (this.currentVideoId && loadedId !== this.currentVideoId)) {
+        this.playTrack(this.currentVideoId || track?.id, fallbackTime);
+      } else if (typeof this.ytPlayer.playVideo === 'function') {
+        this.ytPlayer.playVideo();
+      }
+    } else if (this.currentVideoId || track?.id) {
+      this.pendingVideoId = this.currentVideoId || track?.id;
+      this.pendingStartSeconds = window.usePlayerStore?.getState?.().currentTime || 0;
     }
     if (this.onStateChange) {
       this.onStateChange('playing');

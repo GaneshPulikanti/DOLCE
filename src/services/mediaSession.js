@@ -6,27 +6,30 @@ const SILENT_AUDIO_URI = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEA
 
 let silentAudioEl = null;
 
+function shouldUseSilentAudioKeepAlive() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  if (Capacitor.isNativePlatform() || window.AndroidNativePlayer) return true;
+  // On desktop browsers, a secondary looping <audio> element competes with the YouTube iframe MediaSession
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+}
+
 function getSilentAudioElement() {
-  if (typeof window === 'undefined') return null;
+  if (!shouldUseSilentAudioKeepAlive()) return null;
   if (!silentAudioEl) {
     try {
       silentAudioEl = new Audio(SILENT_AUDIO_URI);
       silentAudioEl.loop = true;
-      silentAudioEl.volume = 0.001; // Silent / minimal volume to hold audio focus
+      silentAudioEl.volume = 0.001; // Silent / minimal volume to hold mobile WebView audio focus
     } catch (_) {}
   }
   return silentAudioEl;
 }
 
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && shouldUseSilentAudioKeepAlive()) {
   const unlockSilent = () => {
-    const el = getSilentAudioElement();
-    if (el) {
-      el.play().then(() => {
-        if (!window.usePlayerStore?.getState().isPlaying) {
-          el.pause();
-        }
-      }).catch(() => {});
+    if (window.usePlayerStore?.getState().isPlaying) {
+      const el = getSilentAudioElement();
+      if (el) el.play().catch(() => {});
     }
     document.removeEventListener('click', unlockSilent);
     document.removeEventListener('touchstart', unlockSilent);

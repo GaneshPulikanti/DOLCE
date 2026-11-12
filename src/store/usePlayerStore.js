@@ -171,17 +171,26 @@ export const usePlayerStore = create(
 
       // Wire audio engine listeners
       audioEngine.onStateChange = (stateStr) => {
+        if (stateStr === 'buffering') {
+          set({ isLoading: true });
+          return;
+        }
+        if (stateStr === 'idle') {
+          set({ isLoading: false });
+          return;
+        }
+
         const isPlaying = stateStr === 'playing';
         set({
           isPlaying,
-          isLoading: stateStr === 'buffering',
+          isLoading: false,
         });
 
         syncMediaSession({
           track: get().currentTrack,
           isPlaying,
-          onPlay: () => get().togglePlayPause(),
-          onPause: () => get().togglePlayPause(),
+          onPlay: () => get().resumePlayback(),
+          onPause: () => get().pausePlayback(),
           onSkipNext: () => get().skipNext(),
           onSkipPrev: () => get().skipPrev(),
           onSeek: (s) => get().seek(s),
@@ -350,8 +359,8 @@ export const usePlayerStore = create(
           syncMediaSession({
             track,
             isPlaying: true,
-            onPlay: () => get().togglePlayPause(),
-            onPause: () => get().togglePlayPause(),
+            onPlay: () => get().resumePlayback(),
+            onPause: () => get().pausePlayback(),
             onSkipNext: () => get().skipNext(),
             onSkipPrev: () => get().skipPrev(),
             onSeek: (s) => get().seek(s),
@@ -446,27 +455,53 @@ export const usePlayerStore = create(
           return activeExpansionPromise;
         },
 
+        pausePlayback: () => {
+          const { currentTrack, isPlaying } = get();
+          if (!currentTrack) return;
+          if (!isPlaying && !audioEngine.isCurrentlyPlaying) return;
+
+          const currentTime = audioEngine.getCurrentTime() || get().currentTime || 0;
+          audioEngine.pause();
+          set({ isPlaying: false, isLoading: false, currentTime });
+          if (!isApplyingRemoteJamSync && jamService.roomCode && (jamService.role === 'host' || jamService.allowGuestControl)) {
+            jamService.broadcastPause(currentTime, currentTrack);
+          }
+        },
+
+        resumePlayback: () => {
+          const { currentTrack, isPlaying } = get();
+          if (!currentTrack) return;
+          if (isPlaying && audioEngine.isCurrentlyPlaying && audioEngine.currentVideoId === currentTrack.id) return;
+
+          const currentTime = audioEngine.getCurrentTime() || get().currentTime || 0;
+          if (audioEngine.currentVideoId !== currentTrack.id) {
+            audioEngine.playTrack(currentTrack.id, currentTime || 0);
+          } else {
+            audioEngine.resume(true);
+          }
+          set({ isPlaying: true, currentTime });
+          syncMediaSession({
+            track: currentTrack,
+            isPlaying: true,
+            onPlay: () => get().resumePlayback(),
+            onPause: () => get().pausePlayback(),
+            onSkipNext: () => get().skipNext(),
+            onSkipPrev: () => get().skipPrev(),
+            onSeek: (s) => get().seek(s),
+          });
+          if (!isApplyingRemoteJamSync && jamService.roomCode && (jamService.role === 'host' || jamService.allowGuestControl)) {
+            jamService.broadcastPlay(currentTime, currentTrack);
+          }
+        },
+
         togglePlayPause: () => {
           const { isPlaying, currentTrack } = get();
           if (!currentTrack) return;
-          const currentTime = audioEngine.getCurrentTime() || get().currentTime || 0;
 
-          if (isPlaying) {
-            audioEngine.pause();
-            set({ isPlaying: false, currentTime });
-            if (!isApplyingRemoteJamSync && jamService.roomCode && (jamService.role === 'host' || jamService.allowGuestControl)) {
-              jamService.broadcastPause(currentTime, currentTrack);
-            }
+          if (isPlaying || audioEngine.isCurrentlyPlaying) {
+            get().pausePlayback();
           } else {
-            if (audioEngine.currentVideoId !== currentTrack.id) {
-              audioEngine.playTrack(currentTrack.id, currentTime || 0);
-            } else {
-              audioEngine.resume(true);
-            }
-            set({ isPlaying: true, currentTime });
-            if (!isApplyingRemoteJamSync && jamService.roomCode && (jamService.role === 'host' || jamService.allowGuestControl)) {
-              jamService.broadcastPlay(currentTime, currentTrack);
-            }
+            get().resumePlayback();
           }
         },
 
@@ -599,8 +634,8 @@ export const usePlayerStore = create(
           syncMediaSession({
             track: state.currentTrack,
             isPlaying: false,
-            onPlay: () => state.togglePlayPause(),
-            onPause: () => state.togglePlayPause(),
+            onPlay: () => state.resumePlayback(),
+            onPause: () => state.pausePlayback(),
             onSkipNext: () => state.skipNext(),
             onSkipPrev: () => state.skipPrev(),
             onSeek: (s) => state.seek(s),
