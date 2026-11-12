@@ -3,6 +3,7 @@ import { Search as SearchIcon, Music, Disc, ListMusic, User, Play, Pause, Sparkl
 import { useLiveQuery } from 'dexie-react-hooks';
 import { searchCatalog, fetchSearchSuggestions } from '../services/catalog';
 import { TrackCard } from '../components/TrackCard';
+import { CoverImage } from '../components/CoverImage';
 import { useSearchStore } from '../store/useSearchStore';
 import { usePlayerStore } from '../store/usePlayerStore';
 
@@ -263,11 +264,12 @@ export const Search = () => {
                           ? 'w-24 h-24 rounded-full border-2 border-white/20'
                           : 'w-24 h-24 rounded-2xl bg-black/40 border border-white/10'
                       }`}>
-                        <img
+                        <CoverImage
                           src={catalogResults.topResult.artworkUrl}
+                          trackId={catalogResults.topResult.id}
                           alt={catalogResults.topResult.title || catalogResults.topResult.name}
-                          referrerPolicy="no-referrer"
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          iconSize={28}
                         />
                       </div>
 
@@ -335,11 +337,12 @@ export const Search = () => {
                         >
                           <div className="flex items-center gap-3 min-w-0 flex-1">
                             <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-black/40 flex-shrink-0">
-                              <img
+                              <CoverImage
                                 src={track.artworkUrl}
+                                trackId={track.id}
                                 alt={track.title}
-                                referrerPolicy="no-referrer"
                                 className="w-full h-full object-cover"
+                                iconSize={18}
                               />
                               <div className={`absolute inset-0 bg-black/50 flex items-center justify-center transition-opacity ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                                 {isActive && isPlaying ? (
@@ -429,11 +432,12 @@ export const Search = () => {
                     className="group relative rounded-2xl glass-panel p-3 bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] hover:border-white/25 transition-all duration-300 cursor-pointer flex flex-col gap-2.5 shadow-lg"
                   >
                     <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-black/40">
-                      <img
+                      <CoverImage
                         src={album.artworkUrl}
+                        trackId={album.id}
                         alt={album.title}
-                        referrerPolicy="no-referrer"
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        iconSize={28}
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                         <div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-xl scale-90 group-hover:scale-100 transition-transform">
@@ -473,11 +477,12 @@ export const Search = () => {
                     className="group relative rounded-2xl glass-panel p-3 bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] hover:border-white/25 transition-all duration-300 cursor-pointer flex flex-col gap-2.5 shadow-lg"
                   >
                     <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-black/40">
-                      <img
+                      <CoverImage
                         src={playlist.artworkUrl}
+                        trackId={playlist.id}
                         alt={playlist.title}
-                        referrerPolicy="no-referrer"
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        iconSize={28}
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                         <div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-xl scale-90 group-hover:scale-100 transition-transform">
@@ -517,11 +522,12 @@ export const Search = () => {
                     className="group relative rounded-2xl glass-panel p-4 bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] transition-all duration-300 cursor-pointer flex flex-col items-center text-center gap-3 shadow-lg"
                   >
                     <div className="relative w-28 h-28 rounded-full overflow-hidden border-2 border-white/20 group-hover:border-white/50 transition-all shadow-md">
-                      <img
+                      <CoverImage
                         src={artist.artworkUrl}
+                        trackId={artist.id}
                         alt={artist.name}
-                        referrerPolicy="no-referrer"
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        iconSize={28}
                       />
                     </div>
                     <div className="flex flex-col items-center min-w-0">

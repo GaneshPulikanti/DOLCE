@@ -1,54 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Pause, Heart, Music, ListPlus, Check } from 'lucide-react';
+import { Play, Pause, Heart, ListPlus, Check } from 'lucide-react';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { toggleFavorite, isFavorite } from '../services/db';
+import { CoverImage } from './CoverImage';
 
 export const TrackCard = ({ track, queue = [] }) => {
   const { currentTrack, isPlaying, playTrack, togglePlayPause, addToQueue } = usePlayerStore();
   const [liked, setLiked] = useState(false);
   const [addedQueue, setAddedQueue] = useState(false);
-  const [imgSrc, setImgSrc] = useState(track.artworkUrl);
-  const [fallbackStage, setFallbackStage] = useState(0);
 
   const isCurrent = currentTrack?.id === track.id;
 
   useEffect(() => {
-    setImgSrc(track.artworkUrl);
-    setFallbackStage(0);
-  }, [track.artworkUrl, track.id]);
-
-  useEffect(() => {
     isFavorite(track.id).then(setLiked);
   }, [track.id]);
-
-  const handleImgError = () => {
-    if (fallbackStage === 0) {
-      setFallbackStage(1);
-      if (track.artworkUrl) {
-        setImgSrc(`https://wsrv.nl/?url=${encodeURIComponent(track.artworkUrl)}&w=400&h=400&fit=cover`);
-      } else if (track.id) {
-        setImgSrc(`https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`);
-      } else {
-        setFallbackStage(4);
-      }
-    } else if (fallbackStage === 1) {
-      setFallbackStage(2);
-      if (track.id) {
-        setImgSrc(`https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`);
-      } else {
-        setFallbackStage(4);
-      }
-    } else if (fallbackStage === 2) {
-      setFallbackStage(3);
-      if (track.id) {
-        setImgSrc(`https://wsrv.nl/?url=i.ytimg.com/vi/${track.id}/hqdefault.jpg`);
-      } else {
-        setFallbackStage(4);
-      }
-    } else {
-      setFallbackStage(4);
-    }
-  };
 
   const effectiveQueue = queue && queue.length > 0 ? queue : [track];
 
@@ -83,21 +48,15 @@ export const TrackCard = ({ track, queue = [] }) => {
     >
       {/* Artwork Container (Enforces 1:1 HD Square Cover) */}
       <div className="relative aspect-square w-full rounded-xl overflow-hidden mb-3 bg-[#0d0d0d] flex items-center justify-center border border-white/5">
-        {fallbackStage < 4 && imgSrc ? (
-          <img
-            src={imgSrc}
-            alt={track.title}
-            referrerPolicy="no-referrer"
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            loading="lazy"
-            onError={handleImgError}
-          />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-tr from-pink-900/40 via-purple-900/40 to-slate-900/60 text-white/50 border border-white/10">
-            <Music size={32} className="text-white/60 mb-1" />
-            <span className="text-[10px] font-bold text-white/40 tracking-wider uppercase">DOLCE</span>
-          </div>
-        )}
+        <CoverImage
+          src={track.artworkUrl}
+          trackId={track.id}
+          alt={track.title}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          loading="lazy"
+          iconSize={32}
+          showBrand
+        />
 
         {/* Play Button Overlay */}
         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">

@@ -1327,7 +1327,7 @@ export async function getStreamUrl(videoId) {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 export function getHDArtworkUrl(url, videoId) {
-  let hdUrl = url || '';
+  let hdUrl = (url || '').trim();
 
   if (!hdUrl && videoId) {
     return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
@@ -1340,13 +1340,36 @@ export function getHDArtworkUrl(url, videoId) {
     hdUrl = `https:${hdUrl}`;
   }
 
+  // Unwrap any previously proxied wsrv.nl YouTube URL back to canonical source
+  if (hdUrl.includes('wsrv.nl') && (hdUrl.includes('ytimg.com') || hdUrl.includes('youtube.com'))) {
+    if (videoId) {
+      return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+    }
+    try {
+      const parsed = new URL(hdUrl);
+      const inner = parsed.searchParams.get('url');
+      if (inner) hdUrl = inner.startsWith('http') ? inner : `https://${inner}`;
+    } catch (_) {}
+  }
+
   if (hdUrl.includes('googleusercontent.com') || hdUrl.includes('ggpht.com')) {
     const baseUrl = hdUrl.split('=')[0];
     return `${baseUrl}=w500-h500-l90-rj`;
   }
 
   if (hdUrl.includes('ytimg.com') || hdUrl.includes('youtube.com')) {
-    hdUrl = hdUrl.replace(/(mqdefault|sddefault|default|hq720)\.jpg/, 'hqdefault.jpg');
+    // Repair any accidentally double-prefixed filename (e.g. hqhqdefault / maxreshqdefault)
+    if (/\/(?:hq|sd|mq|maxres)+hqdefault\.jpg/i.test(hdUrl)) {
+      return videoId
+        ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+        : hdUrl.replace(/\/(?:hq|sd|mq|maxres)+hqdefault\.jpg.*/i, '/hqdefault.jpg');
+    }
+    // Upgrade genuinely low-res /default.jpg or /mqdefault.jpg cleanly without breaking signed URLs
+    if (/\/(?:mqdefault|default)\.jpg(?:\?.*)?$/i.test(hdUrl)) {
+      return videoId
+        ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+        : hdUrl.replace(/\/(?:mqdefault|default)\.jpg(?:\?.*)?$/i, '/hqdefault.jpg');
+    }
     return hdUrl;
   }
 

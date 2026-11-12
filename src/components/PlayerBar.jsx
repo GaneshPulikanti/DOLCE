@@ -4,7 +4,6 @@ import {
   Heart, ChevronDown, ChevronUp, Download, MessageSquareQuote, ListMusic,
   Maximize2, Minimize2, X, Radio, FolderPlus, Plus, Check, ListPlus, Trash2, GripVertical, Sparkles
 } from 'lucide-react';
-import { Music } from 'lucide-react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { useJamStore } from '../store/useJamStore';
@@ -13,6 +12,8 @@ import {
   getUserPlaylists, createPlaylist, addTrackToPlaylist 
 } from '../services/db';
 import { fetchLyrics } from '../services/lyrics';
+import { getHDArtworkUrl } from '../services/catalog';
+import { CoverImage } from './CoverImage';
 import { fetchTrackRadio } from '../services/catalog';
 
 export const PlayerBar = ({ themePalette }) => {
@@ -44,7 +45,6 @@ export const PlayerBar = ({ themePalette }) => {
   const [isFullScreenLyrics, setIsFullScreenLyrics] = useState(false);
   const [inlineLyricY, setInlineLyricY] = useState(0);
   const [userScrolledFullLyrics, setUserScrolledFullLyrics] = useState(false);
-  const [coverImgError, setCoverImgError] = useState(false);
 
   const lyricsContainerRef = useRef(null);
   const inlineListRef = useRef(null);
@@ -408,7 +408,7 @@ export const PlayerBar = ({ themePalette }) => {
     setDownloaded(newStatus);
   };
 
-  const artworkUrl = currentTrack.artworkUrl || (currentTrack.id ? `https://i.ytimg.com/vi/${currentTrack.id}/hq720.jpg` : '');
+  const artworkUrl = getHDArtworkUrl(currentTrack.artworkUrl, currentTrack.id);
   const dominantBg = themePalette?.darkGradient || 'linear-gradient(180deg, rgba(20, 20, 28, 0.85) 0%, rgba(8, 8, 12, 0.95) 50%, rgba(5, 5, 5, 0.98) 100%)';
   const glowShadow = themePalette ? `0 25px 65px -10px rgba(${themePalette.r}, ${themePalette.g}, ${themePalette.b}, 0.55), 0 0 35px rgba(${themePalette.r}, ${themePalette.g}, ${themePalette.b}, 0.3)` : '0 20px 50px rgba(0,0,0,0.8)';
   const activeLyricGlow = themePalette ? `0 0 20px rgba(${themePalette.r}, ${themePalette.g}, ${themePalette.b}, 0.9), 0 0 35px rgba(255, 255, 255, 0.9)` : '0 0 18px rgba(255,255,255,0.85)';
@@ -427,23 +427,13 @@ export const PlayerBar = ({ themePalette }) => {
         {/* Track Thumbnail & Titles */}
         <div className="flex items-center gap-3.5 min-w-0 flex-1">
           <div className="w-11 h-11 lg:w-12 lg:h-12 rounded-xl overflow-hidden border border-white/14 bg-[#141416] flex-shrink-0 shadow-md flex items-center justify-center">
-            {artworkUrl ? (
-              <img
-                src={artworkUrl}
-                alt={currentTrack.title}
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  if (currentTrack?.id) {
-                    e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/hqdefault.jpg`;
-                  }
-                }}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-white/5 text-white/50">
-                ♪
-              </div>
-            )}
+            <CoverImage
+              src={artworkUrl}
+              trackId={currentTrack.id}
+              alt={currentTrack.title}
+              className="w-full h-full object-cover"
+              iconSize={18}
+            />
           </div>
 
           <div className="flex flex-col min-w-0">
@@ -616,28 +606,15 @@ export const PlayerBar = ({ themePalette }) => {
                 className="relative w-64 h-64 sm:w-72 sm:h-72 aspect-square rounded-3xl overflow-hidden border border-white/30 bg-[#141416] flex-shrink-0 my-2 flex items-center justify-center transition-all duration-700 shadow-2xl"
                 style={{ boxShadow: glowShadow }}
               >
-                {!coverImgError && artworkUrl ? (
-                  <img
-                    src={artworkUrl}
-                    alt={currentTrack.title}
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      if (!e.target.src.includes('wsrv.nl') && currentTrack?.artworkUrl) {
-                        e.target.src = `https://wsrv.nl/?url=${encodeURIComponent(currentTrack.artworkUrl)}&w=600&h=600&fit=cover`;
-                      } else if (currentTrack?.id && !e.target.src.includes(`i.ytimg.com/vi/${currentTrack.id}`)) {
-                        e.target.src = `https://i.ytimg.com/vi/${currentTrack.id}/hqdefault.jpg`;
-                      } else {
-                        setCoverImgError(true);
-                      }
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-tr from-rose-900/50 via-purple-900/50 to-slate-900/80 text-white/50 border border-white/10">
-                    <Music size={48} className="text-white/70 mb-2" />
-                    <span className="text-xs font-black text-white/50 tracking-widest uppercase">DOLCE AUDIO</span>
-                  </div>
-                )}
+                <CoverImage
+                  src={artworkUrl}
+                  trackId={currentTrack.id}
+                  alt={currentTrack.title}
+                  className="w-full h-full object-cover"
+                  iconSize={48}
+                  showBrand
+                  brandLabel="DOLCE AUDIO"
+                />
               </div>
 
               {/* Track Title & Artist Name with Like Button */}
@@ -808,17 +785,15 @@ export const PlayerBar = ({ themePalette }) => {
                                 <GripVertical size={18} />
                               </div>
 
-                              <img
-                                src={track.artworkUrl || (track.id ? `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg` : '')}
-                                alt={track.title}
-                                referrerPolicy="no-referrer"
-                                className="w-11 h-11 rounded-xl object-cover bg-black border border-white/10 flex-shrink-0"
-                                onError={(e) => {
-                                  if (track.id) {
-                                    e.target.src = `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`;
-                                  }
-                                }}
-                              />
+                              <div className="w-11 h-11 rounded-xl overflow-hidden bg-black border border-white/10 flex-shrink-0">
+                                <CoverImage
+                                  src={track.artworkUrl}
+                                  trackId={track.id}
+                                  alt={track.title}
+                                  className="w-full h-full object-cover"
+                                  iconSize={16}
+                                />
+                              </div>
                               <div className="flex flex-col min-w-0">
                                 <h5 className="text-sm font-bold truncate text-white font-['Plus_Jakarta_Sans']">
                                   {track.title}
@@ -885,17 +860,15 @@ export const PlayerBar = ({ themePalette }) => {
                                   onClick={() => playTrack(track, [track])}
                                   className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
                                 >
-                                  <img
-                                    src={track.artworkUrl || (track.id ? `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg` : '')}
-                                    alt={track.title}
-                                    referrerPolicy="no-referrer"
-                                    className="w-10 h-10 rounded-xl object-cover bg-black/40 border border-white/10 flex-shrink-0"
-                                    onError={(e) => {
-                                      if (track.id) {
-                                        e.target.src = `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`;
-                                      }
-                                    }}
-                                  />
+                                  <div className="w-10 h-10 rounded-xl overflow-hidden bg-black/40 border border-white/10 flex-shrink-0">
+                                    <CoverImage
+                                      src={track.artworkUrl}
+                                      trackId={track.id}
+                                      alt={track.title}
+                                      className="w-full h-full object-cover"
+                                      iconSize={16}
+                                    />
+                                  </div>
                                   <div className="flex flex-col min-w-0">
                                     <h6 className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-pink-300 transition-colors font-['Plus_Jakarta_Sans']">
                                       {track.title}
@@ -1059,11 +1032,15 @@ export const PlayerBar = ({ themePalette }) => {
             {/* Top Bar (Track Info & Exit Button) */}
             <div className="relative z-10 flex items-center justify-between border-b border-white/10 pb-4 max-w-4xl w-full mx-auto">
               <div className="flex items-center gap-4 min-w-0">
-                <img 
-                  src={artworkUrl} 
-                  alt={currentTrack.title} 
-                  className="w-12 h-12 rounded-xl object-cover border border-white/20 shadow-md"
-                />
+                <div className="w-12 h-12 rounded-xl overflow-hidden border border-white/20 shadow-md flex-shrink-0">
+                  <CoverImage
+                    src={artworkUrl}
+                    trackId={currentTrack.id}
+                    alt={currentTrack.title}
+                    className="w-full h-full object-cover"
+                    iconSize={18}
+                  />
+                </div>
                 <div className="flex flex-col min-w-0">
                   <h4 className="text-sm font-extrabold text-white truncate">{currentTrack.title}</h4>
                   <p className="text-xs font-semibold text-white/60 truncate">{currentTrack.artistName}</p>
@@ -1207,7 +1184,13 @@ export const PlayerBar = ({ themePalette }) => {
               <div className="flex items-center justify-between border-b border-white/10 pb-3">
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-xl overflow-hidden bg-black/40 border border-white/10 flex-shrink-0">
-                    <img src={artworkUrl} alt={currentTrack.title} className="w-full h-full object-cover" />
+                    <CoverImage
+                      src={artworkUrl}
+                      trackId={currentTrack.id}
+                      alt={currentTrack.title}
+                      className="w-full h-full object-cover"
+                      iconSize={18}
+                    />
                   </div>
                   <div className="flex flex-col min-w-0">
                     <h3 className="text-base font-bold text-white truncate">Add to Playlist</h3>

@@ -7,7 +7,8 @@ import {
   isValidAudioSong,
 } from './catalog.js';
 
-const HOME_FEED_CACHE_KEY = 'DOLCE_HOME_FEED_V4';
+const HOME_FEED_CACHE_KEY = 'DOLCE_HOME_FEED_V5';
+const LEGACY_HOME_FEED_CACHE_KEY = 'DOLCE_HOME_FEED_V4';
 const CACHE_TTL_MS = 1000 * 60 * 30; // 30 minutes
 
 const EDITORIAL_PLAYLISTS = [
@@ -69,6 +70,7 @@ function dedupeTracks(tracks = []) {
 
 export function clearHomeFeedCache() {
   try {
+    localStorage.removeItem(LEGACY_HOME_FEED_CACHE_KEY);
     localStorage.removeItem(HOME_FEED_CACHE_KEY);
   } catch (_) {}
 }
@@ -201,6 +203,7 @@ export async function getPersonalizedHomeFeed() {
   // Persist fresh feed cache if valid
   if (feed.sections.length > 0 || feed.quickPicks.length > 0) {
     try {
+      localStorage.removeItem(LEGACY_HOME_FEED_CACHE_KEY);
       localStorage.setItem(HOME_FEED_CACHE_KEY, JSON.stringify(feed));
     } catch (_) {}
   } else {

@@ -5,6 +5,7 @@ import { fetchCollectionTracks, searchSongs } from '../services/catalog';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { db, toggleFavorite, isFavorite, saveFullPlaylistToLibrary, isPlaylistSaved } from '../services/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { CoverImage } from './CoverImage';
 
 export const CollectionModal = ({ collection, isOpen, onClose }) => {
   const { playTrack, currentTrack, isPlaying, addToQueue } = usePlayerStore();
@@ -128,11 +129,12 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
             {/* Collection Header Banner */}
             <div className="p-3.5 sm:p-6 flex flex-row items-center sm:items-end gap-3.5 sm:gap-6 bg-gradient-to-b from-white/10 to-transparent border-b border-white/10 flex-shrink-0">
               <div className="relative w-20 h-20 sm:w-40 sm:h-40 rounded-2xl overflow-hidden border border-white/20 shadow-2xl flex-shrink-0 bg-black/40">
-                <img
-                  src={artworkUrl}
+                <CoverImage
+                  src={collection.artworkUrl || tracks[0]?.artworkUrl}
+                  trackId={collection.id || tracks[0]?.id}
                   alt={title}
-                  referrerPolicy="no-referrer"
                   className="w-full h-full object-cover"
+                  iconSize={32}
                 />
               </div>
 
@@ -227,16 +229,12 @@ export const CollectionModal = ({ collection, isOpen, onClose }) => {
                           {idx + 1}
                         </span>
                         <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-black/40 border border-white/10 flex-shrink-0">
-                          <img
-                            src={track.artworkUrl || (track.id ? `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg` : '')}
+                          <CoverImage
+                            src={track.artworkUrl}
+                            trackId={track.id}
                             alt={track.title}
-                            referrerPolicy="no-referrer"
                             className="w-full h-full object-cover"
-                            onError={(e) => {
-                              if (track.id) {
-                                e.target.src = `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`;
-                              }
-                            }}
+                            iconSize={16}
                           />
                           {isCurrent && isPlaying && (
                             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">

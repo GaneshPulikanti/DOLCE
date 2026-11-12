@@ -3,6 +3,7 @@ import { Heart, ChevronRight, Play, Disc } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getHomeFeed } from '../services/catalog';
 import { TrackCard } from '../components/TrackCard';
+import { CoverImage } from '../components/CoverImage';
 import { CollectionModal } from '../components/CollectionModal';
 import { db } from '../services/db';
 import { useSearchStore } from '../store/useSearchStore';
@@ -23,13 +24,8 @@ export const Home = () => {
   const [feedData, setFeedData] = useState(() => {
     if (typeof localStorage !== 'undefined') {
       try {
-        const cachedV4 = localStorage.getItem('DOLCE_HOME_FEED_V4');
-        if (cachedV4) return JSON.parse(cachedV4);
-        const cachedV2 = localStorage.getItem('DOLCE_HOME_FEED_CACHE_V2');
-        if (cachedV2) {
-          const parsed = JSON.parse(cachedV2);
-          return Array.isArray(parsed) ? { quickPicks: [], newAlbums: [], sections: parsed } : parsed;
-        }
+        const cachedV5 = localStorage.getItem('DOLCE_HOME_FEED_V5');
+        if (cachedV5) return JSON.parse(cachedV5);
       } catch (_) { }
     }
     return { quickPicks: [], newAlbums: [], sections: [] };
@@ -121,17 +117,15 @@ export const Home = () => {
                 onClick={() => playTrack(track, [track])}
                 className="group relative h-14 sm:h-16 rounded-xl glass-panel bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 flex items-center overflow-hidden cursor-pointer transition-all duration-200 hover:scale-[1.01] shadow-md select-none"
               >
-                <img
-                  src={track.artworkUrl}
-                  alt={track.title}
-                  referrerPolicy="no-referrer"
-                  className="w-14 sm:w-16 h-14 sm:h-16 object-cover flex-shrink-0 bg-white/5"
-                  onError={(e) => {
-                    if (track.id) {
-                      e.target.src = `https://i.ytimg.com/vi/${track.id}/hqdefault.jpg`;
-                    }
-                  }}
-                />
+                <div className="w-14 sm:w-16 h-14 sm:h-16 flex-shrink-0 bg-white/5 overflow-hidden">
+                  <CoverImage
+                    src={track.artworkUrl}
+                    trackId={track.id}
+                    alt={track.title}
+                    className="w-full h-full object-cover"
+                    iconSize={18}
+                  />
+                </div>
                 <div className="flex-1 min-w-0 px-3 flex flex-col justify-center">
                   <span className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-pink-300 transition-colors">
                     {track.title}
@@ -252,11 +246,12 @@ export const Home = () => {
                     className="w-40 lg:w-44 flex-shrink-0 group relative rounded-2xl glass-panel p-3 bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] hover:border-white/25 transition-all duration-300 cursor-pointer flex flex-col gap-2.5 shadow-lg"
                   >
                     <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-black/40">
-                      <img
+                      <CoverImage
                         src={album.artworkUrl}
+                        trackId={album.id}
                         alt={album.title}
-                        referrerPolicy="no-referrer"
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        iconSize={28}
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                         <div className="w-11 h-11 rounded-full bg-white text-black flex items-center justify-center shadow-xl scale-90 group-hover:scale-100 transition-transform">
