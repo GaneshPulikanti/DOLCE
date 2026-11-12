@@ -1,51 +1,21 @@
 /**
  * High-Performance Official Audio Engine wrapping YouTube IFrame API & Native Service Player.
- * Guarantees 100% background uptime and unified state synchronization across Desktop & Android.
+ * Handles unified playback state synchronization across Desktop Web & Android Native.
  */
 class AudioEngine {
   constructor() {
     this.ytPlayer = null;
     this.isYtReady = false;
     this.pendingVideoId = null;
+    this.pendingStartSeconds = 0;
     this.currentVideoId = null;
+    this.cuedNextVideoId = null;
     this.onStateChange = null;
     this.onProgress = null;
     this.progressTimer = null;
     this.isCurrentlyPlaying = false;
     this.userIntentToPause = false;
-    this.bgResumeTimer = null;
-    this.bgResumeAttempts = 0;
-    this.cuedNextVideoId = null;
-
-    if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-          this.bgResumeAttempts = 0;
-          if (this.isCurrentlyPlaying && !this.userIntentToPause) {
-            this.initWebAudioKeepAlive();
-            if (this.bgResumeTimer) clearTimeout(this.bgResumeTimer);
-            this.bgResumeTimer = setTimeout(() => {
-              if (
-                document.hidden &&
-                this.isCurrentlyPlaying &&
-                !this.userIntentToPause &&
-                this.ytPlayer &&
-                typeof this.ytPlayer.getPlayerState === 'function' &&
-                this.ytPlayer.getPlayerState() === window.YT?.PlayerState?.PAUSED &&
-                typeof this.ytPlayer.playVideo === 'function'
-              ) {
-                this.ytPlayer.playVideo();
-              }
-            }, 150);
-          }
-        } else {
-          if (this.bgResumeTimer) {
-            clearTimeout(this.bgResumeTimer);
-            this.bgResumeTimer = null;
-          }
-        }
-      });
-    }
+    this.lastPauseCmdAt = 0;
 
     this.initYtIframe();
   }
@@ -67,7 +37,7 @@ class AudioEngine {
     if (!container) {
       container = document.createElement('div');
       container.id = 'yt-player-container';
-      container.style.cssText = 'position: fixed !important; bottom: -300px !important; right: -300px !important; width: 300px !important; height: 300px !important; overflow: hidden !important; opacity: 0.01 !important; pointer-events: none !important; z-index: -9999 !important;';
+      container.style.cssText = 'position: absolute !important; top: 0 !important; left: 0 !important; width: 1px !important; height: 1px !important; overflow: hidden !important; opacity: 0.001 !important; pointer-events: none !important; z-index: -9999 !important; clip: rect(0, 0, 0, 0) !important;';
       document.body.appendChild(container);
     }
 
@@ -75,7 +45,7 @@ class AudioEngine {
     if (!playerDiv) {
       playerDiv = document.createElement('div');
       playerDiv.id = 'yt-player-iframe';
-      playerDiv.style.cssText = 'width: 300px !important; height: 300px !important; border: none !important;';
+      playerDiv.style.cssText = 'width: 1px !important; height: 1px !important; overflow: hidden !important;';
       container.appendChild(playerDiv);
     }
 
@@ -108,10 +78,12 @@ class AudioEngine {
             console.log('🛸 [AudioEngine] YouTube IFrame API Ready.');
             this.secureIframeElement();
             if (this.pendingVideoId && !this.userIntentToPause) {
-              this.playTrack(this.pendingVideoId, this.pendingStartSeconds || 0);
+              const pendingId = this.pendingVideoId;
+              const pendingStart = this.pendingStartSeconds || 0;
+              this.pendingVideoId = null;
+              this.pendingStartSeconds = 0;
+              this.playTrack(pendingId, pendingStart);
             }
-            this.pendingVideoId = null;
-            this.pendingStartSeconds = 0;
           },
           onStateChange: (event) => this.handleYtStateChange(event),
           onError: (err) => {
@@ -121,18 +93,11 @@ class AudioEngine {
       });
     };
 
-    // Unlock WebAudio context on first user gesture without ever hijacking paused playback
+    // User gesture unlock for mobile browsers (never overrides a pause intent)
     const unlockAudio = () => {
       try {
         this.initWebAudioKeepAlive();
-        if (
-          this.isCurrentlyPlaying &&
-          !this.userIntentToPause &&
-          this.ytPlayer &&
-          typeof this.ytPlayer.getPlayerState === 'function' &&
-          this.ytPlayer.getPlayerState() !== window.YT?.PlayerState?.PLAYING &&
-          typeof this.ytPlayer.playVideo === 'function'
-        ) {
+        if (this.isCurrentlyPlaying && !this.userIntentToPause && this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
           this.ytPlayer.playVideo();
         }
       } catch (_) {}
@@ -170,8 +135,8 @@ class AudioEngine {
         iframe.setAttribute('tabindex', '-1');
         iframe.setAttribute('playsinline', '1');
         iframe.setAttribute('webkit-playsinline', 'true');
-        iframe.setAttribute('allow', 'autoplay; encrypted-media');
-        iframe.style.cssText = 'width: 300px !important; height: 300px !important; position: absolute !important; top: 0 !important; left: 0 !important; opacity: 0.01 !important; pointer-events: none !important; z-index: -9999 !important; border: none !important;';
+        iframe.setAttribute('allow', 'autoplay');
+        iframe.style.cssText = 'width: 1px !important; height: 1px !important; position: absolute !important; top: 0 !important; left: 0 !important; opacity: 0.001 !important; pointer-events: none !important; z-index: -9999 !important; border: none !important;';
       }
     } catch (_) {}
   }
@@ -192,57 +157,29 @@ class AudioEngine {
     console.log(`🛸 [AudioEngine] State changed: ${stateStr}`);
 
     if (stateStr === 'playing') {
-      // Guard against delayed/stale YouTube PLAYING events arriving after user explicitly paused
-      if (this.userIntentToPause) {
+      // Guard only against a stale async startup 'playing' event arriving right after an explicit pause()
+      if (this.userIntentToPause && Date.now() - this.lastPauseCmdAt < 1000) {
         if (this.ytPlayer && typeof this.ytPlayer.pauseVideo === 'function') {
           this.ytPlayer.pauseVideo();
         }
+        this.isCurrentlyPlaying = false;
+        this.stopProgressUpdates();
         return;
       }
       this.isCurrentlyPlaying = true;
-      this.bgResumeAttempts = 0;
+      this.userIntentToPause = false;
       this.startProgressUpdates();
     } else if (stateStr === 'paused') {
-      // Only recover automatic background pauses while the tab is actually hidden (never override visible desktop pauses)
-      const isHidden = typeof document !== 'undefined' && document.hidden;
-      if (!this.userIntentToPause && this.isCurrentlyPlaying && isHidden && this.bgResumeAttempts < 2) {
-        this.bgResumeAttempts += 1;
-        console.log('🛸 [AudioEngine] Browser auto-paused hidden tab/window. Overriding to keep background audio playing...');
-        if (this.bgResumeTimer) clearTimeout(this.bgResumeTimer);
-        this.bgResumeTimer = setTimeout(() => {
-          if (
-            !this.userIntentToPause &&
-            this.isCurrentlyPlaying &&
-            typeof document !== 'undefined' &&
-            document.hidden &&
-            this.ytPlayer &&
-            typeof this.ytPlayer.playVideo === 'function'
-          ) {
-            this.ytPlayer.playVideo();
-          }
-        }, 120);
-        return;
-      }
-      if (this.bgResumeTimer) {
-        clearTimeout(this.bgResumeTimer);
-        this.bgResumeTimer = null;
-      }
-      if (stateStr === 'paused' && !this.userIntentToPause) {
-        this.userIntentToPause = true;
-      }
+      // Respect all pause events (in-app, OS media keys, Chrome Global Media Controls, background)
+      this.userIntentToPause = true;
       this.isCurrentlyPlaying = false;
       this.stopProgressUpdates();
     } else if (stateStr === 'ended' || stateStr === 'idle') {
-      if (this.bgResumeTimer) {
-        clearTimeout(this.bgResumeTimer);
-        this.bgResumeTimer = null;
-      }
       this.isCurrentlyPlaying = false;
       this.stopProgressUpdates();
     } else if (stateStr === 'buffering') {
-      // Preserve progress timer & playing intent while YouTube buffers
-    } else {
-      this.stopProgressUpdates();
+      // Preserve current playback intent and progress timer while buffering
+      return this.onStateChange && this.onStateChange(stateStr);
     }
 
     if (this.onStateChange) {
@@ -271,21 +208,17 @@ class AudioEngine {
   }
 
   cueNextTrack(videoId) {
-    if (!videoId || videoId === this.currentVideoId) return;
+    if (!videoId) return;
     this.cuedNextVideoId = videoId;
   }
 
   playTrack(videoId, startSeconds = 0) {
     if (!videoId) return;
 
-    if (this.bgResumeTimer) {
-      clearTimeout(this.bgResumeTimer);
-      this.bgResumeTimer = null;
-    }
-    this.bgResumeAttempts = 0;
     this.currentVideoId = videoId;
     this.isCurrentlyPlaying = true;
     this.userIntentToPause = false;
+    this.lastPauseCmdAt = 0;
     console.log(`▶️ [AudioEngine] playTrack: ${videoId} at ${startSeconds}s`);
 
     // On native Android app, delegate to AndroidNativePlayer BackgroundAudioService
@@ -326,14 +259,10 @@ class AudioEngine {
   }
 
   pause() {
-    if (this.bgResumeTimer) {
-      clearTimeout(this.bgResumeTimer);
-      this.bgResumeTimer = null;
-    }
-    this.pendingVideoId = null;
-    this.pendingStartSeconds = 0;
     this.userIntentToPause = true;
     this.isCurrentlyPlaying = false;
+    this.lastPauseCmdAt = Date.now();
+    this.pendingVideoId = null;
 
     const track = window.usePlayerStore ? window.usePlayerStore.getState().currentTrack : null;
 
@@ -363,14 +292,9 @@ class AudioEngine {
   }
 
   resume(userInitiated = false) {
-    if (this.bgResumeTimer) {
-      clearTimeout(this.bgResumeTimer);
-      this.bgResumeTimer = null;
-    }
-    this.bgResumeAttempts = 0;
     this.userIntentToPause = false;
     this.isCurrentlyPlaying = true;
-    this.initWebAudioKeepAlive();
+    this.lastPauseCmdAt = 0;
 
     const track = window.usePlayerStore ? window.usePlayerStore.getState().currentTrack : null;
     if (track && track.id && !this.currentVideoId) {
@@ -391,24 +315,28 @@ class AudioEngine {
           );
         }
       } catch (_) {}
-    }
-
-    if (this.ytPlayer) {
-      let loadedId = '';
-      try {
-        loadedId = this.ytPlayer.getVideoData?.()?.video_id || '';
-      } catch (_) {}
-
-      const fallbackTime = window.usePlayerStore?.getState?.().currentTime || 0;
-      if (!this.isYtReady || (this.currentVideoId && loadedId !== this.currentVideoId)) {
-        this.playTrack(this.currentVideoId || track?.id, fallbackTime);
-      } else if (typeof this.ytPlayer.playVideo === 'function') {
-        this.ytPlayer.playVideo();
+      if (this.onStateChange) {
+        this.onStateChange('playing');
       }
-    } else if (this.currentVideoId || track?.id) {
-      this.pendingVideoId = this.currentVideoId || track?.id;
-      this.pendingStartSeconds = window.usePlayerStore?.getState?.().currentTime || 0;
+      return;
     }
+
+    if (this.isYtReady && this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
+      const loadedId = typeof this.ytPlayer.getVideoData === 'function'
+        ? this.ytPlayer.getVideoData()?.video_id
+        : null;
+      if (this.currentVideoId && loadedId !== this.currentVideoId) {
+        const currentTime = window.usePlayerStore ? (window.usePlayerStore.getState().currentTime || 0) : 0;
+        this.playTrack(this.currentVideoId, currentTime);
+        return;
+      }
+      this.ytPlayer.playVideo();
+    } else if (this.currentVideoId) {
+      const currentTime = window.usePlayerStore ? (window.usePlayerStore.getState().currentTime || 0) : 0;
+      this.pendingVideoId = this.currentVideoId;
+      this.pendingStartSeconds = currentTime;
+    }
+
     if (this.onStateChange) {
       this.onStateChange('playing');
     }

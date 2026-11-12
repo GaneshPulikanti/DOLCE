@@ -6,36 +6,16 @@ const SILENT_AUDIO_URI = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEA
 
 let silentAudioEl = null;
 
-function shouldUseSilentAudioKeepAlive() {
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
-  if (Capacitor.isNativePlatform() || window.AndroidNativePlayer) return true;
-  // On desktop browsers, a secondary looping <audio> element competes with the YouTube iframe MediaSession
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
-}
-
 function getSilentAudioElement() {
-  if (!shouldUseSilentAudioKeepAlive()) return null;
+  if (typeof window === 'undefined') return null;
   if (!silentAudioEl) {
     try {
       silentAudioEl = new Audio(SILENT_AUDIO_URI);
       silentAudioEl.loop = true;
-      silentAudioEl.volume = 0.001; // Silent / minimal volume to hold mobile WebView audio focus
+      silentAudioEl.volume = 0.001; // Silent / minimal volume to hold audio focus
     } catch (_) {}
   }
   return silentAudioEl;
-}
-
-if (typeof window !== 'undefined' && shouldUseSilentAudioKeepAlive()) {
-  const unlockSilent = () => {
-    if (window.usePlayerStore?.getState().isPlaying) {
-      const el = getSilentAudioElement();
-      if (el) el.play().catch(() => {});
-    }
-    document.removeEventListener('click', unlockSilent);
-    document.removeEventListener('touchstart', unlockSilent);
-  };
-  document.addEventListener('click', unlockSilent, { once: true });
-  document.addEventListener('touchstart', unlockSilent, { once: true });
 }
 
 export function syncMediaSession({ track, isPlaying, onPlay, onPause, onSkipNext, onSkipPrev, onSeek }) {
